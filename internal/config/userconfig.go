@@ -118,6 +118,14 @@ type DaemonConfig struct {
 	// AgentBinaries lists extra binary names to treat as agents, merged with the
 	// built-in defaults (not replacing them).
 	AgentBinaries []string `toml:"agent_binaries"`
+	// ExitWhenEmpty shuts the daemon process down once its last session is
+	// killed (tmux's exit-empty, on by default there; here it defaults off, so
+	// a daemon kept warm on purpose - e.g. behind `tuios ssh`, serving one
+	// session after another - is not torn down between them). Killing the
+	// last session is what triggers this, not merely reaching zero windows:
+	// a session with no windows still counts as one. Detaching never counts,
+	// whatever the window count.
+	ExitWhenEmpty bool `toml:"exit_when_empty"`
 }
 
 // AppearanceConfig holds appearance-related settings

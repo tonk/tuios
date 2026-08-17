@@ -56,6 +56,10 @@ type Daemon struct {
 	// with the resurrect verb.
 	disableAutoRestore bool
 
+	// exitWhenEmpty shuts the daemon down once deleteSessionAndMaybeExit finds
+	// no sessions left. See config.DaemonConfig.ExitWhenEmpty.
+	exitWhenEmpty bool
+
 	// agentStallTimeout is how long a pane may report working while producing no
 	// output before the stall heuristic demotes it to idle. Zero disables the
 	// heuristic. It is resolved once in NewDaemon from config or the
@@ -189,6 +193,9 @@ type DaemonConfig struct {
 	// built-in defaults. It also picks up the TUIOS_AGENT_BINARIES environment
 	// override (comma-separated).
 	AgentBinaries []string
+	// ExitWhenEmpty shuts the daemon down once its last session is killed. See
+	// config.DaemonConfig.ExitWhenEmpty (the toml field this is read from).
+	ExitWhenEmpty bool
 }
 
 // NewDaemon creates a new daemon instance.
@@ -206,6 +213,7 @@ func NewDaemon(cfg *DaemonConfig) *Daemon {
 		disableAutoRestore: cfg.DisableAutoRestore,
 		agentStallTimeout:  resolveAgentStallTimeout(cfg.AgentStallTimeout),
 		agentMatcher:       newAgentMatcher(resolveAgentBinaries(cfg.AgentBinaries)),
+		exitWhenEmpty:      cfg.ExitWhenEmpty,
 	}
 	d.agentDetectInterval = resolveAgentDetectInterval(cfg.AgentAutoDetect, cfg.AgentDetectInterval)
 

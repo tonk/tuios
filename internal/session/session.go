@@ -22,6 +22,7 @@ import (
 	xpty "github.com/charmbracelet/x/xpty"
 	"github.com/google/uuid"
 
+	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
 	"github.com/Gaurav-Gosain/tuios/internal/vt"
 )
@@ -1197,6 +1198,19 @@ func (s *Session) getShell() string {
 	if s.config != nil && s.config.Shell != "" {
 		return s.config.Shell
 	}
+	// AttachPayload/HelloPayload carry no shell preference today (only the
+	// client's terminal size and graphics capabilities), so s.config.Shell is
+	// always empty for a daemon session - appearance.preferred_shell in
+	// config.toml would otherwise be silently ignored for every window a
+	// daemon session ever creates, unlike a local (non-daemon) session, which
+	// reads it directly (see terminal.detectShell). The daemon typically runs
+	// as the same user on the same machine as the attaching client, so its own
+	// config.toml is the same file; read it fresh (not cached) so a config
+	// change takes effect on the next new window without restarting the
+	// daemon.
+	if shell := preferredShellFromConfig(); shell != "" {
+		return shell
+	}
 	if shell := os.Getenv("SHELL"); shell != "" {
 		return shell
 	}
@@ -1204,6 +1218,34 @@ func (s *Session) getShell() string {
 		return "cmd.exe"
 	}
 	return "/bin/sh"
+}
+
+// preferredShellFromConfig is appearance.preferred_shell from the daemon's own
+// config.toml, or "" when unset, unreadable, or naming a shell that does not
+// exist on this machine (mirroring terminal.detectShell's existence check, so
+// a stale or platform-mismatched setting degrades the same way in both
+// places instead of failing PTY creation outright).
+func preferredShellFromConfig() string {
+	cfg, err := config.LoadUserConfig()
+	if err != nil || cfg.Appearance.PreferredShell == "" {
+		return ""
+	}
+	shell := cfg.Appearance.PreferredShell
+	if runtime.GOOS == "windows" && !strings.HasSuffix(strings.ToLower(shell), ".exe") {
+		shell += ".exe"
+	}
+	if runtime.GOOS == "windows" {
+		if _, err := exec.LookPath(shell); err != nil {
+			log.Printf("Warning: configured shell %q not found, falling back", shell)
+			return ""
+		}
+		return shell
+	}
+	if _, err := os.Stat(shell); err != nil {
+		log.Printf("Warning: configured shell %q not found, falling back", shell)
+		return ""
+	}
+	return shell
 }
 
 func (s *Session) buildEnv(windowID string, restored bool) []string {

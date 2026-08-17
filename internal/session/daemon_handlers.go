@@ -273,11 +273,49 @@ func (d *Daemon) handleKill(cs *connState, msg *Message) error {
 		return d.sendError(cs, ErrCodeReadOnly, "attached read-only")
 	}
 
-	if err := d.manager.DeleteSession(payload.SessionName); err != nil {
+	exit, err := d.deleteSessionAndMaybeExit(payload.SessionName)
+	if err != nil {
 		return d.sendError(cs, ErrCodeSessionNotFound, err.Error())
 	}
+	if err := d.handleList(cs); err != nil {
+		return err
+	}
+	if exit {
+		d.exitNowEmpty()
+	}
+	return nil
+}
 
-	return d.handleList(cs)
+// deleteSessionAndMaybeExit deletes a session and reports whether the daemon
+// should now exit (ExitWhenEmpty configured and no sessions left), without
+// acting on it. Every path that can delete the last session (handleKill
+// above, the kill-session verb in verb_handlers.go) goes through here rather
+// than calling d.manager.DeleteSession directly, so the check cannot be added
+// to one and forgotten on the other.
+//
+// The caller decides when to call exitNowEmpty - after its own response has
+// been sent, so a client asking to kill the last session gets the
+// confirmation of that before the daemon that would deliver it is gone.
+func (d *Daemon) deleteSessionAndMaybeExit(name string) (exit bool, err error) {
+	if err := d.manager.DeleteSession(name); err != nil {
+		return false, err
+	}
+	return d.exitWhenEmpty && d.manager.SessionCount() == 0, nil
+}
+
+// exitNowEmpty shuts the daemon down. Only ever called after the caller's own
+// response is already on the wire (see deleteSessionAndMaybeExit).
+//
+// It cancels rather than calling Stop(): this runs on a per-connection
+// goroutine that Stop's own blocking shutdown() would wait on (d.wg.Wait()),
+// which would deadlock waiting for itself. Cancelling only unblocks Run()'s
+// <-d.ctx.Done() on its own goroutine, which then calls shutdown() with
+// nothing of this connection's on the stack - the same decoupling a real
+// SIGTERM (tuios kill-server) already gets for free by arriving on no
+// goroutine of the daemon's at all.
+func (d *Daemon) exitNowEmpty() {
+	log.Println("Last session ended and daemon.exit_when_empty is set; shutting down")
+	d.cancel()
 }
 
 func (d *Daemon) handleResurrect(cs *connState, msg *Message) error {

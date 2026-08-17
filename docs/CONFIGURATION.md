@@ -10,6 +10,7 @@ TUIOS supports user-configurable keybindings through a TOML configuration file, 
 - [Keybinding Sections](#keybinding-sections)
 - [Notification Settings](#notification-settings)
 - [Startup Settings](#startup-settings)
+- [Daemon Settings](#daemon-settings)
 - [Hooks](#hooks)
 - [Key Syntax](#key-syntax)
 - [Platform-Specific Configuration](#platform-specific-configuration)
@@ -919,6 +920,39 @@ the cursor in the shell, ready to type. `start_in_terminal_mode` depends on a
 focused window, so it is only meaningful alongside `open_default_window` (or an
 attach that restores a window); enabling it alone leaves an empty session in
 window-management mode.
+
+## Daemon Settings
+
+The `[daemon]` table configures the background daemon that `tuios new` and
+`tuios attach` start automatically and that `tuios ssh` runs on top of.
+
+```toml
+[daemon]
+exit_when_empty = false
+```
+
+### exit_when_empty
+
+Shuts the daemon process itself down once its last session is killed - tmux's
+`exit-empty`, off here by default. Off, the daemon is a persistent background
+service: it keeps running with zero sessions so the next `tuios new`/`tuios
+attach` is instant, and a long-lived `tuios ssh` server serving one session
+after another over time is never torn down between them.
+
+**What counts as "empty":** killing the last session (the quit menu's kill
+row, `prefix_close_session`, `tuios kill-session`, or the daemon-side effect
+of `KillSessionByName`). Detaching does not count, however many sessions are
+left running - a detached session is still a session. A session reaching zero
+windows does not count either; it just sits idle, attached, until you open a
+new window, detach, or kill it.
+
+**Valid values:**
+- `false` - The daemon persists after its last session is killed; stop it explicitly with `tuios kill-server` (default)
+- `true` - The daemon shuts itself down the moment its last session is killed
+
+**Default:** `false`
+
+**Note:** This does not apply to `tuios ssh --ephemeral`, which never uses a daemon at all.
 
 ## Hooks
 

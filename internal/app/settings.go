@@ -697,6 +697,17 @@ func (m *OS) settingsCategories() []settingsCategory {
 					}
 				},
 			},
+			{
+				Label:   "Exit when empty",
+				Desc:    "Shut the daemon down once its last session is killed, tmux-style (applies to the daemon on restart)",
+				Control: controlBool,
+				boolVal: func(m *OS) bool { return m.UserConfig != nil && m.UserConfig.Daemon.ExitWhenEmpty },
+				adjust: func(m *OS, _ int) {
+					if m.UserConfig != nil {
+						m.UserConfig.Daemon.ExitWhenEmpty = !m.UserConfig.Daemon.ExitWhenEmpty
+					}
+				},
+			},
 		},
 	}
 

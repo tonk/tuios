@@ -149,6 +149,7 @@ var exampleTables = []exampleTable{
 			{"agent_autodetect", "true", "Auto-detect a pane's foreground AI-agent CLI (claude, codex, aider, ...) to set its agent-state glyph."},
 			{"agent_detect_seconds", "2", "How often the auto-detector polls each pane, in seconds. Negative disables detection."},
 			{"agent_binaries", "[]", "Extra binary names to treat as agents, merged with the built-in list."},
+			{"exit_when_empty", "false", "Shut the daemon down once its last session is killed (tmux's exit-empty). Detaching, or reaching zero windows, never counts - only killing the session does."},
 		},
 	},
 	{

@@ -390,7 +390,8 @@ func (d *Daemon) verbKillSession(_ *connState, params json.RawMessage) (any, *ve
 			"session is required (kill-session never guesses which session to destroy)",
 			&VerbHint{Param: "session", Command: "tuios ls", Available: d.sessionNames()})
 	}
-	if err := d.manager.DeleteSession(p.Session); err != nil {
+	exit, err := d.deleteSessionAndMaybeExit(p.Session)
+	if err != nil {
 		available := d.sessionNames()
 		return nil, hintedVerbError(ErrVerbSessionNotFound, err.Error(), &VerbHint{
 			Param:      "session",
@@ -398,6 +399,19 @@ func (d *Daemon) verbKillSession(_ *connState, params json.RawMessage) (any, *ve
 			DidYouMean: closestMatch(p.Session, available),
 			Available:  available,
 		})
+	}
+	if exit {
+		// Unlike handleKill's direct connection write, this verb's "ok" result
+		// is written by the dispatch loop (dispatchVerbLine) after this handler
+		// returns, on the loop's own goroutine - there is no return point here
+		// that runs strictly after that write to hang the exit off of. A short
+		// delay is the pragmatic stand-in: long enough that the reply is on the
+		// wire first, short enough that `tuios kill-session` (the only caller
+		// of this verb) does not notice the wait.
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			d.exitNowEmpty()
+		}()
 	}
 	return map[string]any{"type": "ok"}, nil
 }

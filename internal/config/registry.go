@@ -407,7 +407,7 @@ var ActionDescriptions = map[string]string{
 	"prefix_logs":               "Toggle log viewer",
 	"prefix_debug":              "Enter debug prefix",
 	"prefix_tape":               "Enter tape manager prefix",
-	"prefix_quit":               "Quit (daemon: kills session)",
+	"prefix_quit":               "Quit (opens the detach/kill-session menu)",
 	"prefix_fullscreen":         "Fullscreen current window",
 	"prefix_split_horizontal":   "Split window horizontally",
 	"prefix_split_vertical":     "Split window vertically",

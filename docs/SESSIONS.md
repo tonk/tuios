@@ -70,6 +70,12 @@ tuios kill-server            # stop the daemon and all its sessions
 has been written and the daemon's socket has been removed, so a new daemon can
 be started as soon as it returns.
 
+By default the daemon keeps running with zero sessions - killing the last one
+does not stop it, so the next `tuios new`/`tuios attach` is instant. Set
+`exit_when_empty = true` under `[daemon]` in config.toml for tmux-style
+exit-empty behavior instead: the daemon shuts itself down the moment its last
+session is killed. See [CONFIGURATION.md](CONFIGURATION.md#daemon-settings).
+
 More than one client can be attached to the same session at once. All of them
 see the same windows and output, and the session renders at the smallest
 attached client's size. See [MULTI_CLIENT.md](MULTI_CLIENT.md).
