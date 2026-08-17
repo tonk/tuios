@@ -51,6 +51,7 @@ tuios new mysession --detach # create it headless, attach later
 tuios attach mysession       # attach to an existing session
 tuios attach                 # attach to the most recent session
 tuios attach mysession -c    # attach, creating the session if it is missing
+tuios attach mysession --read-only # attach as a viewer, see MULTI_CLIENT.md
 tuios ls                     # list live sessions
 tuios ls --json              # the same list, machine readable
 tuios kill-session mysession # terminate a session and all its windows

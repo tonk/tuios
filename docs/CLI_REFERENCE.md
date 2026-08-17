@@ -283,6 +283,7 @@ tuios attach [session-name] [flags]
 
 **Flags:**
 - `-c, --create` - Create session if it doesn't exist
+- `--read-only` - Attach as a viewer: the daemon refuses input and window-management actions from this client (keystrokes, mouse, create/close/rename window, resize, retile, kill session). Output still streams normally. See [Multi-Client](MULTI_CLIENT.md#read-only-clients).
 - Same as `tuios new` (theme, ascii-only, etc.)
 
 **Examples:**
@@ -291,6 +292,7 @@ tuios attach                   # Attach to most recent session (or only session)
 tuios attach mysession         # Attach to session named "mysession"
 tuios attach mysession -c      # Attach or create if doesn't exist
 tuios attach mysession --theme nord  # Attach with different theme
+tuios attach mysession --read-only   # Watch without being able to type
 ```
 
 ### `tuios ls`
@@ -1249,6 +1251,7 @@ tuios ssh [flags]
 - `--key-path <string>` - Path to SSH host key (auto-generated if not specified)
 - `--default-session <string>` - Default session name for all connections
 - `--ephemeral` - Run in ephemeral mode (standalone, no daemon)
+- `--read-only` - Refuse input and window-management actions from every connection this server accepts. Server-wide: there is no per-connection exception, so this makes every SSH client a viewer, not a mix. See [Multi-Client](MULTI_CLIENT.md#read-only-clients).
 
 **Session Selection Priority:**
 1. `--default-session` flag (if specified)
@@ -1275,6 +1278,9 @@ tuios ssh --default-session shared
 
 # Run in ephemeral mode (no session persistence)
 tuios ssh --ephemeral
+
+# Every connection is a view-only spectator
+tuios ssh --read-only
 ```
 
 **Connecting:**

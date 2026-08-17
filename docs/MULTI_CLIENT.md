@@ -233,12 +233,45 @@ Not currently supported. To prevent multiple connections, use external access co
 
 ### Trust Model
 
-All clients attached to a session have **full control**:
+By default, every client attached to a session has **full control**:
 - Can view all output
 - Can send input (keystrokes)
 - Can manipulate windows
 
-**Use multi-client mode only with trusted collaborators.**
+**Use multi-client mode only with trusted collaborators**, or attach the ones
+you don't fully trust with `--read-only` (see below).
+
+## Read-Only Clients
+
+`tuios attach --read-only` and `tuios ssh --read-only` attach a client as a
+viewer: it still receives every window's output, but the daemon refuses
+anything that would mutate the shared session -
+
+- keyboard and mouse input
+- creating, closing, or renaming a window
+- resizing or retiling a pane
+- pushing layout/state changes
+- killing the session
+
+The refusal is enforced by the daemon (`connState.readOnly`), not just the
+client - a modified or scripted client attached read-only cannot get around
+it. The client also skips sending most of the above itself (no pointless
+round trip) and shows a `view-only` badge in its own dock, but that's a
+courtesy on top of the server-side gate, not the gate itself.
+
+`--read-only` on `tuios attach` applies to that one client only; every other
+client attached to the same session keeps whatever access it attached with.
+`--read-only` on `tuios ssh`, by contrast, applies to the whole server: every
+SSH connection it accepts is a viewer, with no per-connection exception (SSH
+has no concept today of "this remote user gets read-write, that one doesn't").
+
+```bash
+# Watch a colleague's session without being able to type into it
+tuios attach mysession --read-only
+
+# Every SSH connection is a view-only spectator
+tuios ssh --read-only
+```
 
 ### Authentication
 
@@ -383,7 +416,7 @@ prod-server$ systemctl status myapp
 
 Potential future features:
 
-- **Access control:** Read-only clients, keyboard locking
+- **Access control:** Keyboard locking, per-SSH-connection read-only selection (today `tuios ssh --read-only` is all-or-nothing for the whole server)
 - **Client identity:** Display which client sent each input
 - **Cursor tracking:** Show multiple client cursors in copy mode
 - **Voice chat integration:** Built-in voice for remote pairing
