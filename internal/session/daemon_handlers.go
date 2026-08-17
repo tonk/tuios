@@ -96,6 +96,7 @@ func (d *Daemon) handleAttach(cs *connState, msg *Message) error {
 	cs.width = payload.Width
 	cs.height = payload.Height
 	cs.isTUIClient = true
+	cs.readOnly = payload.ReadOnly
 	cs.mu.Unlock()
 
 	clientCount := d.getSessionClientCount(session.ID)
@@ -158,6 +159,7 @@ func (d *Daemon) handleAttach(cs *connState, msg *Message) error {
 		Height:      effectiveHeight,
 		WindowCount: len(state.Windows),
 		State:       state,
+		ReadOnly:    payload.ReadOnly,
 	})
 }
 
@@ -264,6 +266,12 @@ func (d *Daemon) handleKill(cs *connState, msg *Message) error {
 	if err := msg.ParsePayloadWithCodec(&payload, cs.codec); err != nil {
 		return fmt.Errorf("invalid kill payload: %w", err)
 	}
+	if cs.readOnly {
+		// Reachable from the interactive app's own quit menu/session switcher
+		// (KillSession/KillSessionByName), not just the `tuios kill-session`
+		// CLI (a separate, freshly-connected, non-read-only connection).
+		return d.sendError(cs, ErrCodeReadOnly, "attached read-only")
+	}
 
 	if err := d.manager.DeleteSession(payload.SessionName); err != nil {
 		return d.sendError(cs, ErrCodeSessionNotFound, err.Error())
@@ -302,6 +310,13 @@ func (d *Daemon) handleResurrect(cs *connState, msg *Message) error {
 
 func (d *Daemon) handleInput(cs *connState, msg *Message) error {
 	if cs.sessionID == "" {
+		return nil
+	}
+	// The authoritative read-only gate (see connState.readOnly): a read-only
+	// client's own process already skips sending this, but the check has to
+	// live here too, since that skip is the client's to bypass and this is
+	// not.
+	if cs.readOnly {
 		return nil
 	}
 
@@ -360,8 +375,9 @@ func (d *Daemon) handleResize(cs *connState, msg *Message) error {
 		cs.mu.Unlock()
 		// Recalculate effective session size
 		d.recalculateAndBroadcastSize(cs.sessionID)
-	} else {
-		// PTY-specific resize
+	} else if !cs.readOnly {
+		// PTY-specific resize. Gated: this resizes the *shared* PTY, seen by
+		// every attached client, unlike the client-viewport branch above.
 		if pty := session.GetPTY(payload.PTYID); pty != nil {
 			_ = pty.Resize(payload.Width, payload.Height)
 			_ = pty.UpdatePixelDimensions(cs.cellWidth, cs.cellHeight)
@@ -377,6 +393,9 @@ func (d *Daemon) handleCreatePTY(cs *connState, msg *Message) error {
 	if cs.sessionID == "" {
 		debugLog("[DEBUG] handleCreatePTY: client not attached")
 		return d.sendError(cs, ErrCodeNotAttached, "not attached to any session")
+	}
+	if cs.readOnly {
+		return d.sendError(cs, ErrCodeReadOnly, "attached read-only")
 	}
 
 	session := d.manager.GetSessionByID(cs.sessionID)
@@ -430,6 +449,9 @@ func (d *Daemon) handleCreatePTY(cs *connState, msg *Message) error {
 func (d *Daemon) handleClosePTY(cs *connState, msg *Message) error {
 	if cs.sessionID == "" {
 		return d.sendError(cs, ErrCodeNotAttached, "not attached to any session")
+	}
+	if cs.readOnly {
+		return d.sendError(cs, ErrCodeReadOnly, "attached read-only")
 	}
 
 	session := d.manager.GetSessionByID(cs.sessionID)
@@ -497,6 +519,15 @@ func (d *Daemon) handleGetState(cs *connState) error {
 func (d *Daemon) handleUpdateState(cs *connState, msg *Message) error {
 	if cs.sessionID == "" {
 		return d.sendError(cs, ErrCodeNotAttached, "not attached to any session")
+	}
+	if cs.readOnly {
+		// This is the one that matters most to gate: a client's pushed state
+		// (layout, titles, workspace assignment) is merged into the shared
+		// session and broadcast to every other attached client (MsgStateSync
+		// below), so leaving it open would let a "read-only" client silently
+		// retile or rename windows for everyone even with keystrokes blocked.
+		// It still receives every other client's broadcasts normally.
+		return d.sendError(cs, ErrCodeReadOnly, "attached read-only")
 	}
 
 	session := d.manager.GetSessionByID(cs.sessionID)

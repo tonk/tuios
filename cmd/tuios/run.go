@@ -314,7 +314,7 @@ func runLocal() error {
 	return nil
 }
 
-func runSSHServer(sshHost, sshPort, sshKeyPath, defaultSession string, ephemeral bool) error {
+func runSSHServer(sshHost, sshPort, sshKeyPath, defaultSession string, ephemeral, readOnly bool) error {
 	if debugMode {
 		_ = os.Setenv("TUIOS_DEBUG_INTERNAL", "1")
 		fmt.Println("Debug mode enabled")
@@ -333,6 +333,9 @@ func runSSHServer(sshHost, sshPort, sshKeyPath, defaultSession string, ephemeral
 	}
 	if ephemeral {
 		log.Printf("Running in ephemeral mode (no daemon)")
+	}
+	if readOnly {
+		log.Printf("Read-only: every connection is refused input and window-management actions")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -355,6 +358,7 @@ func runSSHServer(sshHost, sshPort, sshKeyPath, defaultSession string, ephemeral
 		DefaultSession: defaultSession,
 		Version:        version,
 		Ephemeral:      ephemeral,
+		ReadOnly:       readOnly,
 	}
 	if err := server.StartSSHServer(ctx, cfg); err != nil {
 		return fmt.Errorf("SSH server error: %w", err)

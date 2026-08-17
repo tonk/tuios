@@ -10,6 +10,20 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/ui"
 )
 
+// refuseIfReadOnly is the client-side courtesy half of read-only attach: a
+// notification and an early return instead of a round trip the daemon
+// (connState.readOnly) would refuse anyway. It is never the enforcement -
+// that is server-side and covers this and everything else a client could
+// still try - only the reason a read-only session's window-management
+// keybindings visibly do nothing.
+func (m *OS) refuseIfReadOnly() bool {
+	if !m.ReadOnly {
+		return false
+	}
+	m.ShowNotification("Attached read-only: window management is disabled", "warning", config.NotificationWarningDuration)
+	return true
+}
+
 // ToggleFloating toggles the focused window between floating and tiled mode.
 func (m *OS) ToggleFloating() {
 	fw := m.GetFocusedWindow()
@@ -411,6 +425,9 @@ func (m *OS) QuitSession() {
 // the NewWindow verb takes and it means the same thing on both paths, which it
 // did not when the daemon set CustomName and the client set the shell title.
 func (m *OS) AddWindow(name string) *OS {
+	if m.refuseIfReadOnly() {
+		return m
+	}
 	if m.IsDaemonSession && m.DaemonClient != nil {
 		var args []string
 		if name != "" {
@@ -575,6 +592,11 @@ func (m *OS) DeleteWindow(i int) *OS {
 		return m
 	}
 
+	// Not gated with refuseIfReadOnly, unlike AddWindow: this function is also
+	// how a daemon-reported PTY exit (WindowExitMsg, see update.go) removes
+	// the window locally, not just a user's close keybinding. The daemon's own
+	// handleExecuteCommand still refuses the SendIntent below for a read-only
+	// client, so nothing is lost by skipping the client-side courtesy here.
 	if m.IsDaemonSession && m.DaemonClient != nil {
 		windowID := m.Windows[i].ID
 		if err := m.DaemonClient.SendIntent("CloseWindow", windowID); err != nil {

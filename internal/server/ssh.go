@@ -33,6 +33,10 @@ type SSHServerConfig struct {
 	DefaultSession string // If set, all connections attach to this session
 	Ephemeral      bool   // If true, don't use daemon (old behavior)
 	Version        string // For daemon handshake
+	// ReadOnly applies to every connection this server accepts: the daemon
+	// refuses input and window-management actions from all of them. There is
+	// no per-connection selection, so this is server-wide, not per-client.
+	ReadOnly bool
 }
 
 // sshServerContext holds the server-wide context for daemon mode
@@ -382,7 +386,7 @@ func createDaemonTUIOSInstance(sshSession ssh.Session, graphicsOut io.Writer, se
 	}
 
 	// Attach to session (create if doesn't exist)
-	state, err := client.AttachSession(sessionName, true, width, height)
+	state, err := client.AttachSession(sessionName, true, width, height, cfg.ReadOnly)
 	if err != nil {
 		_ = client.Close()
 		return nil, nil, fmt.Errorf("failed to attach to session: %w", err)
@@ -420,6 +424,7 @@ func createDaemonTUIOSInstance(sshSession ssh.Session, graphicsOut io.Writer, se
 		// since the client cannot read server-local paths.
 		GraphicsOutput:       graphicsOut,
 		GraphicsRemoteClient: true,
+		ReadOnly:             client.IsReadOnly(),
 	})
 
 	// Restore state from daemon if available

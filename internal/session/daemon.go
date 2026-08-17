@@ -139,6 +139,16 @@ type connState struct {
 	// TUI clients can receive and execute remote commands
 	isTUIClient bool
 
+	// readOnly is set from AttachPayload.ReadOnly and never cleared for the
+	// life of the connection. It is the authoritative gate: every handler that
+	// mutates shared session state (handleInput, a PTY-specific handleResize,
+	// handleCreatePTY, handleClosePTY, handleUpdateState, handleExecuteCommand)
+	// checks it before acting, so a client that ignored its own local skip
+	// still cannot affect the session. A client-viewport-only resize is not
+	// gated: that only changes this client's own size negotiation, never the
+	// shared PTY.
+	readOnly bool
+
 	// Client terminal dimensions (for multi-client size calculation)
 	width  int
 	height int

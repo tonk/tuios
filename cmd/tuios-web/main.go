@@ -556,8 +556,11 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 		sessionName = "web"
 	}
 
-	// Attach to session (create if doesn't exist)
-	state, err := client.AttachSession(sessionName, true, width, height)
+	// Attach to session (create if doesn't exist). webReadOnly is already
+	// enforced at the sip WebSocket layer (processInput drops MsgInput before
+	// it ever reaches here); passing it through too makes the daemon
+	// authoritative for this client as well, the same as attach/ssh.
+	state, err := client.AttachSession(sessionName, true, width, height, webReadOnly)
 	if err != nil {
 		_ = client.Close()
 		return nil, nil, fmt.Errorf("failed to attach to session: %w", err)
@@ -593,6 +596,7 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 		ForceGraphicsEnabled:      true,
 		GraphicsOutput:            graphicsOut,
 		TouchClient:               touch,
+		ReadOnly:                  client.IsReadOnly(),
 	})
 
 	// Restore state from daemon if available

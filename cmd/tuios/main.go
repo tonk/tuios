@@ -163,7 +163,7 @@ comprehensive keyboard/mouse interactions.`,
 	rootCmd.Flags().StringVar(&previewTheme, "preview-theme", "", "Preview a theme's 16 ANSI colors")
 
 	var sshPort, sshHost, sshKeyPath, sshDefaultSession string
-	var sshEphemeral bool
+	var sshEphemeral, sshReadOnly bool
 
 	sshCmd := &cobra.Command{
 		Use:   "ssh",
@@ -180,7 +180,11 @@ Session selection priority:
   3. SSH command argument (e.g., "ssh host attach mysession")
   4. First available session or create new
 
-Use --ephemeral for standalone sessions (legacy behavior).`,
+Use --ephemeral for standalone sessions (legacy behavior).
+
+--read-only applies to every connection this server accepts: keystrokes,
+mouse input, and window management are refused by the daemon. There is no
+per-connection exception, so this is an all-viewers server, not a mix.`,
 		Example: `  # Start SSH server on default port
   tuios ssh
 
@@ -194,9 +198,12 @@ Use --ephemeral for standalone sessions (legacy behavior).`,
   tuios ssh --default-session mysession
 
   # Run in ephemeral mode (standalone, no daemon)
-  tuios ssh --ephemeral`,
+  tuios ssh --ephemeral
+
+  # Every connection is a view-only spectator
+  tuios ssh --read-only`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runSSHServer(sshHost, sshPort, sshKeyPath, sshDefaultSession, sshEphemeral)
+			return runSSHServer(sshHost, sshPort, sshKeyPath, sshDefaultSession, sshEphemeral, sshReadOnly)
 		},
 	}
 
@@ -205,6 +212,7 @@ Use --ephemeral for standalone sessions (legacy behavior).`,
 	sshCmd.Flags().StringVar(&sshKeyPath, "key-path", "", "Path to SSH host key (auto-generated if not specified)")
 	sshCmd.Flags().StringVar(&sshDefaultSession, "default-session", "", "Default session name for all connections")
 	sshCmd.Flags().BoolVar(&sshEphemeral, "ephemeral", false, "Run in ephemeral mode (standalone, no daemon)")
+	sshCmd.Flags().BoolVar(&sshReadOnly, "read-only", false, "Refuse input and window-management actions from every SSH connection")
 
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -369,7 +377,7 @@ in the terminal UI. Press Ctrl+P to pause/resume playback.`,
 
 	tapeCmd.AddCommand(tapePlayCmd, tapeValidateCmd, tapeListCmd, tapeDirCmd, tapeDeleteCmd, tapeShowCmd)
 
-	var createIfMissing bool
+	var createIfMissing, attachReadOnly bool
 
 	attachCmd := &cobra.Command{
 		Use:   "attach [session-name]",
@@ -381,7 +389,12 @@ If no session name is provided, attaches to the most recent session.
 The daemon is started if it is not running, which restores every session
 saved on disk; attach then opens one of those. With nothing saved and no
 name given, a new session is opened instead. A name that matches no session
-is reported rather than created, unless -c is given.`,
+is reported rather than created, unless -c is given.
+
+--read-only attaches as a viewer: keystrokes, mouse input, and window
+management (create/close/rename, resize, retile) are refused by the daemon,
+so this client cannot affect the session or any other client attached to it.
+Output still streams normally.`,
 		Example: `  # Attach to the most recent session
   tuios attach
 
@@ -389,17 +402,21 @@ is reported rather than created, unless -c is given.`,
   tuios attach mysession
 
   # Attach and create if session doesn't exist
-  tuios attach mysession -c`,
+  tuios attach mysession -c
+
+  # Watch a session without being able to type into it
+  tuios attach mysession --read-only`,
 		Aliases: []string{"a"},
 		RunE: func(_ *cobra.Command, args []string) error {
 			name := ""
 			if len(args) > 0 {
 				name = args[0]
 			}
-			return runAttach(name, createIfMissing)
+			return runAttach(name, createIfMissing, attachReadOnly)
 		},
 	}
 	attachCmd.Flags().BoolVarP(&createIfMissing, "create", "c", false, "Create session if it doesn't exist")
+	attachCmd.Flags().BoolVar(&attachReadOnly, "read-only", false, "Attach as a viewer: refuse input and window-management actions from this client")
 
 	var newDetach bool
 	newCmd := &cobra.Command{

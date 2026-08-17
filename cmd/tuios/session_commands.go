@@ -21,7 +21,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
-func runAttach(sessionName string, createIfMissing bool) error {
+func runAttach(sessionName string, createIfMissing, readOnly bool) error {
 	// Check the terminal before anything else: a session that cannot be
 	// rendered is much harder to diagnose once the TUI has taken the screen.
 	if err := checkTerminal(); err != nil {
@@ -51,7 +51,7 @@ func runAttach(sessionName string, createIfMissing bool) error {
 		return err
 	}
 
-	return runDaemonSession(sessionName, createIfMissing)
+	return runDaemonSession(sessionName, createIfMissing, readOnly)
 }
 
 // reportSavedSessionsBeforeStart says what is about to be brought back, and
@@ -154,7 +154,7 @@ func runNewSession(sessionName string) error {
 		fmt.Printf("Creating session '%s'\n", sessionName)
 	}
 
-	return runDaemonSession(sessionName, true)
+	return runDaemonSession(sessionName, true, false)
 }
 
 // runNewSessionDetached creates a headless session in the daemon and returns
@@ -205,7 +205,7 @@ func generateUniqueSessionName(existingNames []string) string {
 	}
 }
 
-func runDaemonSession(sessionName string, createNew bool) error {
+func runDaemonSession(sessionName string, createNew, readOnly bool) error {
 	// Every path into the TUI funnels through here, so this is the one place
 	// that guarantees the terminal can host it before the screen is taken over.
 	if err := checkTerminal(); err != nil {
@@ -250,8 +250,8 @@ func runDaemonSession(sessionName string, createNew bool) error {
 	}
 	log.Printf("[CLIENT] Connected to daemon")
 
-	log.Printf("[CLIENT] Attaching to session '%s' (createNew=%v)", sessionName, createNew)
-	state, err := client.AttachSession(sessionName, createNew, width, height)
+	log.Printf("[CLIENT] Attaching to session '%s' (createNew=%v, readOnly=%v)", sessionName, createNew, readOnly)
+	state, err := client.AttachSession(sessionName, createNew, width, height, readOnly)
 	if err != nil {
 		names := client.AvailableSessionNames()
 		_ = client.Close()
@@ -280,6 +280,7 @@ func runDaemonSession(sessionName string, createNew bool) error {
 		DaemonClient:              client,
 		SessionName:               client.SessionName(),
 		EnableGraphicsPassthrough: true,
+		ReadOnly:                  client.IsReadOnly(),
 	})
 	initialOS.PostRenderWriter = prw
 
@@ -741,7 +742,7 @@ func runResurrect(sessionName string) error {
 	fmt.Printf("Resurrected session '%s'\n", sessionName)
 
 	// Attach to the now-live session.
-	return runDaemonSession(sessionName, false)
+	return runDaemonSession(sessionName, false, false)
 }
 
 // explainResurrectFailure turns a failed restore into a message that says which

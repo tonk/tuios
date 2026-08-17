@@ -79,7 +79,7 @@ func TestAttachRecordsClientGraphicsCapabilities(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = c.Close() })
 
-	if _, err := c.AttachSession("graphics", false, 80, 24); err != nil {
+	if _, err := c.AttachSession("graphics", false, 80, 24, false); err != nil {
 		t.Fatalf("attach: %v", err)
 	}
 

@@ -83,7 +83,7 @@ func newRig(t *testing.T, panes int) *rig {
 	if err := boot.CreateDetachedSession(name, rigCols, rigRows); err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := boot.AttachSession(name, false, rigCols, rigRows); err != nil {
+	if _, err := boot.AttachSession(name, false, rigCols, rigRows, false); err != nil {
 		t.Fatalf("bootstrap attach: %v", err)
 	}
 	boot.StartReadLoop()
@@ -115,7 +115,7 @@ func newRig(t *testing.T, panes int) *rig {
 	if err := ctl.Connect("test", rigCols, rigRows); err != nil {
 		t.Fatalf("control connect: %v", err)
 	}
-	if _, err := ctl.AttachSession(name, false, rigCols, rigRows); err != nil {
+	if _, err := ctl.AttachSession(name, false, rigCols, rigRows, false); err != nil {
 		t.Fatalf("control attach: %v", err)
 	}
 	ctl.StartReadLoop()
@@ -155,7 +155,7 @@ func (r *rig) attach() {
 	if err := c.Connect("test", rigCols, rigRows); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	state, err := c.AttachSession(r.session, false, rigCols, rigRows)
+	state, err := c.AttachSession(r.session, false, rigCols, rigRows, false)
 	if err != nil {
 		t.Fatalf("attach: %v", err)
 	}

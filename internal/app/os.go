@@ -325,6 +325,10 @@ type OS struct {
 	IsDaemonSession bool               // True when running as part of a persistent daemon session
 	DaemonClient    *session.TUIClient // Client for daemon communication (nil in local mode)
 	SessionName     string             // Name of the daemon session (if attached)
+	// ReadOnly mirrors OSOptions.ReadOnly: this client's own input is dropped
+	// locally rather than sent. See OSOptions.ReadOnly for why this is a
+	// courtesy, not the enforcement point.
+	ReadOnly bool
 	// SessionDisplayName and SessionAccent are the attached session's
 	// daemon-owned label and accent slot, both empty when unset. They are
 	// labels only: SessionName stays the identity every keyed map, every

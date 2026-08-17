@@ -120,16 +120,18 @@ type AttachPayload struct {
 	CreateNew   bool   `json:"create_new,omitempty"` // Create if doesn't exist
 	Width       int    `json:"width"`                // Client terminal width
 	Height      int    `json:"height"`               // Client terminal height
+	ReadOnly    bool   `json:"read_only,omitempty"`  // Disable input from this client
 }
 
 // AttachedPayload confirms successful session attachment.
 type AttachedPayload struct {
-	SessionName string        `json:"session_name"`    // Attached session name
-	SessionID   string        `json:"session_id"`      // Session unique ID
-	Width       int           `json:"width"`           // Current session width
-	Height      int           `json:"height"`          // Current session height
-	WindowCount int           `json:"window_count"`    // Number of windows in session
-	State       *SessionState `json:"state,omitempty"` // Session state for restore
+	SessionName string        `json:"session_name"`        // Attached session name
+	SessionID   string        `json:"session_id"`          // Session unique ID
+	Width       int           `json:"width"`               // Current session width
+	Height      int           `json:"height"`              // Current session height
+	WindowCount int           `json:"window_count"`        // Number of windows in session
+	State       *SessionState `json:"state,omitempty"`     // Session state for restore
+	ReadOnly    bool          `json:"read_only,omitempty"` // The daemon's authoritative echo of AttachPayload.ReadOnly
 }
 
 // NewPayload requests creation of a new session.
@@ -518,8 +520,9 @@ const (
 	ErrCodeInternal        = 5
 	ErrCodeNotAttached     = 6
 	ErrCodePTYNotFound     = 7
-	ErrCodeNoTUIAttached   = 8 // No TUI client attached to handle the command
-	ErrCodeCommandFailed   = 9 // Command execution failed
+	ErrCodeNoTUIAttached   = 8  // No TUI client attached to handle the command
+	ErrCodeCommandFailed   = 9  // Command execution failed
+	ErrCodeReadOnly        = 10 // Client attached read-only; the action was refused
 )
 
 // Protocol version for compatibility checking.

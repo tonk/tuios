@@ -588,6 +588,12 @@ func (m *OS) buildDockLeftText() (modeLabel, trail string, width int, modeInfo M
 		trail += badge + " "
 	}
 
+	// Read-only badge: plain text, not a glyph, since it's the answer to "why
+	// did my keypress do nothing" and has to read the same in ASCII mode.
+	if m.ReadOnly {
+		trail += "view-only "
+	}
+
 	// Rendered width, not byte length: Nerd Font glyphs and the caps are wider
 	// than their bytes. +4 for margins/padding.
 	width = lipgloss.Width(config.GetDockModeCapLeft()) +

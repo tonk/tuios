@@ -734,10 +734,18 @@ func (m *OS) createWindowFromSync(ws *session.WindowState) *terminal.Window {
 		ptyID := ws.PTYID
 
 		window.DaemonWriteFunc = func(data []byte) error {
+			// Client-side courtesy: skip the round trip rather than send bytes
+			// the daemon (connState.readOnly) would refuse anyway.
+			if m.ReadOnly {
+				return nil
+			}
 			return m.DaemonClient.WritePTY(ptyID, data)
 		}
 
 		window.DaemonResizeFunc = func(width, height int) error {
+			if m.ReadOnly {
+				return nil
+			}
 			return m.DaemonClient.ResizePTY(ptyID, width, height)
 		}
 
@@ -1169,11 +1177,19 @@ func (m *OS) SetupPTYOutputHandlers() error {
 
 			// Set up the daemon write function for input
 			window.DaemonWriteFunc = func(data []byte) error {
+				// Client-side courtesy: skip the round trip rather than send
+				// bytes the daemon (connState.readOnly) would refuse anyway.
+				if m.ReadOnly {
+					return nil
+				}
 				return m.DaemonClient.WritePTY(ptyID, data)
 			}
 
 			// Set up the daemon resize function
 			window.DaemonResizeFunc = func(width, height int) error {
+				if m.ReadOnly {
+					return nil
+				}
 				return m.DaemonClient.ResizePTY(ptyID, width, height)
 			}
 

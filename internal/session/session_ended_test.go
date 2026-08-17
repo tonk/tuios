@@ -24,7 +24,7 @@ func attachTestClient(t *testing.T, sessionName string) *TUIClient {
 	}
 	t.Cleanup(func() { _ = c.Close() })
 
-	if _, err := c.AttachSession(sessionName, false, 80, 24); err != nil {
+	if _, err := c.AttachSession(sessionName, false, 80, 24, false); err != nil {
 		t.Fatalf("attach %s: %v", sessionName, err)
 	}
 	c.StartReadLoop()

@@ -49,6 +49,7 @@ type TUIClient struct {
 
 	sessionID   string
 	sessionName string
+	readOnly    bool // Echoed back from the daemon on attach; see AttachSession.
 
 	// Cached session listing from the daemon, including each session's window
 	// summaries once fetched. Seeded name-only from the welcome message and kept
@@ -235,12 +236,17 @@ func (c *TUIClient) ConnectWithCapabilities(version string, width, height int, c
 
 // AttachSession attaches to a session (creates if createNew is true).
 // Returns the session state for restoration.
-func (c *TUIClient) AttachSession(name string, createNew bool, width, height int) (*SessionState, error) {
+// AttachSession attaches to a session. When readOnly is true, the daemon
+// refuses every request from this connection that would mutate shared
+// session state (input, window create/close, layout/state pushes, session
+// kill) - see connState.readOnly in the daemon for the enforced list.
+func (c *TUIClient) AttachSession(name string, createNew bool, width, height int, readOnly bool) (*SessionState, error) {
 	msg, err := NewMessageWithCodec(MsgAttach, &AttachPayload{
 		SessionName: name,
 		CreateNew:   createNew,
 		Width:       width,
 		Height:      height,
+		ReadOnly:    readOnly,
 	}, c.codec)
 	if err != nil {
 		return nil, err
@@ -263,6 +269,7 @@ func (c *TUIClient) AttachSession(name string, createNew bool, width, height int
 		}
 		c.sessionID = payload.SessionID
 		c.sessionName = payload.SessionName
+		c.readOnly = payload.ReadOnly
 		c.NoteSession(payload.SessionName)
 		return payload.State, nil
 
@@ -1069,6 +1076,12 @@ func (c *TUIClient) Close() error {
 // SessionName returns the attached session name.
 func (c *TUIClient) SessionName() string {
 	return c.sessionName
+}
+
+// IsReadOnly reports whether this client attached read-only, per the
+// daemon's own echo in AttachedPayload (not just what was asked for).
+func (c *TUIClient) IsReadOnly() bool {
+	return c.readOnly
 }
 
 // AvailableSessionNames returns the list of available sessions from the daemon.

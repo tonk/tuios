@@ -37,6 +37,14 @@ func (d *Daemon) handleExecuteCommand(cs *connState, msg *Message) error {
 
 	LogBasic("Received execute command: %s (session=%s, args=%v)", payload.CommandType, payload.SessionName, payload.Args)
 
+	// cs.readOnly only ever gates this connection's own requests (e.g. an
+	// interactive read-only client's SendIntent for a rename); a separate
+	// control-plane connection (tuios cmd, tape playback, MCP tooling) is its
+	// own connState and is unaffected.
+	if cs.readOnly {
+		return d.sendCommandResult(cs, payload.RequestID, false, "attached read-only")
+	}
+
 	// Find the target session
 	session := d.findTargetSession(payload.SessionName)
 	if session == nil {

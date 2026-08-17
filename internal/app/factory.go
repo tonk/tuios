@@ -74,6 +74,14 @@ type OSOptions struct {
 	// widens the gestures that are aimed at a single cell. Only tuios-web can
 	// know this, and only from the browser that connected.
 	TouchClient bool
+
+	// ReadOnly marks this client's own input as never worth sending: keyboard,
+	// mouse and window-management actions are dropped locally instead of being
+	// forwarded to the daemon. This is a client-side courtesy (skip the round
+	// trip, show a "read-only" indicator) - the daemon enforces the same thing
+	// authoritatively via connState.readOnly, since a client that ignored its
+	// own flag is not something this one can defend against.
+	ReadOnly bool
 }
 
 // NewOS creates a new OS instance with the given options.
@@ -120,6 +128,7 @@ func NewOS(opts OSOptions) *OS {
 		IsSSHMode:       opts.IsSSHMode,
 		SSHSession:      opts.SSHSession,
 		TouchClient:     opts.TouchClient,
+		ReadOnly:        opts.ReadOnly,
 
 		// Daemon connection
 		DaemonClient: opts.DaemonClient,
