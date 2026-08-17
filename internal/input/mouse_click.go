@@ -121,11 +121,19 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			o.OpenAggregateView()
 			return o, nil
 		}
-		// Handle dock click only if there are minimized windows
-		if o.HasMinimizedWindows() {
+		// Handle dock click only if there is something in the strip to click:
+		// minimized windows always populate it, dock_window_list puts every
+		// window of the workspace there instead.
+		if o.HasMinimizedWindows() || config.DockWindowList {
 			dockIndex := o.DockItemAt(X, Y)
 			if dockIndex != -1 {
-				o.RestoreWindow(dockIndex)
+				if o.Windows[dockIndex].Minimized {
+					o.RestoreWindow(dockIndex)
+				} else {
+					// Already on screen (dock_window_list only): the click just
+					// brings it to the front, the same as clicking its border.
+					o.FocusWindow(dockIndex)
+				}
 				// Retile if in tiling mode
 				if o.AutoTiling {
 					o.TileAllWindows()

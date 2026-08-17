@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/Gaurav-Gosain/tuios/internal/config"
@@ -748,20 +749,34 @@ func dockItemLabel(number int, name string) string {
 	return fmt.Sprintf(" %d ", number)
 }
 
-// getDockItems returns all dock items (minimized windows in current workspace)
+// getDockItems returns the dock's item strip for the current workspace.
+//
+// By default (dock_window_list off) that is minimized/minimizing windows
+// only, oldest first - the dock's original purpose, a way back to a pane the
+// tiling/floating layout is no longer showing. With dock_window_list on, every
+// window of the workspace gets an entry, in the same order FocusWindow's other
+// mouse and keyboard routes number them, so the dock's numbers, the sidebar's,
+// and alt+N agree.
 func (m *OS) getDockItems() []DockItem {
-	// Find all minimized/minimizing windows in current workspace
-	dockWindows := []int{}
-	for i, window := range m.Windows {
-		if window.Workspace == m.CurrentWorkspace && (window.Minimized || window.Minimizing) {
-			dockWindows = append(dockWindows, i)
+	var dockWindows []int
+	if config.DockWindowList {
+		for i, window := range m.Windows {
+			if window.Workspace == m.CurrentWorkspace {
+				dockWindows = append(dockWindows, i)
+			}
 		}
+	} else {
+		for i, window := range m.Windows {
+			if window.Workspace == m.CurrentWorkspace && (window.Minimized || window.Minimizing) {
+				dockWindows = append(dockWindows, i)
+			}
+		}
+		// Sort by minimize order (oldest first). The all-windows list above is
+		// already in workspace order and left as-is.
+		sort.Slice(dockWindows, func(i, j int) bool {
+			return m.Windows[dockWindows[i]].MinimizeOrder < m.Windows[dockWindows[j]].MinimizeOrder
+		})
 	}
-
-	// Sort by minimize order (oldest first)
-	sort.Slice(dockWindows, func(i, j int) bool {
-		return m.Windows[dockWindows[i]].MinimizeOrder < m.Windows[dockWindows[j]].MinimizeOrder
-	})
 
 	// Build dock items
 	items := make([]DockItem, 0, len(dockWindows))
@@ -788,6 +803,38 @@ func (m *OS) getDockItems() []DockItem {
 
 	return items
 }
+
+// dockWindowNeedsAttention reports whether a dock window-list entry should
+// blink: either the agent inside it wants a human (the same needs_input/
+// errored/unseen-done definition the sidebar glyph uses, via agentSeen), or it
+// received new output, a bell, or a guest notification while unfocused
+// (DockAttention, set from MarkTerminalsWithNewContent and the NotificationMsg
+// handler in update.go, cleared on focus in FocusWindow). The focused window
+// never blinks - attention already has it.
+func (m *OS) dockWindowNeedsAttention(windowIndex int) bool {
+	if windowIndex == m.FocusedWindow {
+		return false
+	}
+	window := m.Windows[windowIndex]
+	if window.DockAttention {
+		return true
+	}
+	if sidebarAttention(window.AgentState) {
+		return true
+	}
+	return window.AgentState == "done" && !m.agentSeen(window.ID)
+}
+
+// dockBlinkOn is the shared on/off phase for every blinking dock entry, so a
+// frame never draws two attention-seeking windows out of sync with each other.
+func dockBlinkOn() bool {
+	return (time.Now().UnixMilli()/dockBlinkPeriodMs)%2 == 0
+}
+
+// dockBlinkPeriodMs is how long each half of the blink cycle holds, in
+// milliseconds. Half a second is the tmux/screen activity-monitor cadence:
+// fast enough to catch the eye, slow enough not to read as a glitch.
+const dockBlinkPeriodMs = 500
 
 // calculateItemPositions determines which items fit and their X positions
 func (layout *DockLayout) calculateItemPositions(screenWidth int, allItems []DockItem) {

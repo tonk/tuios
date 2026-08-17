@@ -160,6 +160,8 @@ type AppearanceConfig struct {
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
 	DockPillCaps         *bool  `toml:"dock_pill_caps"`         // Powerline caps on the dock's pills (default: false, flat)
 	SessionColors        *bool  `toml:"session_colors"`         // Give each session its own colour on the rail and the switcher (default: true)
+	SetTerminalTitle     *bool  `toml:"set_terminal_title"`     // Set the host terminal's window title to "tuios" on startup (default: true)
+	DockWindowList       *bool  `toml:"dock_window_list"`       // List every window of the current workspace in the dock, not just minimized ones; a window wanting attention blinks (default: false)
 
 	// Legacy flat sidebar keys, superseded by the [appearance.sidebar] table.
 	// migrateLegacySidebar folds them into it and clears them, so they are read
@@ -909,6 +911,12 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.SessionColors != nil {
 		SessionColors = *cfg.Appearance.SessionColors
+	}
+	if cfg.Appearance.SetTerminalTitle != nil {
+		SetTerminalTitle = *cfg.Appearance.SetTerminalTitle
+	}
+	if cfg.Appearance.DockWindowList != nil {
+		DockWindowList = *cfg.Appearance.DockWindowList
 	}
 	if cfg.Appearance.Scrollbar.Style != "" {
 		ScrollbarStyle = cfg.Appearance.Scrollbar.Style

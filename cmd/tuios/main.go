@@ -244,7 +244,23 @@ This will overwrite your existing configuration after confirmation.`,
 		},
 	}
 
-	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd)
+	var configExampleWrite bool
+	configExampleCmd := &cobra.Command{
+		Use:   "example",
+		Short: "Print a fully commented reference configuration",
+		Long: `Print every TUIOS configuration option, commented out, at its default
+value, with a description of what it does.
+
+Generated from the running binary's own defaults, so it always documents
+exactly this version of tuios. It is a reference, not your config: nothing in
+it is read by tuios unless you copy lines into your real config file.`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return printExampleConfig(configExampleWrite)
+		},
+	}
+	configExampleCmd.Flags().BoolVar(&configExampleWrite, "write", false, "Write to <config path>.example instead of printing to stdout")
+
+	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd, configExampleCmd)
 
 	keybindsCmd := &cobra.Command{
 		Use:     "keybinds",

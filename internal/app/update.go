@@ -274,6 +274,7 @@ func (m *OS) reportConfigWarnings() {
 
 func (m *OS) Init() tea.Cmd {
 	m.reportConfigWarnings()
+	m.applyTerminalTitle()
 
 	cmds := []tea.Cmd{
 		TickCmd(),
@@ -951,6 +952,12 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		if msg.WindowID != "" {
 			m.ShowNotificationFrom(msg.Message, msg.Type, msg.Duration,
 				NotifTarget{SessionID: m.sidebarCurrentSessionID(), WindowID: msg.WindowID})
+			// The dock window list's generic ("something happened") attention
+			// signal: a bell or guest notification from a window that is not the
+			// one you are looking at. FocusWindow clears it.
+			if i := m.windowIndexByID(msg.WindowID); i >= 0 && i != m.FocusedWindow {
+				m.Windows[i].DockAttention = true
+			}
 		} else {
 			m.ShowNotification(msg.Message, msg.Type, msg.Duration)
 		}

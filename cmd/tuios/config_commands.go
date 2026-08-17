@@ -112,6 +112,46 @@ func resetConfigToDefaults() error {
 	return nil
 }
 
+// printExampleConfig writes the fully commented reference config (see
+// config.GenerateExampleConfig) to stdout, or to a ".example" file beside the
+// real config when write is true. It never touches the real config.toml.
+func printExampleConfig(write bool) error {
+	content := config.GenerateExampleConfig()
+
+	if !write {
+		fmt.Print(content)
+		return nil
+	}
+
+	configPath, err := config.GetConfigPath()
+	if err != nil {
+		return fmt.Errorf("could not determine config path: %w", err)
+	}
+	examplePath := configPath + ".example"
+
+	if _, err := os.Stat(examplePath); err == nil {
+		fmt.Printf("Warning: this will overwrite the existing file at:\n  %s\n\n", examplePath)
+		fmt.Printf("Overwrite? (yes/no): ")
+
+		var response string
+		_, _ = fmt.Scanln(&response)
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		if response != "yes" && response != "y" {
+			fmt.Println("Cancelled.")
+			return nil
+		}
+	}
+
+	if err := os.WriteFile(examplePath, []byte(content), 0o600); err != nil {
+		return fmt.Errorf("failed to write example config: %w", err)
+	}
+
+	fmt.Printf("Wrote annotated reference config to:\n  %s\n\n", examplePath)
+	fmt.Println("Copy the settings you want into your real config with: tuios config edit")
+	return nil
+}
+
 func previewThemeColors(themeName string) error {
 	if err := theme.Initialize(themeName); err != nil {
 		return fmt.Errorf("failed to initialize theme: %w", err)

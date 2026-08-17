@@ -248,6 +248,13 @@ type Window struct {
 	Minimizing             bool        // True when window is being minimized (animation playing)
 	MinimizeHighlightUntil time.Time   // Highlight dock tab until this time
 	MinimizeOrder          int64       // Unix nano timestamp when minimized (for dock ordering)
+	// DockAttention is set when this window receives new output, a bell, or a
+	// guest notification while it is not focused, and cleared when it is next
+	// focused. It is the generic ("something happened") half of the dock
+	// window list's blink, the classic terminal-multiplexer activity monitor;
+	// see also AgentState, whose needs_input/errored/unseen-done states are the
+	// agent-aware half (dockWindowNeedsAttention in dock_helpers.go).
+	DockAttention bool
 	PreMinimizeX           int         // Store position before minimizing
 	PreMinimizeY           int         // Store position before minimizing
 	PreMinimizeWidth       int         // Store size before minimizing

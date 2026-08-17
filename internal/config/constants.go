@@ -591,6 +591,17 @@ var DockWorkspaceTooltip = true
 // beads. The capped look is one key away for anyone who wants it.
 var DockPillCaps = false
 
+// SetTerminalTitle sets the host terminal's window title to "tuios" once at
+// startup (OSC 2), so a host that shows its own name (e.g. Ghostty) shows
+// tuios's instead. Off leaves the host terminal's title untouched.
+var SetTerminalTitle = true
+
+// DockWindowList lists every window of the current workspace in the dock, not
+// only minimized ones, styled like the workspace strip. A window wanting
+// attention (see dockWindowNeedsAttention) blinks until it is focused. Off
+// leaves the dock's item strip exactly as it was: minimized windows only.
+var DockWindowList = false
+
 // HideWindowButtons controls whether to hide window control buttons
 // Set via --hide-window-buttons flag or appearance.hide_window_buttons config
 var HideWindowButtons = false

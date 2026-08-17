@@ -81,6 +81,13 @@ func (m *OS) MarkTerminalsWithNewContent() bool {
 			window.MarkContentDirty()
 			hasChanges = true
 		} else {
+			// The dock window list's generic ("something happened") attention
+			// signal: new output landed in a window that is not the one you are
+			// looking at. Set unconditionally, ahead of the every-3rd-cycle
+			// repaint throttle below, so a background window that updates less
+			// often still raises it on its very first unseen line rather than
+			// waiting for a repaint cycle. FocusWindow clears it.
+			window.DockAttention = true
 			window.UpdateCounter++
 			if window.UpdateCounter%3 == 0 {
 				window.MarkContentDirty()

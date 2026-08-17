@@ -220,6 +220,7 @@ func (m *OS) FocusWindow(i int) *OS {
 	// Ahead of the already-focused early return: focusing IS the look, whether
 	// or not it moves focus.
 	m.markFocusedAgentSeen(i)
+	m.Windows[i].DockAttention = false
 
 	// A jump from the sidebar or palette can target a window on another
 	// workspace, which is invisible until we go there. Switch first, handing the

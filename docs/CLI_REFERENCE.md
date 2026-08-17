@@ -1421,6 +1421,7 @@ Manage TUIOS configuration file.
 - `tuios config path` - Print configuration file path
 - `tuios config edit` - Edit configuration in $EDITOR
 - `tuios config reset` - Reset configuration to defaults
+- `tuios config example` - Print a fully commented reference configuration
 
 #### `tuios config path`
 
@@ -1454,6 +1455,23 @@ Reset the configuration file to default settings.
 ```bash
 tuios config reset
 # Prompts: Are you sure you want to reset to defaults? (yes/no):
+```
+
+#### `tuios config example`
+
+Print every configuration option, commented out, at its default value, with a
+one-line description of what it does. Generated from the running binary's own
+defaults, so it always matches your installed version - it's a reference to
+copy from, not a config file TUIOS reads.
+
+**Flags:**
+- `--write` - Write to `<config path>.example` instead of printing to stdout
+
+**Example:**
+```bash
+tuios config example | less
+tuios config example --write
+# Output: Wrote annotated reference config to: ~/.config/tuios/config.toml.example
 ```
 
 ---

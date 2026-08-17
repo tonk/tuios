@@ -55,6 +55,19 @@ tuios keybinds list-custom
 tuios config reset
 ```
 
+### See Every Option, Documented
+
+```bash
+tuios config example
+```
+
+Prints a fully commented reference configuration: every option TUIOS supports,
+at its default value, with a one-line description of what it does. It's
+generated from the running binary's own defaults, so it always matches your
+installed version. Nothing in it is read by TUIOS - it's a reference to copy
+from, not a config file. Add `--write` to save it next to your real config as
+`config.toml.example` instead of printing it.
+
 ## Configuration File Location
 
 **Default path:** `~/.config/tuios/config.toml`
@@ -597,6 +610,49 @@ whose pane is in another session. Those rows also name that session in words.
 - `false` - Renders exactly as it did before the colours existed
 
 **Default:** `true`
+
+### set_terminal_title
+
+Sets the host terminal's own window/tab title to `tuios` once, on startup
+(an OSC 2 escape sequence). Without it, the host keeps showing whatever it
+shows by default - a terminal like Ghostty shows its own name until
+something sets the title otherwise.
+
+Reaches the host the same way a guest's OSC 9 desktop notification already
+does: through the same per-client passthrough, so it lands on the right
+terminal in local, daemon-attached, `tuios ssh`, and web mode alike. Applied
+once per attach, so reattaching resets a title something inside a pane may
+have changed since.
+
+**Valid values:**
+- `true` - Set the host terminal's title to `tuios` on startup (default)
+- `false` - Leave the host terminal's title untouched
+
+**Default:** `true`
+
+**Also settable from:** the in-app settings page (Advanced, "Terminal title").
+
+### dock_window_list
+
+Lists every window of the current workspace in the dock's item strip, styled
+like the workspace tabs beside it, instead of only the windows you have
+minimized (the dock's original, and still the default, purpose).
+
+A window wanting attention blinks until you focus it - the classic terminal
+multiplexer activity monitor. That covers the agent inside it needing input or
+having errored, it having just finished when you have not looked yet, and the
+generic case: new output, a bell, or a desktop notification arriving while you
+were looking at a different pane.
+
+Clicking an entry focuses that window; a minimized one is also restored.
+
+**Valid values:**
+- `false` - The strip lists minimized windows only (default)
+- `true` - The strip lists every window of the current workspace
+
+**Default:** `false`
+
+**Also settable from:** the in-app settings page (Dock, "Window list").
 
 ### theme
 

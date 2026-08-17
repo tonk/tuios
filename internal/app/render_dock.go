@@ -69,6 +69,41 @@ func workspacePill(label string, active bool, pal overlay.Palette) string {
 	return caps.Render(lc) + pill + caps.Render(rc)
 }
 
+// dockWindowPill renders one dock_window_list entry with the same oval body
+// and caps workspacePill draws, rather than the minimized-only strip's filled
+// circle pills: dock_window_list asked to look like the strip it sits beside.
+//
+// Priority mirrors the minimized-only rendering it replaces: a just-restored
+// flash outranks focus, which outranks a blinking request for attention -
+// unattainable together in practice (dockWindowNeedsAttention already refuses
+// the focused window), but resolved the same way regardless.
+func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal overlay.Palette) string {
+	fg := workspacePillFg(focused, pal)
+	bold, underline := focused, focused
+	if highlighted {
+		fg, bold, underline = pal.Success, true, false
+	}
+
+	body := sidebarStyle(pal.Panel, fg).Bold(bold).Underline(underline)
+	// An inverse slab is the loudest mark the grammar has (see workspacePill),
+	// spent here on the one state that means "look at this": the blink swaps
+	// the pill's own fill and ink rather than picking a colour of its own, so
+	// it reads under any theme with nothing new to keep in sync with one.
+	capColor := pal.Panel
+	if needsAttention {
+		body = body.Reverse(true)
+		capColor = fg
+	}
+
+	lc, rc := config.GetDockWorkspaceCapLeft(), config.GetDockWorkspaceCapRight()
+	pill := body.Render(label)
+	if lc == "" && rc == "" {
+		return pill
+	}
+	caps := lipgloss.NewStyle().Foreground(capColor)
+	return caps.Render(lc) + pill + caps.Render(rc)
+}
+
 // renderDockWorkspaceStrip draws the strip starting at column startX and records
 // every pill and arrow it draws into m.dockWorkspaceHits and
 // m.dockWorkspaceArrowHits.
@@ -188,40 +223,48 @@ func (m *OS) renderDockString() (string, int) {
 	for _, dockItem := range layout.VisibleItems {
 		windowIndex := dockItem.WindowIndex
 		window := m.Windows[windowIndex]
-
-		// A minimized entry rests on the same Panel step the rest of the chrome
-		// uses; only the two states worth a saturated fill get one.
-		bgColor, fgColor := color.Color(pal.Panel), color.Color(pal.FgDim)
-		emphasis := false
-
 		isHighlighted := time.Now().Before(window.MinimizeHighlightUntil)
 
-		switch {
-		case isHighlighted:
-			bgColor, emphasis = pal.Success, true
-		case windowIndex == m.FocusedWindow && !window.Minimizing:
-			bgColor, emphasis = pal.Accent, true
-		}
-		if emphasis {
-			fgColor = theme.ContrastText(bgColor)
-		}
+		var chunk string
+		if config.DockWindowList {
+			// dock_window_list's own look: the same oval body and caps as the
+			// workspace strip beside it, rather than the minimized-only strip's
+			// filled circle pills.
+			needsAttention := m.dockWindowNeedsAttention(windowIndex) && dockBlinkOn()
+			focused := windowIndex == m.FocusedWindow && !window.Minimizing
+			chunk = dockWindowPill(dockItem.Label, focused, isHighlighted, needsAttention, pal)
+		} else {
+			// A minimized entry rests on the same Panel step the rest of the
+			// chrome uses; only the two states worth a saturated fill get one.
+			bgColor, fgColor := color.Color(pal.Panel), color.Color(pal.FgDim)
+			emphasis := false
+			switch {
+			case isHighlighted:
+				bgColor, emphasis = pal.Success, true
+			case windowIndex == m.FocusedWindow && !window.Minimizing:
+				bgColor, emphasis = pal.Accent, true
+			}
+			if emphasis {
+				fgColor = theme.ContrastText(bgColor)
+			}
 
-		// Flat by default: the caps repeated on every minimized window turned
-		// the row into beads. getDockItems pads the label, so the fill alone
-		// still reads as a cell.
-		caps := lipgloss.NewStyle().Foreground(bgColor)
-		nameLabel := lipgloss.NewStyle().
-			Background(bgColor).
-			Foreground(fgColor).
-			Bold(emphasis).
-			Render(dockItem.Label)
+			// Flat by default: the caps repeated on every minimized window turned
+			// the row into beads. getDockItems pads the label, so the fill alone
+			// still reads as a cell.
+			caps := lipgloss.NewStyle().Foreground(bgColor)
+			nameLabel := lipgloss.NewStyle().
+				Background(bgColor).
+				Foreground(fgColor).
+				Bold(emphasis).
+				Render(dockItem.Label)
+			chunk = caps.Render(config.GetDockPillLeftChar()) +
+				nameLabel + caps.Render(config.GetDockPillRightChar())
+		}
 
 		if itemNumber > 1 {
 			dockItemsStr.WriteString(" ")
 			relX++
 		}
-		chunk := caps.Render(config.GetDockPillLeftChar()) +
-			nameLabel + caps.Render(config.GetDockPillRightChar())
 		dockItemsStr.WriteString(chunk)
 
 		w := lipgloss.Width(chunk)
@@ -328,8 +371,18 @@ func (m *OS) renderDockString() (string, int) {
 	}
 
 	availableSpace := barWidth - actualLeftWidth - rightWidth - centerWidth
-	leftSpacer := availableSpace / 2
-	rightSpacer := availableSpace - leftSpacer
+	var leftSpacer, rightSpacer int
+	if config.DockWindowList && centerWidth > 0 {
+		// dock_window_list reads as part of the left block - the workspace
+		// count it follows - rather than as a separate thing centred in the
+		// bar's middle: one column of daylight, then the pills, then whatever
+		// is left goes to the right block's side.
+		leftSpacer = min(1, max(availableSpace, 0))
+		rightSpacer = availableSpace - leftSpacer
+	} else {
+		leftSpacer = availableSpace / 2
+		rightSpacer = availableSpace - leftSpacer
+	}
 
 	if leftSpacer < 0 {
 		leftSpacer = 0

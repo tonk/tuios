@@ -438,6 +438,13 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.DockPillCaps = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Window list", "List every window of the workspace in the dock, not just minimized ones; one wanting attention blinks",
+				func() bool { return config.DockWindowList },
+				func(m *OS, v bool) {
+					config.DockWindowList = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.DockWindowList = boolPtr(v) })
+					m.applyAppearanceLive(false)
+				}),
 		},
 	}
 
@@ -661,6 +668,15 @@ func (m *OS) settingsCategories() []settingsCategory {
 				func(m *OS, v bool) {
 					m.ShowKeys = v
 					m.setDebug(func(d *config.DebugConfig) { d.ShowKeyEvents = v })
+				}),
+			boolItem("Terminal title", `Set the host terminal's window title to "tuios"`,
+				func() bool { return config.SetTerminalTitle },
+				func(m *OS, v bool) {
+					config.SetTerminalTitle = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.SetTerminalTitle = boolPtr(v) })
+					if v {
+						m.applyTerminalTitle()
+					}
 				}),
 		},
 	}
