@@ -128,6 +128,11 @@ type OS struct {
 	ScrollbarGrabOffset int
 	Windows             []*terminal.Window
 	FocusedWindow       int
+	// LastFocusedWindowID is the ID of the window FocusWindow last moved focus
+	// away from, so alt+` can jump back to it. Tracked by ID rather than index
+	// because a close can shift every index below it, and the window this
+	// remembers may not even be the one now sitting at its old index.
+	LastFocusedWindowID string
 	Width               int
 	Height              int
 	X                   int
@@ -366,6 +371,15 @@ type OS struct {
 	// Multi-client effective size (min of all clients in session)
 	EffectiveWidth  int // Effective width for rendering (min of all clients, 0 = use terminal size)
 	EffectiveHeight int // Effective height for rendering (min of all clients, 0 = use terminal size)
+	// clampLeftMargin and clampRightEdge are the horizontal content bounds
+	// ClampWindowsToView last measured, so it can tell a margin change (the
+	// sidebar opening, closing, or resizing) from an ordinary terminal resize.
+	// A floating window pinned to one of these bounds moves with it in either
+	// direction; clampMarginsSet is false until the first call, so nothing
+	// moves before there is a prior bound to compare against.
+	clampLeftMargin int
+	clampRightEdge  int
+	clampMarginsSet bool
 	// Keyboard enhancement support (Kitty protocol)
 	KeyboardEnhancementsEnabled bool // True when terminal supports keyboard enhancements
 	// KeyboardFlags is the flag set the host answered the enhancement query

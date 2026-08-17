@@ -26,11 +26,12 @@ func scrollPane(t *testing.T) (*app.OS, *terminal.Window) {
 		t.Fatalf("emulator produced %d scrollback lines; the test needs more", em.ScrollbackLen())
 	}
 	win := &terminal.Window{Terminal: em, Width: 42, Height: 22}
-	o := &app.OS{
-		Mode:          app.TerminalMode,
-		FocusedWindow: 0,
-		Windows:       []*terminal.Window{win},
-	}
+	cfg := config.DefaultConfig()
+	o := app.NewOS(app.OSOptions{UserConfig: cfg, KeybindRegistry: config.NewKeybindRegistry(cfg)})
+	o.Mode = app.TerminalMode
+	o.FocusedWindow = 0
+	o.Windows = []*terminal.Window{win}
+	win.Workspace = o.CurrentWorkspace
 	return o, win
 }
 

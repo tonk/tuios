@@ -480,6 +480,13 @@ var AnimationsEnabled = true
 // (e.g., during remote command processing). This takes precedence over AnimationsEnabled.
 var AnimationsSuppressed = false
 
+// MouseEnabled controls whether tuios captures mouse input at all (hover,
+// click, drag, scroll, selection). Turning it off reverts the terminal to
+// whatever mouse handling the host terminal emulator provides on its own
+// (e.g. its native text selection instead of tuios's pane-aware one).
+// Set via appearance.mouse_enabled config or the leader+M keybinding.
+var MouseEnabled = true
+
 // AlwaysConfirmQuit controls whether the quit confirmation dialog is shown
 // every time, regardless of whether there are active foreground processes.
 // Set via confirm_quit config option.
@@ -618,6 +625,13 @@ var WindowTitlePosition = "bottom"
 // the supported placeholders.
 // Set via appearance.window_title_format config
 var WindowTitleFormat = ""
+
+// ShowWindowNumber prefixes a window's displayed title with its 1-based
+// index (e.g. "1: bash") when WindowTitleFormat is empty. It is ignored once
+// a custom WindowTitleFormat is set — use the {index} placeholder there
+// instead.
+// Set via appearance.show_window_number config
+var ShowWindowNumber = true
 
 // FormatWindowTitle expands WindowTitleFormat for one window. The placeholders
 // are {title} (the custom or terminal-reported title), {index} (the window's

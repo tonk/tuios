@@ -80,7 +80,7 @@ func TestAccentSurvivesFocus(t *testing.T) {
 	lines, _ := m.sidebarPanelLines()
 	var row string
 	for _, l := range lines {
-		if strings.Contains(stripANSIForTrace(l), printableTitle(windowRowTitle(focused))) {
+		if strings.Contains(stripANSIForTrace(l), printableTitle(m.windowRowTitle(focused))) {
 			row = l
 			break
 		}

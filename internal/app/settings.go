@@ -376,6 +376,13 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.WindowTitleFormat = v })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Show window number", "Prefix a window's title with its 1-based index (ignored when a title format is set)",
+				func() bool { return config.ShowWindowNumber },
+				func(m *OS, v bool) {
+					config.ShowWindowNumber = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowWindowNumber = boolPtr(v) })
+					m.applyAppearanceLive(false)
+				}),
 		},
 	}
 
@@ -548,6 +555,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 				func(m *OS, v bool) {
 					config.FocusFollowsMouse = v
 					m.setAppearance(func(a *config.AppearanceConfig) { a.FocusFollowsMouse = boolPtr(v) })
+				}),
+			boolItem("Mouse mode", "Let tuios handle hover, click, drag, scroll and selection",
+				func() bool { return config.MouseEnabled },
+				func(m *OS, v bool) {
+					config.MouseEnabled = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.MouseEnabled = boolPtr(v) })
 				}),
 			enumItem("Click to type", "Clicking a pane: single starts typing, double needs two clicks, off only focuses",
 				clickToTypeOptions,

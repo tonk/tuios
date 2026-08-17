@@ -123,6 +123,27 @@ func isDefaultTitle(title, windowID string) bool {
 	return title == "Terminal "+windowID[:8]
 }
 
+// numberWindowName applies the window-number prefix or appearance.window_title_format
+// a window's tab title carries to an already-resolved display name, so a name
+// numbered for one surface (the tab) is numbered identically for another (the
+// sidebar row), regardless of how each surface chose the name itself.
+// position is the window's 1-based place in its workspace, used by the {index}
+// placeholder of appearance.window_title_format.
+func numberWindowName(windowName string, position int, cwd string) string {
+	switch {
+	case config.WindowTitleFormat != "":
+		// A format that mentions only {index} or {cwd} still has something to
+		// say about a window whose title is empty.
+		return config.FormatWindowTitle(windowName, position, cwd)
+	case config.ShowWindowNumber:
+		if windowName != "" {
+			return fmt.Sprintf("%d: %s", position, windowName)
+		}
+		return fmt.Sprintf("%d", position)
+	}
+	return windowName
+}
+
 // getWindowTitle returns the display name for a window, truncated to fit within maxWidth.
 // Returns empty string if title should be hidden or doesn't fit.
 // position is the window's 1-based place in its workspace, used by the {index}
@@ -137,12 +158,7 @@ func getWindowTitle(window *terminal.Window, position int, maxWidth int) string 
 		// Only show terminal-set title if it's not the default "Terminal <id>" format
 		windowName = printableTitle(t)
 	}
-
-	if windowName != "" || config.WindowTitleFormat != "" {
-		// A format that mentions only {index} or {cwd} still has something to
-		// say about a window whose title is empty.
-		windowName = config.FormatWindowTitle(windowName, position, window.CWD())
-	}
+	windowName = numberWindowName(windowName, position, window.CWD())
 
 	// The agent-state indicator shows even for a window with no name, so a pane
 	// running an agent is always marked.

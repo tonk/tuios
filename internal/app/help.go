@@ -36,8 +36,11 @@ func GetHelpCategories(registry *config.KeybindRegistry) []HelpCategory {
 				"terminal_next_window", "terminal_prev_window",
 				"terminal_focus_left", "terminal_focus_right",
 				"terminal_focus_up", "terminal_focus_down",
+				"terminal_scroll_up", "terminal_scroll_down",
+				"terminal_scroll_page_up", "terminal_scroll_page_down",
 				"copy_selection", "focus_sidebar",
 				"next_session", "prev_session",
+				"toggle_sidebar", "toggle_mouse",
 			}),
 		},
 		{
@@ -162,14 +165,20 @@ func generateCategoryBindings(registry *config.KeybindRegistry, categoryName str
 func generateWorkspaceBindings(registry *config.KeybindRegistry) []HelpBinding {
 	bindings := []HelpBinding{}
 
-	// Add all 9 workspace switches
+	// Add all 9 workspace switches. This is a prefix chord (leader, then the
+	// digit), the mirror of alt+N picking a window, so the row is built like
+	// generatePrefixBindings' rows rather than a plain key.
 	for i := 1; i <= 9; i++ {
 		action := fmt.Sprintf("switch_workspace_%d", i)
 		keys := registry.GetKeys(action)
 		if len(keys) > 0 {
+			prefixedKeys := make([]string, len(keys))
+			for j, key := range keys {
+				prefixedKeys[j] = config.LeaderKey + ", " + key
+			}
 			bindings = append(bindings, HelpBinding{
 				Action:      action,
-				Keys:        keys,
+				Keys:        prefixedKeys,
 				Description: fmt.Sprintf("Switch to workspace %d", i),
 				Category:    "Workspaces",
 			})
@@ -380,13 +389,12 @@ func generateTapeBindings() []HelpBinding {
 func generatePrefixBindings(registry *config.KeybindRegistry) []HelpBinding {
 	bindings := []HelpBinding{}
 
-	// Get all prefix actions from the config
+	// Get all prefix actions from the config. switch_workspace_N (the digit
+	// after the leader) gets its row from generateWorkspaceBindings instead,
+	// next to the workspace's other keys rather than buried in this list.
 	prefixActions := []string{
 		"prefix_new_window", "prefix_close_window", "prefix_rename_window",
 		"prefix_next_window", "prefix_prev_window",
-		"prefix_select_0", "prefix_select_1", "prefix_select_2",
-		"prefix_select_3", "prefix_select_4", "prefix_select_5",
-		"prefix_select_6", "prefix_select_7", "prefix_select_8", "prefix_select_9",
 		"prefix_toggle_tiling", "prefix_workspace", "prefix_minimize",
 		"prefix_window", "prefix_detach", "prefix_close_session", "prefix_selection",
 		"prefix_help", "prefix_quit", "prefix_fullscreen", "prefix_settings",
@@ -394,7 +402,7 @@ func generatePrefixBindings(registry *config.KeybindRegistry) []HelpBinding {
 		"prefix_equalize_splits", "prefix_layout",
 		"prefix_scrollback", "prefix_command_palette", "prefix_session_switcher",
 		"prefix_workspace_switcher",
-		"prefix_toggle_sidebar", "prefix_explore",
+		"prefix_toggle_sidebar", "prefix_toggle_mouse", "prefix_explore",
 		"prefix_jump_notif",
 	}
 

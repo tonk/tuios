@@ -522,6 +522,24 @@ func GetCommandPaletteItems() []CommandPaletteItem {
 			},
 		},
 		{
+			Name:     "Toggle Mouse Mode",
+			Shortcut: "prefix+M",
+			Category: "Session",
+			Action: func(m *OS) (*OS, tea.Cmd) {
+				config.MouseEnabled = !config.MouseEnabled
+				if m.UserConfig != nil {
+					v := config.MouseEnabled
+					m.UserConfig.Appearance.MouseEnabled = &v
+				}
+				state := "Disabled"
+				if config.MouseEnabled {
+					state = "Enabled"
+				}
+				m.ShowNotification("Mouse mode "+state, "success", config.NotificationDuration)
+				return m, nil
+			},
+		},
+		{
 			Name:     "Toggle Focus Follows Mouse",
 			Category: "Session",
 			Action: func(m *OS) (*OS, tea.Cmd) {

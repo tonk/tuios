@@ -43,15 +43,13 @@ func ValidateConfig(cfg *UserConfig) *ValidationResult {
 
 	// Validate all keybinding sections
 	validateSection := func(sectionName string, section map[string][]string) {
-		for action, keys := range section {
-			// Check if action has at least one key bound (warn if empty)
+		for _, keys := range section {
+			// An empty list is only ever reached by explicitly writing `action =
+			// []`, which is the documented way to unbind an action and hand its
+			// key back to the shell (see the config file's own header comment).
+			// It can never happen by accident, so it is not a warning here; an
+			// unbound *essential* action still gets its own warning below.
 			if len(keys) == 0 {
-				// Some actions might intentionally be unbound, so this is just a warning
-				result.Warnings = append(result.Warnings, ValidationError{
-					Field:   sectionName,
-					Key:     action,
-					Message: fmt.Sprintf("Action '%s' has no keybindings", action),
-				})
 				continue
 			}
 

@@ -72,11 +72,16 @@ The configuration file uses TOML format with the following structure:
 [keybindings.window_management]
 new_window = ["n"]
 close_window = ["w", "x"]
+select_window_1 = ["1", "alt+1"]
 # ... more keybindings
 
 [keybindings.workspaces]
-switch_workspace_1 = ["alt+1"]
+move_and_follow_1 = ["alt+shift+1"]
 # ... more workspaces
+
+[keybindings.prefix_mode]
+switch_workspace_1 = ["1"]  # Ctrl+B, 1 switches to workspace 1
+# ... more prefix commands
 
 [keybindings.layout]
 snap_left = ["h"]
@@ -133,14 +138,19 @@ Window creation, navigation, and control.
 - `restore_all` - Restore all minimized windows
 - `next_window` - Focus next window
 - `prev_window` - Focus previous window
-- `select_window_1` through `select_window_9` - Select window by number
+- `toggle_last_window` - Jump to the window that had focus before this one, and back again on a second press (default: `alt+\`` / `opt+\``, at any time)
+- `select_window_1` through `select_window_9` - Select window by number (default: the bare digit in window mode, plus `alt+N`/`opt+N` at any time)
 
 ### workspaces
-Workspace switching and window movement.
+Window movement between workspaces. Switching to a workspace itself is a
+`prefix_mode` chord now (see below); this section only carries move-and-follow.
 
 **Available actions:**
-- `switch_workspace_1` through `switch_workspace_9` - Switch to workspace N
 - `move_and_follow_1` through `move_and_follow_9` - Move window to workspace N and follow
+
+Switching workspaces without moving a window is `switch_workspace_1` through
+`switch_workspace_9`, configured under `[keybindings.prefix_mode]` (default:
+`Ctrl+B` then the digit) rather than here.
 
 ### layout
 Window positioning and tiling.
@@ -189,7 +199,10 @@ Individual minimized window restoration by number.
 ### prefix_mode
 Tmux-style prefix commands (the leader key followed by another key). Every
 action in this section is configurable, and the leader key itself is set by
-`leader_key` under `[keybindings]`.
+`leader_key` under `[keybindings]`. This is also where `switch_workspace_1`
+through `switch_workspace_9` live by default (`Ctrl+B` then the digit) —
+the mirror of `select_window_1`-`select_window_9`'s `alt+N`, so a plain digit
+picks a workspace and a modified one picks a window.
 
 **Example:**
 
@@ -354,6 +367,18 @@ The default is chosen for what terminal output looks like: a path, a query strin
 
 **Note:** Triple-click selects the whole line and is not affected by this. Also settable from the in-app settings page (Advanced, "Word characters").
 
+### mouse_enabled
+
+Controls whether TUIOS handles mouse input at all: hover, click, drag, scroll, and selection.
+
+**Valid values:**
+- `true` - TUIOS handles the mouse (default)
+- `false` - TUIOS asks the host terminal for no mouse reporting, so the terminal emulator's own mouse handling (e.g. its native text selection) takes over instead
+
+**Default:** `true`
+
+**Note:** Bound to `Ctrl+B` `M` (`prefix_toggle_mouse`) by default; also settable from the in-app settings page (Behavior, "Mouse mode") or the command palette ("Toggle Mouse Mode").
+
 ### window_title_position
 
 Controls where window titles are displayed. Titles show the custom name if set by the user, otherwise the terminal's title (e.g., from shell prompt).
@@ -368,6 +393,33 @@ Controls where window titles are displayed. Titles show the custom name if set b
 **Note:** When set to `"hidden"`, the rename window keybinding (`r`) is disabled since there's no visible title to rename.
 
 **CLI override:** `--window-title-position <position>`
+
+### show_window_number
+
+Prefixes a window's displayed title with its 1-based index (e.g. `1: bash`), the same number the leader-digit jump shortcuts use. Ignored once `window_title_format` is set — use the `{index}` placeholder there instead.
+
+**Valid values:**
+- `true` - Show the window number in the title (default)
+- `false` - Show only the title, with no number
+
+**Default:** `true`
+
+**Note:** Also settable from the in-app settings page (Appearance, "Show window number").
+
+### window_title_format
+
+A template that overrides how a window's title is built, when you want more control than `show_window_number` gives you.
+
+**Valid placeholders:**
+- `{title}` - The custom name or terminal-reported title
+- `{index}` - The window's 1-based position in its workspace
+- `{cwd}` - The shell's working directory (empty when it cannot be read)
+
+**Default:** `""` (empty, meaning the title is shown as-is, subject to `show_window_number`)
+
+**Example:** `"{index}: {title}"` renders as `2: bash`. `"{title} — {cwd}"` renders as `bash — /home/user/project`.
+
+**Note:** Also settable from the in-app settings page (Appearance, "Window title format").
 
 ### hide_clock
 
@@ -491,6 +543,23 @@ Reverses the mouse wheel direction when scrolling the viewport in the scrolling
 - `true` - Inverted
 
 **Default:** `false`
+
+### sidebar.enabled
+
+Shows the session sidebar: a vertical rail listing sessions, windows, and agents, reserving a margin the way the dock reserves one for itself. Configured under the `[appearance.sidebar]` table:
+
+```toml
+[appearance.sidebar]
+enabled = true
+```
+
+**Valid values:**
+- `false` - Sidebar off (default, opt-in)
+- `true` - Sidebar on
+
+**Default:** `false`
+
+**Note:** Bound to `Ctrl+B` `b` (`prefix_toggle_sidebar`) by default; also settable from the in-app settings page (Sidebar, "Sidebar") or the command palette ("Toggle Sidebar"). The `[appearance.sidebar]` table also has `position`, `width`, and several `show_*`/display toggles — see the Sidebar category in the in-app settings page for the full list.
 
 ### session_colors
 
@@ -942,11 +1011,11 @@ See [Terminal Mode Keys](KEYBINDINGS.md#terminal-mode-keys).
 
 On macOS, TUIOS supports the Option key (displayed as "opt" or "option" on Mac keyboards).
 
-**Default workspace switching:**
+**Default window selection:**
 ```toml
-[keybindings.workspaces]
-switch_workspace_1 = ["opt+1"]
-switch_workspace_2 = ["opt+2"]
+[keybindings.window_management]
+select_window_1 = ["1", "opt+1"]
+select_window_2 = ["2", "opt+2"]
 # ... etc
 ```
 

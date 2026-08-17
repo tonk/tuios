@@ -424,6 +424,10 @@ func TestAccentPreviewFoldStaysAllocationFree(t *testing.T) {
 	m := accentTestOS(t, 120, 30)
 	m.OpenAccentPicker("aaaaaaaa1111")
 	m.AccentPickerSetSlider(accentChanS, 61)
+	// The steady-state tick keeps every row's rail title in m.sidebarTitles, so
+	// the signature fold reads a cached string rather than rebuilding one; seed
+	// that cache the way the real tick loop does before measuring.
+	m.updateRailTitles()
 	m.sidebarSignature() // warm anything one-off
 
 	if got := testing.AllocsPerRun(200, func() { m.sidebarSignature() }); got != 0 {

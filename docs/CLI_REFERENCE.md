@@ -112,7 +112,7 @@ tuios
 - `--border-style <style>` - Window border style (rounded, normal, thick, double, hidden, block, ascii)
 - `--dockbar-position <pos>` - Dockbar position (bottom, top, hidden)
 - `--hide-window-buttons` - Hide window control buttons (minimize, maximize, close)
-- `--scrollback-lines <num>` - Number of lines in scrollback buffer (100-1000000)
+- `--scrollback-lines <num>` - Number of lines in scrollback buffer (100-10000000)
 - `--window-title-position <pos>` - Window title position (bottom, top, hidden)
 - `--hide-clock` - Hide the clock overlay
 - `--no-animations` - Disable UI animations for instant transitions

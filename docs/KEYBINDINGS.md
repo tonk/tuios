@@ -37,6 +37,8 @@ These work while typing into a pane, without the leader key. They live in `[keyb
 | `Alt+N` / `Alt+P` | Next / previous window |
 | `Alt+Esc` | Leave Terminal Mode |
 | `Alt+←` `Alt+→` `Alt+↑` `Alt+↓` | Focus the pane in that direction |
+| `Alt+S` | Toggle sidebar |
+| `Alt+M` | Toggle mouse mode |
 
 Focus moves to the nearest pane whose facing edge lies in that direction and whose span overlaps the current pane's; ties go to the earlier pane. At the edge of the layout nothing happens, and focus does not wrap.
 
@@ -83,8 +85,13 @@ The rail's remaining keys are listed by that help overlay, which reads them from
 | `Shift+M` | Restore all minimized windows |
 | `Tab` | Focus next window |
 | `Shift+Tab` | Focus previous window |
-| `1-9` | Select window by number |
+| `1-9` (Window Mode) or `Alt+1` through `Alt+9` (works anywhere, also while typing) | Select window by number |
+| `Alt+\`` (works anywhere, also while typing) | Toggle to the last focused window, and back again on a second press |
 | `Shift+1-9` or `!@#$%^&*(` | Restore minimized window by number |
+| `Alt+S` | Toggle sidebar (works without the prefix; also `Ctrl+B` `b`) |
+| `Alt+M` | Toggle mouse mode (works without the prefix; also `Ctrl+B` `Shift+M`) |
+
+**macOS:** Use `Option+1` through `Option+9`, and `Option+\`` for the last-window toggle (automatically configured by default)
 
 ## Workspaces
 
@@ -92,10 +99,10 @@ TUIOS supports 9 workspaces for organizing windows.
 
 | Key | Action |
 |-----|--------|
-| `Alt+1` through `Alt+9` | Switch to workspace 1-9 |
+| `Ctrl+B` `1-9` | Switch to workspace 1-9 |
 | `Alt+Shift+1` through `Alt+Shift+9` | Move window to workspace and follow |
 
-**macOS:** Use `Option+1` through `Option+9` (automatically configured by default)
+**macOS:** Use `Option+Shift+1` through `Option+Shift+9` for move-and-follow (automatically configured by default)
 
 ## Window Layout
 
@@ -259,7 +266,7 @@ Press `Ctrl+B`, release, then press the command key (tmux-style).
 | `Ctrl+B` `,` or `r` | Rename window |
 | `Ctrl+B` `n` or `Tab` | Next window |
 | `Ctrl+B` `p` or `Shift+Tab` | Previous window |
-| `Ctrl+B` `0-9` | Jump to window |
+| `Ctrl+B` `1-9` | Switch to workspace 1-9 |
 | `Ctrl+B` `Space` | Toggle tiling mode |
 | `Ctrl+B` `z` | Toggle Zoom (fullscreen focused window) |
 | `Ctrl+B` `w` | Enter workspace prefix menu |
@@ -271,6 +278,8 @@ Press `Ctrl+B`, release, then press the command key (tmux-style).
 | `Ctrl+B` `d` | Detach from a daemon session, leaving it running. Outside a daemon session it exits terminal mode |
 | `Ctrl+B` `q` | Quit TUIOS |
 | `Ctrl+B` `?` | Toggle help |
+| `Ctrl+B` `b` | Toggle sidebar |
+| `Ctrl+B` `M` | Toggle mouse mode |
 | `Ctrl+B` `S` | Session Switcher |
 | `Ctrl+B` `L` | Load Layout |
 | `Ctrl+B` `P` | Command Palette (alternative) |
@@ -434,15 +443,16 @@ tuios keybinds list-custom
 
 ### macOS
 
-Default workspace switching uses Option key:
-- `Option+1` through `Option+9` - Switch workspace
-- `Option+Shift+1` through `Option+Shift+9` - Move window to workspace
+Default window selection and move-and-follow use the Option key:
+- `Option+1` through `Option+9` - Select window by number
+- `Option+\`` - Toggle to the last focused window
+- `Option+Shift+1` through `Option+Shift+9` - Move window to workspace and follow
 
 In your terminal, you can still type Option key unicode characters (¡™£¢∞§¶•ª) in Terminal Mode.
 
 ### Linux
 
-Uses standard Alt key for workspace switching:
+Uses standard Alt key for window selection and move-and-follow:
 - `Alt+1` through `Alt+9`
 - `Alt+Shift+1` through `Alt+Shift+9`
 

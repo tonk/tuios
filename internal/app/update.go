@@ -427,12 +427,20 @@ func (m *OS) tickNeedsWork() bool {
 		if w.ProcessExited() || w.HasNewOutput.Load() || w.IsBeingManipulated {
 			return true
 		}
+		// An unwatched window's local title is frozen at whatever it was when this
+		// client stopped subscribing; only a moved daemon listing can change what it
+		// shows, and the CacheGen check above already wakes the tick for that.
+		// Comparing its frozen local title here would just find it forever
+		// "drifted" from the daemon-sourced title the rail actually adopted.
+		if m.windowUnwatched(w) {
+			continue
+		}
 		// A title that has drifted from what the rail shows needs a work tick to
 		// adopt it. Keying the wake on HasNewOutput misses an isolated title-only
 		// change on the focused pane: the render consumes that flag before any
 		// tick observes it, so the rail would hold the stale title until the next
 		// output. The compare is a cheap string check per window.
-		if windowRowTitle(w) != m.railTitleShown(w) {
+		if m.windowRowTitle(w) != m.railTitleShown(w) {
 			return true
 		}
 	}
@@ -1197,6 +1205,10 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// Retile windows if in tiling mode
 		if m.AutoTiling {
 			m.TileAllWindows()
+		} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+			// Keep every floating window filling the content area as the
+			// terminal's real size arrives (see MaximizeFloatingWindows).
+			m.MaximizeFloatingWindows()
 		} else if msg.Width < oldWidth || msg.Height < oldHeight {
 			// Terminal got smaller in floating mode - clamp windows back into view
 			m.ClampWindowsToView()

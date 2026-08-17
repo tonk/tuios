@@ -30,8 +30,8 @@ func TestRailTitleDebounce(t *testing.T) {
 	if changed := m.updateRailTitles(); changed {
 		t.Fatal("seeding a first title should not report a change")
 	}
-	if got := m.railTitleShown(win); got != "cmd-a" {
-		t.Fatalf("shown after seed = %q, want %q", got, "cmd-a")
+	if got := m.railTitleShown(win); got != "1: cmd-a" {
+		t.Fatalf("shown after seed = %q, want %q", got, "1: cmd-a")
 	}
 
 	// A burst right after adoption is held: the rail keeps the last adopted title
@@ -40,8 +40,8 @@ func TestRailTitleDebounce(t *testing.T) {
 	if changed := m.updateRailTitles(); changed {
 		t.Fatal("a change inside the debounce window must not be adopted yet")
 	}
-	if got := m.railTitleShown(win); got != "cmd-a" {
-		t.Fatalf("shown mid-burst = %q, want the held %q", got, "cmd-a")
+	if got := m.railTitleShown(win); got != "1: cmd-a" {
+		t.Fatalf("shown mid-burst = %q, want the held %q", got, "1: cmd-a")
 	}
 	if !m.sidebarTitlePending {
 		t.Fatal("a deferred change must leave a pending flag so the tick settles it")
@@ -54,8 +54,8 @@ func TestRailTitleDebounce(t *testing.T) {
 	if changed := m.updateRailTitles(); !changed {
 		t.Fatal("after the interval the drifted title must be adopted")
 	}
-	if got := m.railTitleShown(win); got != "cmd-final" {
-		t.Fatalf("final shown = %q, want %q", got, "cmd-final")
+	if got := m.railTitleShown(win); got != "1: cmd-final" {
+		t.Fatalf("final shown = %q, want %q", got, "1: cmd-final")
 	}
 	if m.sidebarTitlePending {
 		t.Fatal("pending must clear once the rail is in sync")

@@ -107,6 +107,16 @@ func TestLeaderSettingsOpensInBothModes(t *testing.T) {
 // main prefix section is driven from terminal mode against a pane that records
 // what it receives.
 func TestPrefixActionsDoNotLeakToGuest(t *testing.T) {
+	// Firing every prefix action includes the toggles (prefix_toggle_sidebar,
+	// prefix_toggle_mouse), which flip package globals read well beyond this
+	// test's own assertions (e.g. View()'s MouseMode). Restore them so this
+	// smoke test doesn't leak state into whatever test runs after it.
+	prevMouse, prevSidebar := config.MouseEnabled, config.SidebarEnabled
+	t.Cleanup(func() {
+		config.MouseEnabled = prevMouse
+		config.SidebarEnabled = prevSidebar
+	})
+
 	cfg := config.DefaultConfig()
 	actions := make([]string, 0, len(cfg.Keybindings.PrefixMode))
 	for action := range cfg.Keybindings.PrefixMode {

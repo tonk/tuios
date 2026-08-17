@@ -143,8 +143,8 @@ func ApplyOverrides(overrides Overrides, userConfig *UserConfig) {
 		lines := overrides.ScrollbackLines
 		if lines < 100 {
 			lines = 100
-		} else if lines > 1000000 {
-			lines = 1000000
+		} else if lines > 10000000 {
+			lines = 10000000
 		}
 		ScrollbackLines = lines
 	} else if userConfig != nil && userConfig.Appearance.ScrollbackLines > 0 {

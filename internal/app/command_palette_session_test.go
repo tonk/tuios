@@ -46,11 +46,11 @@ func TestGetSessionPaletteItemsStandalone(t *testing.T) {
 	if got := items[0].Name; got != "Session: local" {
 		t.Errorf("session item Name = %q, want %q", got, "Session: local")
 	}
-	if got := items[1].Name; got != "Window: first" {
-		t.Errorf("window item Name = %q, want %q", got, "Window: first")
+	if got := items[1].Name; got != "Window: 1: first" {
+		t.Errorf("window item Name = %q, want %q", got, "Window: 1: first")
 	}
-	if got := items[2].Name; got != "Window: second" {
-		t.Errorf("window item Name = %q, want %q", got, "Window: second")
+	if got := items[2].Name; got != "Window: 2: second" {
+		t.Errorf("window item Name = %q, want %q", got, "Window: 2: second")
 	}
 }
 
@@ -62,7 +62,7 @@ func TestSessionPaletteItemAgentGlyph(t *testing.T) {
 	second.AgentState = "errored"
 
 	items := getSessionPaletteItems(m)
-	want := "Window: " + agentStateIndicator("errored") + " second"
+	want := "Window: " + agentStateIndicator("errored") + " 2: second"
 	if got := items[2].Name; got != want {
 		t.Errorf("window item Name = %q, want %q", got, want)
 	}
@@ -151,7 +151,7 @@ func TestFilteredPaletteItemsMatchesSessionEntries(t *testing.T) {
 		}
 		t.Fatalf("filtered = %d, want 1, got %v", len(filtered), names)
 	}
-	if filtered[0].Name != "Window: second" {
-		t.Errorf("filtered[0].Name = %q, want %q", filtered[0].Name, "Window: second")
+	if filtered[0].Name != "Window: 2: second" {
+		t.Errorf("filtered[0].Name = %q, want %q", filtered[0].Name, "Window: 2: second")
 	}
 }

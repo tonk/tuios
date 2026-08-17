@@ -512,7 +512,14 @@ func (m *OS) View() tea.View {
 	// separate decision, filtered there against the guest's own mouse mode so an
 	// app that asked for less than 1003 still sees only what it asked for (#78);
 	// see guestWantsMotion.
+	//
+	// config.MouseEnabled is the leader+M / appearance.mouse_enabled escape
+	// hatch: off, tuios asks the host for no mouse reporting at all, handing
+	// mouse handling back to the terminal emulator (e.g. its native selection).
 	view.MouseMode = tea.MouseModeAllMotion
+	if !config.MouseEnabled {
+		view.MouseMode = tea.MouseModeNone
+	}
 
 	view.ReportFocus = true
 	view.DisableBracketedPasteMode = false

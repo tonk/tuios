@@ -41,9 +41,9 @@ func TestBuildSessionTreeStandaloneRollsUpAndMarksFocus(t *testing.T) {
 	}
 
 	wantTitles := map[string]string{
-		"w1": "build",      // CustomName wins
-		"w2": "live-title", // falls back to Title()
-		"w3": "shell",      // falls back to the "shell" default
+		"w1": "1: build",      // CustomName wins, numbered like the tab title
+		"w2": "2: live-title", // falls back to Title()
+		"w3": "3: shell",      // falls back to the "shell" default
 	}
 	wantStates := map[string]string{"w1": "working", "w2": "idle", "w3": ""}
 

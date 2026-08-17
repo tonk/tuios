@@ -7,6 +7,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/app"
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
 // The prefix chords used to be two hand-written switch statements over literal
@@ -47,6 +48,7 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 	d.Register("prefix_help", handlePrefixHelp)
 	d.Register("prefix_command_palette", handlePrefixCommandPalette)
 	d.Register("prefix_toggle_sidebar", handlePrefixToggleSidebar)
+	d.Register("prefix_toggle_mouse", handlePrefixToggleMouse)
 	d.Register("prefix_session_switcher", handlePrefixSessionSwitcher)
 	d.Register("prefix_workspace_switcher", handlePrefixWorkspaceSwitcher)
 	d.Register("prefix_explore", handleToggleFocusSidebar)
@@ -113,6 +115,77 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 	d.Register("terminal_focus_right", handleTerminalFocusDirection("right"))
 	d.Register("terminal_focus_up", handleTerminalFocusDirection("up"))
 	d.Register("terminal_focus_down", handleTerminalFocusDirection("down"))
+	d.Register(actionTerminalScrollUp, handleTerminalScrollUp)
+	d.Register(actionTerminalScrollDown, handleTerminalScrollDown)
+	d.Register(actionTerminalScrollPageUp, handleTerminalScrollPageUp)
+	d.Register(actionTerminalScrollPageDown, handleTerminalScrollPageDown)
+	d.Register("toggle_sidebar", handlePrefixToggleSidebar)
+	d.Register("toggle_mouse", handlePrefixToggleMouse)
+}
+
+// Scrollback actions bound directly in terminal mode: the keyboard spelling of
+// the wheel, one line (terminal_scroll_up/down) or a full pane height
+// (terminal_scroll_page_up/down) at a time. Named as constants rather than
+// bare strings because keyboard_terminal.go has to recognize them by name to
+// dispatch them ahead of the copy-mode key handler (see the comment there).
+const (
+	actionTerminalScrollUp       = "terminal_scroll_up"
+	actionTerminalScrollDown     = "terminal_scroll_down"
+	actionTerminalScrollPageUp   = "terminal_scroll_page_up"
+	actionTerminalScrollPageDown = "terminal_scroll_page_down"
+)
+
+// scrollTerminalBack scrolls a pane's viewport back by lines, entering
+// implicit copy mode first if it is not already active.
+func scrollTerminalBack(win *terminal.Window, lines int) {
+	if win == nil {
+		return
+	}
+	if !win.InCopyMode() && win.ScrollbackLen() > 0 {
+		win.EnterCopyModeImplicit()
+	}
+	scrollCopyModeUpBy(win, lines)
+}
+
+// scrollTerminalForward scrolls a pane's viewport forward by lines and leaves
+// implicit copy mode once it reaches the live screen. A no-op outside copy
+// mode: there is nothing "forward" of live output to scroll to.
+func scrollTerminalForward(win *terminal.Window, lines int) {
+	if win == nil || !win.InCopyMode() {
+		return
+	}
+	scrollCopyModeDownBy(win, lines)
+	leaveCopyModeAtBottom(win)
+}
+
+func handleTerminalScrollUp(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	scrollTerminalBack(o.GetFocusedWindow(), 1)
+	return o, nil
+}
+
+func handleTerminalScrollDown(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	scrollTerminalForward(o.GetFocusedWindow(), 1)
+	return o, nil
+}
+
+func handleTerminalScrollPageUp(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	win := o.GetFocusedWindow()
+	lines := 1
+	if win != nil {
+		lines = max(1, win.ContentHeight())
+	}
+	scrollTerminalBack(win, lines)
+	return o, nil
+}
+
+func handleTerminalScrollPageDown(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	win := o.GetFocusedWindow()
+	lines := 1
+	if win != nil {
+		lines = max(1, win.ContentHeight())
+	}
+	scrollTerminalForward(win, lines)
+	return o, nil
 }
 
 // handleTerminalFocusDirection moves focus to the neighbouring pane in one
@@ -373,6 +446,16 @@ func handlePrefixToggleSidebar(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) 
 		state = "Enabled"
 	}
 	o.ShowNotification("Sidebar "+state, "success", config.NotificationDuration)
+	return o, nil
+}
+
+func handlePrefixToggleMouse(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	config.MouseEnabled = !config.MouseEnabled
+	if o.UserConfig != nil {
+		v := config.MouseEnabled
+		o.UserConfig.Appearance.MouseEnabled = &v
+	}
+	toggleNotify(o, "Mouse mode", config.MouseEnabled)
 	return o, nil
 }
 

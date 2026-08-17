@@ -238,6 +238,10 @@ func (m *OS) FocusWindow(i int) *OS {
 
 	oldFocused := m.FocusedWindow
 
+	if oldFocused >= 0 && oldFocused < len(m.Windows) {
+		m.LastFocusedWindowID = m.Windows[oldFocused].ID
+	}
+
 	// ATOMIC: Set focus and Z-index in one operation
 	m.FocusedWindow = i
 
@@ -268,6 +272,46 @@ func (m *OS) FocusWindow(i int) *OS {
 	}
 
 	return m
+}
+
+// ToggleLastFocusedWindow jumps to the window FocusWindow last moved focus
+// away from, the way alt-tab does between two windows. A no-op if that window
+// has since closed or nothing has been focused yet, and pressing it again
+// swaps right back: FocusWindow overwrites LastFocusedWindowID with whatever
+// was focused before this call, so the pair alternates.
+func (m *OS) ToggleLastFocusedWindow() {
+	if m.LastFocusedWindowID == "" {
+		return
+	}
+	for i, w := range m.Windows {
+		if w.ID == m.LastFocusedWindowID {
+			m.FocusWindow(i)
+			return
+		}
+	}
+}
+
+// FocusWindowAtWorkspacePosition focuses the window at the given 1-based
+// position among the current workspace's windows: the same numbering
+// workspacePosition hands the tab title and the sidebar, so select_window_N
+// always jumps to the window actually labelled N. Reports whether a window
+// was found at that position.
+func (m *OS) FocusWindowAtWorkspacePosition(n int) bool {
+	position := 0
+	for i, w := range m.Windows {
+		if w.Workspace != m.CurrentWorkspace {
+			continue
+		}
+		if m.AutoTiling && w.Minimized {
+			continue
+		}
+		position++
+		if position == n {
+			m.FocusWindow(i)
+			return true
+		}
+	}
+	return false
 }
 
 // RecalcZOrder recalculates Z-index values for all windows, ensuring floating
@@ -303,8 +347,9 @@ func (m *OS) RecalcZOrder() {
 
 // NewWindowPlacement returns the position and size a freshly created window gets
 // on this client: half the usable screen, at the mouse in floating mode and
-// centered otherwise. Auto-tiling overwrites it on the next retile; floating mode
-// is where it is what the user actually sees.
+// centered otherwise, or the full content area when MaximizeNewWindows is set.
+// Auto-tiling overwrites it on the next retile; floating mode is where it is
+// what the user actually sees.
 //
 // It is a property of the viewport, which is why the daemon cannot compute it and
 // why a window the daemon created arrives marked Unplaced for a client to run
@@ -320,6 +365,8 @@ func (m *OS) NewWindowPlacement() (x, y, width, height int) {
 		leftMargin = 0
 		contentWidth = 80
 		screenHeight = 24
+	} else if !m.AutoTiling && m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+		return m.calculateSnapBounds(SnapFullScreen)
 	}
 
 	width = contentWidth / 2
@@ -468,11 +515,11 @@ func (m *OS) applyStartupPreferences() {
 	m.applyStartupTiling()
 
 	// Open the first window through the same path the `n` key uses, so it is
-	// created, focused and (with tiling now on) tiled exactly like a manual one.
+	// created, focused and (with tiling now on, or MaximizeNewWindows set)
+	// placed exactly like a manual one.
 	if s.OpenDefaultWindow {
 		m.AddWindow("")
 	}
-
 	// Start focused in terminal mode so the user can type into the shell straight
 	// away. This only makes sense with a window to type into: terminal mode with
 	// nothing focused is a dead end where keystrokes reach no terminal. On the

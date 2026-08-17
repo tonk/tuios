@@ -79,10 +79,53 @@ func TestAltShiftDigitsResolveInEverySpellingATerminalSends(t *testing.T) {
 	}
 
 	// Aliasing the shifted chords must leave the unshifted digits alone.
-	for key, want := range map[string]string{"alt+1": "switch_workspace_1", "alt+9": "switch_workspace_9"} {
+	for key, want := range map[string]string{"alt+1": "select_window_1", "alt+9": "select_window_9"} {
 		if got := registry.GetAction(key); got != want {
 			t.Errorf("%s resolved to %q, want %q", key, got, want)
 		}
+	}
+}
+
+// TestAltDigitSelectsWindowInFloatingMode is the regression test for
+// select_window_N resolving to the right action but not actually focusing
+// anything: the shared handler used to re-derive the target number from the
+// pressed key's own first character, which is the modifier letter ('a') for
+// a chord like "alt+2", not the digit. It also used to fall back to corner-
+// snapping (or, past 4, nothing at all) whenever auto-tiling was off, which
+// is this fixture's default (floating panes) and this repo's own default
+// (startup.tiled = false) — so alt+N silently never selected a window in the
+// most common layout.
+func TestAltDigitSelectsWindowInFloatingMode(t *testing.T) {
+	o := twoPaneOS(t)
+	if o.AutoTiling {
+		t.Fatal("fixture is meant to be floating (auto-tiling off)")
+	}
+
+	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: '2', Mod: tea.ModAlt}, o)
+	if got := o.FocusedWindow; got != 1 {
+		t.Fatalf("alt+2 focused window %d, want 1 (pane b)", got)
+	}
+
+	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: '1', Mod: tea.ModAlt}, o)
+	if got := o.FocusedWindow; got != 0 {
+		t.Fatalf("alt+1 focused window %d, want 0 (pane a)", got)
+	}
+}
+
+// TestNumberKeySkipsMinimizedWindowsWhenTiled pins the one case handleNumberKey
+// still has to get right without re-deriving anything from the key: in
+// auto-tiling, select_window_N addresses the Nth window that is actually on
+// screen, the same count workspacePosition uses for the tab title and the
+// rail, so a minimized window in between must not shift the numbering a
+// user's eyes are reading off the visible panes.
+func TestNumberKeySkipsMinimizedWindowsWhenTiled(t *testing.T) {
+	o := twoPaneOS(t)
+	o.AutoTiling = true
+	o.Windows[0].Minimized = true
+
+	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: '1', Mod: tea.ModAlt}, o)
+	if got := o.FocusedWindow; got != 1 {
+		t.Fatalf("alt+1 with window a minimized focused %d, want 1 (the one visible pane, b)", got)
 	}
 }
 

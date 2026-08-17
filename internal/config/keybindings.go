@@ -74,7 +74,7 @@ func GetPrefixKeybindings(prefixType string, isDaemonSession ...bool) []Keybindi
 			{",", "Settings"},
 			{"n", "Next window"},
 			{"p", "Previous window"},
-			{"0-9", "Jump to window"},
+			{"1-9", "Switch to workspace"},
 			{"z", "Toggle zoom"},
 			{"space", "Toggle tiling"},
 			{"-", "Split horizontal"},
@@ -91,6 +91,7 @@ func GetPrefixKeybindings(prefixType string, isDaemonSession ...bool) []Keybindi
 			{"W", "Workspace switcher"},
 			{"L", "Layout commands..."},
 			{"b", "Toggle sidebar"},
+			{"M", "Toggle mouse mode"},
 			{"e", "Focus/leave sidebar"},
 			{"j", "Jump to newest message"},
 			{"X", "Close session"},
@@ -150,6 +151,9 @@ func GetKeybindings(registry *KeybindRegistry) []KeybindingSection {
 	addBinding(&windowMgmt, registry, "restore_all", "Restore all")
 	addBinding(&windowMgmt, registry, "next_window", "Next window")
 	addBinding(&windowMgmt, registry, "prev_window", "Previous window")
+	addBinding(&windowMgmt, registry, "toggle_last_window", "Toggle last focused window")
+	addBinding(&windowMgmt, registry, "toggle_sidebar", "Toggle sidebar")
+	addBinding(&windowMgmt, registry, "toggle_mouse", "Toggle mouse mode")
 	if len(windowMgmt.Bindings) > 0 {
 		sections = append(sections, windowMgmt)
 	}
@@ -159,11 +163,18 @@ func GetKeybindings(registry *KeybindRegistry) []KeybindingSection {
 		Title:    "WORKSPACES",
 		Bindings: []Keybinding{},
 	}
-	// Show all workspace switches (1-9)
+	// Show all workspace switches (1-9). This is a prefix chord (leader, then
+	// the digit) now, so it needs the leader spelled out rather than the plain
+	// key addBinding would show.
 	for i := 1; i <= 9; i++ {
 		actionSwitch := fmt.Sprintf("switch_workspace_%d", i)
 		descSwitch := fmt.Sprintf("Switch to workspace %d", i)
-		addBinding(&workspaces, registry, actionSwitch, descSwitch)
+		if keys := registry.GetKeys(actionSwitch); len(keys) > 0 {
+			workspaces.Bindings = append(workspaces.Bindings, Keybinding{
+				Key:         LeaderKey + ", " + keys[0],
+				Description: descSwitch,
+			})
+		}
 	}
 	// Show all move and follow (1-9)
 	for i := 1; i <= 9; i++ {
@@ -217,15 +228,19 @@ func getDefaultKeybindings() []KeybindingSection {
 				{"Tab", "Next window"},
 				{"Shift+Tab", "Previous window"},
 				{"1-9", "Select window"},
+				{"%s+1-9", "Select window (any time)"}, // %s will be replaced with modifier key
+				{"%s+`", "Toggle last focused window"}, // %s will be replaced with modifier key
+				{"Alt+S", "Toggle sidebar"},
+				{"Alt+M", "Toggle mouse mode"},
 			},
 		},
 		{
 			Title: "WORKSPACES",
 			Bindings: []Keybinding{
-				{"%s+1-9", "Switch workspace"},             // %s will be replaced with modifier key
+				{"Ctrl+B, 1-9", "Switch workspace"},
 				{"%s+Shift+1-9", "Move window and follow"}, // %s will be replaced with modifier key
-				{"Ctrl+B, w, 1-9", "Switch workspace (prefix)"},
-				{"Ctrl+B, w, Shift+1-9", "Move window (prefix)"},
+				{"Ctrl+B, w, 1-9", "Switch workspace (prefix submenu)"},
+				{"Ctrl+B, w, Shift+1-9", "Move window (prefix submenu)"},
 			},
 		},
 		{
@@ -301,7 +316,7 @@ func getStaticHelpSections() []KeybindingSection {
 				{",/r", "Rename window"},
 				{"n/Tab", "Next window"},
 				{"p/Shift+Tab", "Previous window"},
-				{"0-9", "Jump to window"},
+				{"1-9", "Switch to workspace"},
 				{"z", "Toggle zoom"},
 				{"space", "Toggle tiling"},
 				{"-", "Split horizontal"},

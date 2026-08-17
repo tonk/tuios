@@ -70,6 +70,7 @@ func (d *ActionDispatcher) registerHandlers() {
 	d.Register("restore_all", handleRestoreAll)
 	d.Register("next_window", handleNextWindow)
 	d.Register("prev_window", handlePrevWindow)
+	d.Register("toggle_last_window", handleToggleLastWindow)
 
 	// Window selection (1-9)
 	for i := 1; i <= 9; i++ {
@@ -299,9 +300,20 @@ func handlePrevWindow(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	return o, nil
 }
 
-// makeSelectWindowHandler creates a handler for selecting a window by index
-func makeSelectWindowHandler(_ int) ActionHandler {
-	return handleNumberKey
+func handleToggleLastWindow(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.ToggleLastFocusedWindow()
+	return o, nil
+}
+
+// makeSelectWindowHandler creates the handler for select_window_(idx+1). The
+// number is fixed at registration time rather than re-parsed from whatever
+// key was actually pressed, since a modified chord ("alt+1") or a macOS
+// Option glyph doesn't carry the digit as its own text (see handleNumberKey).
+func makeSelectWindowHandler(idx int) ActionHandler {
+	num := idx + 1
+	return func(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+		return handleNumberKey(msg, o, num)
+	}
 }
 
 // ============================================================================

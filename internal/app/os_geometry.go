@@ -163,13 +163,40 @@ func (m *OS) ClampWindowsToView() {
 	minVisibleY := 3  // Minimum visible vertical rows (matches mouse.go)
 	clampedCount := 0
 
+	// A window pinned to the content bound this function last measured moves
+	// with it: opening or widening the sidebar pushes such a window clear of
+	// the newly reserved margin, and closing or narrowing it gives the
+	// reclaimed columns back. Without this, a window the sidebar once shrank
+	// stays that size forever, even after the sidebar is gone - there would be
+	// no point turning it off. A window that never touched the old bound (a
+	// smaller one the user placed away from the edge) is left alone.
+	prevLeft, prevRight, haveMargins := m.clampLeftMargin, m.clampRightEdge, m.clampMarginsSet
+	m.clampLeftMargin, m.clampRightEdge, m.clampMarginsSet = leftMargin, rightEdge, true
+
 	for _, win := range m.Windows {
 		if win.Workspace != m.CurrentWorkspace || win.Minimized {
 			continue
 		}
 
-		originalX, originalY := win.X, win.Y
+		originalX, originalY, originalWidth := win.X, win.Y, win.Width
 		needsResize := false
+
+		if haveMargins {
+			if win.X == prevLeft && leftMargin != prevLeft {
+				win.Width += win.X - leftMargin
+				win.X = leftMargin
+			}
+			if win.X+win.Width == prevRight && rightEdge != prevRight {
+				win.Width += rightEdge - prevRight
+			}
+		}
+
+		// Never let a window start left of the reserved margin: one placed, or
+		// left over from a prior clamp, before the sidebar claimed these
+		// columns would otherwise render underneath it instead of beside it.
+		if win.X < leftMargin {
+			win.X = leftMargin
+		}
 
 		// Clamp window size to fit within the content region if larger
 		if win.Width > contentWidth {
@@ -188,6 +215,10 @@ func (m *OS) ClampWindowsToView() {
 		}
 		if win.Height < config.DefaultWindowHeight {
 			win.Height = config.DefaultWindowHeight
+			needsResize = true
+		}
+
+		if win.Width != originalWidth {
 			needsResize = true
 		}
 
@@ -227,6 +258,43 @@ func (m *OS) ClampWindowsToView() {
 
 	if clampedCount > 0 {
 		m.LogInfo("[CLAMP] Repositioned %d windows to fit terminal bounds (%dx%d)", clampedCount, renderWidth, m.GetRenderHeight())
+		m.SyncStateToDaemon()
+	}
+}
+
+// MaximizeFloatingWindows fills the content area with every non-minimized
+// floating window on the current workspace. It is what keeps a window placed
+// by MaximizeNewWindows actually full-screen as the terminal resizes: a
+// window is only sized to the content area at the moment it is created, and a
+// terminal emulator that settles into its real size a moment after launch (a
+// common startup race, distinct from the user later dragging the terminal's
+// own edge) would otherwise leave it at whatever undersized box the first,
+// not-yet-final WindowSizeMsg produced.
+func (m *OS) MaximizeFloatingWindows() {
+	if m.AutoTiling {
+		return // Tiling mode handles its own layout
+	}
+
+	x, y, width, height := m.calculateSnapBounds(SnapFullScreen)
+	resized := 0
+
+	for _, win := range m.Windows {
+		if win.Workspace != m.CurrentWorkspace || win.Minimized {
+			continue
+		}
+		if win.X == x && win.Y == y && win.Width == width && win.Height == height {
+			continue
+		}
+
+		m.CancelSnapAnimation(win)
+		win.X, win.Y = x, y
+		win.Resize(width, height)
+		win.MarkPositionDirty()
+		resized++
+	}
+
+	if resized > 0 {
+		m.LogInfo("[MAXIMIZE] Filled content area for %d window(s) (%dx%d)", resized, width, height)
 		m.SyncStateToDaemon()
 	}
 }

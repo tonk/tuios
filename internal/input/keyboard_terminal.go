@@ -173,25 +173,18 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 
-	// Shift+Up/Shift+Down: scroll the scrollback, the keyboard spelling of the
-	// wheel. Handled BEFORE the copy mode check so subsequent presses also
-	// scroll instead of being consumed by the copy mode key handler, and it
-	// enters copy mode the same silent way the wheel does.
-	if focusedWindow != nil {
-		shiftScroll := msg.String()
-		if shiftScroll == "shift+up" || shiftScroll == "shift+down" {
-			// One line per press, the way it has always been, but through the
-			// same viewport helpers the wheel uses.
-			if shiftScroll == "shift+up" {
-				if !focusedWindow.InCopyMode() && focusedWindow.ScrollbackLen() > 0 {
-					focusedWindow.EnterCopyModeImplicit()
-				}
-				scrollCopyModeUpBy(focusedWindow, 1)
-			} else if focusedWindow.InCopyMode() {
-				scrollCopyModeDownBy(focusedWindow, 1)
-				leaveCopyModeAtBottom(focusedWindow)
+	// Scrollback scroll keys (terminal_scroll_up/down/page_up/page_down, the
+	// keyboard spelling of the wheel - shift+up/down by default). Resolved
+	// through the keybind registry so they are rebindable, but dispatched here,
+	// BEFORE the copy mode check below, so a repeat press while already in copy
+	// mode still scrolls instead of being consumed by the copy-mode key handler.
+	if focusedWindow != nil && o.KeybindRegistry != nil {
+		action := lookupAction(msg, o.KeybindRegistry.GetTerminalModeAction)
+		switch action {
+		case actionTerminalScrollUp, actionTerminalScrollDown, actionTerminalScrollPageUp, actionTerminalScrollPageDown:
+			if m, cmd, ok := dispatchAction(action, msg, o); ok {
+				return m, cmd
 			}
-			return o, nil
 		}
 	}
 

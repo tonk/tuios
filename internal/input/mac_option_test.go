@@ -214,7 +214,10 @@ func TestUnboundComposedGlyphSaysNothing(t *testing.T) {
 	onDarwin(t)
 	o := twoWindowOS(t)
 
-	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: 'ß', Text: "ß"}, o)
+	// '≈' is Option+x's composed glyph; x carries no alt+/opt+ binding in any
+	// default keymap (unlike, say, 's' or 'm', which now toggle the sidebar
+	// and mouse mode respectively), so it stays a genuinely unbound glyph.
+	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: '≈', Text: "≈"}, o)
 	if len(o.Notifications) != 0 {
 		t.Errorf("an unbound glyph raised %d notifications", len(o.Notifications))
 	}

@@ -28,7 +28,7 @@ func (m *OS) railTitleShown(w *terminal.Window) string {
 	if e, ok := m.sidebarTitles[w.ID]; ok {
 		return e.shown
 	}
-	return windowRowTitle(w)
+	return m.windowRowTitle(w)
 }
 
 // updateRailTitles advances the debounced sidebar titles one tick. A title that
@@ -51,7 +51,7 @@ func (m *OS) updateRailTitles() (changed bool) {
 		if w == nil {
 			continue
 		}
-		live := windowRowTitle(w)
+		live := m.windowRowTitle(w)
 		if t, ok := daemonTitles[w.ID]; ok {
 			live = t
 		}
@@ -80,6 +80,15 @@ func (m *OS) updateRailTitles() (changed bool) {
 	return changed
 }
 
+// windowUnwatched reports whether this client has stopped receiving w's PTY
+// output, so its local title is frozen and only the daemon's listing can say
+// what the window is titled now.
+func (m *OS) windowUnwatched(w *terminal.Window) bool {
+	// A custom name is the user's, set here and never stale.
+	return w != nil && w.DaemonMode && w.CustomName == "" &&
+		w.PTYID != "" && !m.SubscribedPTYs[w.PTYID]
+}
+
 // unwatchedTitles maps window ID to the title the daemon reports, for the
 // windows of this session whose PTY this client is not subscribed to. Leaving a
 // workspace drops those subscriptions, so their output (and the title in it)
@@ -92,14 +101,9 @@ func (m *OS) unwatchedTitles() map[string]string {
 	if m.DaemonClient == nil {
 		return nil
 	}
-	unwatched := func(w *terminal.Window) bool {
-		// A custom name is the user's, set here and never stale.
-		return w != nil && w.DaemonMode && w.CustomName == "" &&
-			w.PTYID != "" && !m.SubscribedPTYs[w.PTYID]
-	}
 	any := false
 	for _, w := range m.Windows {
-		if unwatched(w) {
+		if m.windowUnwatched(w) {
 			any = true
 			break
 		}
@@ -118,7 +122,7 @@ func (m *OS) unwatchedTitles() map[string]string {
 	}
 	titles := make(map[string]string, len(summaries))
 	for _, w := range m.Windows {
-		if !unwatched(w) {
+		if !m.windowUnwatched(w) {
 			continue
 		}
 		// Labelled the same way a watched pane is, so leaving a workspace does

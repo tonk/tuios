@@ -12,9 +12,14 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
-// windowRowTitle is the label a session-management surface shows for a window.
-func windowRowTitle(w *terminal.Window) string {
-	return railWindowLabel(w.CustomName, w.ForegroundCmd, w.Title())
+// windowRowTitle is the label a session-management surface shows for a live
+// window of the attached session. It carries the same window-number the
+// window's own tab title shows, numbered the identical way, so a pane reads
+// with one identity in the rail and in its border rather than the border
+// alone being numbered.
+func (m *OS) windowRowTitle(w *terminal.Window) string {
+	name := railWindowLabel(w.CustomName, w.ForegroundCmd, w.Title())
+	return numberWindowName(name, m.workspacePosition(w), w.CWD())
 }
 
 // railWindowLabel is that label built from the pieces every surface has, live

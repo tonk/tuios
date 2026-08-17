@@ -576,6 +576,10 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 		"TERM_PROGRAM="+guestTermProgram(), // Terminal identity guests can act on
 		"TERM_PROGRAM_VERSION=0.1.0",       // Version for compatibility checking
 		"TUIOS_WINDOW_ID="+id,
+		// TUIOS_ENV marks a process as running under tuios, mirroring the
+		// daemon path's buildEnv (internal/session/session.go). A script can
+		// check for it the same way it would check TMUX or KITTY_WINDOW_ID.
+		"TUIOS_ENV=1",
 	)
 
 	// Create PTY with initial size

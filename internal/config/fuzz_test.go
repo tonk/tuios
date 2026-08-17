@@ -218,7 +218,7 @@ func FuzzLoadConfigPipeline(f *testing.F) {
 		// The fill stage exists so the rest of the app can read these without
 		// re-checking. A value that survives it out of range is a real defect:
 		// scrollback sizes the ring buffer and scroll_lines drives a loop.
-		if cfg.Appearance.ScrollbackLines < 100 || cfg.Appearance.ScrollbackLines > 1000000 {
+		if cfg.Appearance.ScrollbackLines < 100 || cfg.Appearance.ScrollbackLines > 10000000 {
 			t.Fatalf("scrollback_lines survived fill as %d", cfg.Appearance.ScrollbackLines)
 		}
 		if cfg.Appearance.ScrollLines < 1 || cfg.Appearance.ScrollLines > 50 {

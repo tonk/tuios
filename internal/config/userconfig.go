@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -124,7 +125,7 @@ type AppearanceConfig struct {
 	BorderStyle                 string  `toml:"border_style"`                    // Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block (borderless mode not yet implemented)
 	HideWindowButtons           bool    `toml:"hide_window_buttons"`             // Hide window control buttons (minimize, maximize, close)
 	HideScrollbar               bool    `toml:"hide_scrollbar"`                  // Hide the window scrollbar thumb on the border
-	ScrollbackLines             int     `toml:"scrollback_lines"`                // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 1000000)
+	ScrollbackLines             int     `toml:"scrollback_lines"`                // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000)
 	ScrollLines                 int     `toml:"scroll_lines"`                    // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
 	CopyOnSelect                *bool   `toml:"copy_on_select"`                  // Copy a mouse selection to the clipboard on release (default: true)
 	FocusFollowsMouse           *bool   `toml:"focus_follows_mouse"`             // Focus the pane under the cursor as the mouse moves (default: false)
@@ -135,6 +136,7 @@ type AppearanceConfig struct {
 	DockbarPosition             string  `toml:"dockbar_position"`                // Dockbar position: bottom, top, hidden
 	PreferredShell              string  `toml:"preferred_shell"`                 // Preferred shell: if empty, auto-detect based on platform.
 	AnimationsEnabled           *bool   `toml:"animations_enabled"`              // Enable UI animations (default: true). Set to false for instant transitions.
+	MouseEnabled                *bool   `toml:"mouse_enabled"`                   // Enable tuios's mouse handling: hover, click, drag, scroll, selection (default: true). Disable to fall back to the terminal emulator's native mouse handling.
 	ConfirmQuit                 *bool   `toml:"confirm_quit"`                    // Always show quit confirmation dialog (default: false). When false, only shown if foreground processes are running.
 	WhichKeyEnabled             *bool   `toml:"whichkey_enabled"`                // Show which-key popup after pressing leader key (default: true)
 	WhichKeyPosition            string  `toml:"whichkey_position"`               // Which-key popup position: bottom-right, bottom-left, top-right, top-left, center (default: bottom-right)
@@ -145,10 +147,12 @@ type AppearanceConfig struct {
 	ShowRAM                     bool    `toml:"show_ram"`                        // Show RAM usage in dock (default: false)
 	Theme                       string  `toml:"theme"`                           // Color theme name (e.g., dracula, nord, my-custom-theme)
 	SharedBorders               *bool   `toml:"shared_borders"`                  // Share borders between adjacent tiled windows (default: false)
+	MaximizeNewWindows          bool    `toml:"maximize_new_windows"`            // A new floating window fills the content area instead of spawning at half size (default: false). No effect while auto-tiling is on.
 	// Customization
 	BorderFocusedColor   string `toml:"border_focused_color"`   // Hex color for focused pane border (e.g., "#89b4fa")
 	BorderUnfocusedColor string `toml:"border_unfocused_color"` // Hex color for unfocused pane border (e.g., "#585b70")
 	WindowTitleFormat    string `toml:"window_title_format"`    // Format string for window titles: {title}, {index}, {cwd}
+	ShowWindowNumber     *bool  `toml:"show_window_number"`     // Prefix a window's title with its 1-based index, e.g. "1: bash" (default: true). Ignored when window_title_format is set.
 	ZoomMaxWidth         int    `toml:"zoom_max_width"`         // Max width in cells for zoom mode (0 = fullscreen, e.g. 120 centers at 120 cols)
 	NiriReverseScroll    bool   `toml:"niri_reverse_scroll"`    // Reverse mouse scroll direction in niri scrolling mode (default: false)
 	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, max: 120)
@@ -320,39 +324,10 @@ func DefaultConfig() *UserConfig {
 			AutoReview: false,
 		},
 		Keybindings: KeybindingsConfig{
-			LeaderKey: "ctrl+b",
-			WindowManagement: map[string][]string{
-				"new_window":      {"n"},
-				"close_window":    {"w", "x"},
-				"rename_window":   {"r"},
-				"minimize_window": {"m"},
-				"restore_all":     {"M"},
-				"toggle_zoom":     {"z"},
-				// Finishing a mouse selection has always told the user to press
-				// 'c' to copy it. Until this binding existed, nothing was
-				// listening.
-				"copy_selection":  {"c"},
-				"next_window":     {"tab"},
-				"prev_window":     {"shift+tab"},
-				"select_window_1": {"1"},
-				"select_window_2": {"2"},
-				"select_window_3": {"3"},
-				"select_window_4": {"4"},
-				"select_window_5": {"5"},
-				"select_window_6": {"6"},
-				"select_window_7": {"7"},
-				"select_window_8": {"8"},
-				"select_window_9": {"9"},
-				// Enter the sidebar rail's keyboard scope; s is free in window mode.
-				"focus_sidebar": {"s"},
-				// Walking sessions is a chord, not a letter, so it also works while
-				// typing in a shell (see isTerminalSafeAction). Spell the shift out:
-				// "alt+N" normalizes to alt+n, which is already next-window.
-				"next_session": {"alt+shift+n"},
-				"prev_session": {"alt+shift+p"},
-			},
-			Workspaces: getDefaultWorkspaceKeybinds(),
-			Layout:     getDefaultLayoutKeybinds(),
+			LeaderKey:        "ctrl+b",
+			WindowManagement: getDefaultWindowManagementKeybinds(),
+			Workspaces:       getDefaultWorkspaceKeybinds(),
+			Layout:           getDefaultLayoutKeybinds(),
 			ModeControl: map[string][]string{
 				"enter_terminal_mode": {"i", "enter"},
 				"enter_window_mode":   {"esc"},
@@ -394,16 +369,18 @@ func DefaultConfig() *UserConfig {
 				"prefix_settings":      {","},
 				"prefix_next_window":   {"n", "tab"},
 				"prefix_prev_window":   {"p", "shift+tab"},
-				"prefix_select_0":      {"0"},
-				"prefix_select_1":      {"1"},
-				"prefix_select_2":      {"2"},
-				"prefix_select_3":      {"3"},
-				"prefix_select_4":      {"4"},
-				"prefix_select_5":      {"5"},
-				"prefix_select_6":      {"6"},
-				"prefix_select_7":      {"7"},
-				"prefix_select_8":      {"8"},
-				"prefix_select_9":      {"9"},
+				// The digit picks a workspace here, the mirror of alt+N picking a
+				// window: prefix_select_N (jump to window N) still exists as an
+				// action for anyone who wants it back, just with no default key.
+				"switch_workspace_1":   {"1"},
+				"switch_workspace_2":   {"2"},
+				"switch_workspace_3":   {"3"},
+				"switch_workspace_4":   {"4"},
+				"switch_workspace_5":   {"5"},
+				"switch_workspace_6":   {"6"},
+				"switch_workspace_7":   {"7"},
+				"switch_workspace_8":   {"8"},
+				"switch_workspace_9":   {"9"},
 				"prefix_toggle_tiling": {"space"},
 				"prefix_workspace":     {"w"},
 				"prefix_minimize":      {"m"},
@@ -427,6 +404,7 @@ func DefaultConfig() *UserConfig {
 				"prefix_scrollback":         {"s"},
 				"prefix_command_palette":    {"P"},
 				"prefix_toggle_sidebar":     {"b"},
+				"prefix_toggle_mouse":       {"M"},
 				"prefix_session_switcher":   {"S"},
 				"prefix_workspace_switcher": {"W"},
 				"prefix_layout":             {"L"},
@@ -547,16 +525,24 @@ func getDefaultSidebarKeybinds() map[string][]string {
 func getDefaultTerminalModeKeybinds() map[string][]string {
 	if isMacOS() {
 		return map[string][]string{
-			"terminal_next_window": {"opt+tab", "alt+n"},
-			"terminal_prev_window": {"opt+shift+tab", "alt+p"},
-			"terminal_exit_mode":   {"opt+esc"},
-			"terminal_focus_left":  {"alt+left"},
-			"terminal_focus_right": {"alt+right"},
-			"terminal_focus_up":    {"alt+up"},
-			"terminal_focus_down":  {"alt+down"},
+			"new_window":                {"alt+t"},
+			"terminal_next_window":      {"opt+tab", "alt+n"},
+			"terminal_prev_window":      {"opt+shift+tab", "alt+p"},
+			"terminal_exit_mode":        {"opt+esc"},
+			"terminal_focus_left":       {"alt+left"},
+			"terminal_focus_right":      {"alt+right"},
+			"terminal_focus_up":         {"alt+up"},
+			"terminal_focus_down":       {"alt+down"},
+			"terminal_scroll_up":        {"shift+up"},
+			"terminal_scroll_down":      {"shift+down"},
+			"terminal_scroll_page_up":   {"shift+pgup"},
+			"terminal_scroll_page_down": {"shift+pgdown"},
+			"toggle_sidebar":            {"alt+s"},
+			"toggle_mouse":              {"alt+m"},
 		}
 	}
 	return map[string][]string{
+		"new_window":           {"alt+t"},
 		"terminal_next_window": {"alt+n"},
 		"terminal_prev_window": {"alt+p"},
 		"terminal_exit_mode":   {"alt+esc"},
@@ -565,14 +551,72 @@ func getDefaultTerminalModeKeybinds() map[string][]string {
 		// directional focus on the arrows is what zellij and most tiling window
 		// managers do, and because each of the four is a separate action a user
 		// can set to [] to hand back. See docs/KEYBINDINGS.md.
-		"terminal_focus_left":  {"alt+left"},
-		"terminal_focus_right": {"alt+right"},
-		"terminal_focus_up":    {"alt+up"},
-		"terminal_focus_down":  {"alt+down"},
+		"terminal_focus_left":       {"alt+left"},
+		"terminal_focus_right":      {"alt+right"},
+		"terminal_focus_up":         {"alt+up"},
+		"terminal_focus_down":       {"alt+down"},
+		"terminal_scroll_up":        {"shift+up"},
+		"terminal_scroll_down":      {"shift+down"},
+		"terminal_scroll_page_up":   {"shift+pgup"},
+		"terminal_scroll_page_down": {"shift+pgdown"},
+		"toggle_sidebar":            {"alt+s"},
+		"toggle_mouse":              {"alt+m"},
 	}
 }
 
-// getDefaultWorkspaceKeybinds returns platform-specific workspace keybindings
+// getDefaultWindowManagementKeybinds returns the window-management section:
+// mostly plain letters that only fire in window-management mode, plus the few
+// actions (select_window_N, next/prev_session) that are chords reachable at
+// any time, including while typing in a shell (see isTerminalSafeAction).
+func getDefaultWindowManagementKeybinds() map[string][]string {
+	// The bare digit only fires in window-management mode; the modifier chord
+	// is the same jump reachable at any time. On macOS that chord is opt+N,
+	// which the KeyNormalizer expands to alt+N and the unicode glyph macOS
+	// actually sends (see getDefaultWorkspaceKeybinds); alt+N is a no-op chord
+	// string on macOS otherwise, since Option+N never arrives as that literal.
+	digitChord := "alt+%d"
+	if isMacOS() {
+		digitChord = "opt+%d"
+	}
+	base := map[string][]string{
+		"new_window":      {"n"},
+		"close_window":    {"w", "x"},
+		"rename_window":   {"r"},
+		"minimize_window": {"m"},
+		"restore_all":     {"M"},
+		"toggle_zoom":     {"z"},
+		// Finishing a mouse selection has always told the user to press
+		// 'c' to copy it. Until this binding existed, nothing was
+		// listening.
+		"copy_selection": {"c"},
+		"next_window":    {"tab"},
+		"prev_window":    {"shift+tab"},
+		// The alt-tab pair: jump to whatever window had focus before this one,
+		// and back again on a second press. A chord, so it works while typing
+		// in a shell too (see isTerminalSafeAction).
+		"toggle_last_window": {"alt+`"},
+		// Enter the sidebar rail's keyboard scope; s is free in window mode.
+		"focus_sidebar": {"s"},
+		// Walking sessions is a chord, not a letter, so it also works while
+		// typing in a shell (see isTerminalSafeAction). Spell the shift out:
+		// "alt+N" normalizes to alt+n, which is already next-window.
+		"next_session": {"alt+shift+n"},
+		"prev_session": {"alt+shift+p"},
+	}
+	for i := 1; i <= 9; i++ {
+		base[fmt.Sprintf("select_window_%d", i)] = []string{
+			strconv.Itoa(i),
+			fmt.Sprintf(digitChord, i),
+		}
+	}
+	return base
+}
+
+// getDefaultWorkspaceKeybinds returns platform-specific workspace keybindings.
+// Switching workspaces is a prefix chord (prefix_mode.switch_workspace_N,
+// alongside prefix_mode.select_window_N's opposite number: alt+N picks a
+// window, prefix+N picks a workspace), so this only carries move_and_follow_N,
+// which stays a direct chord since it is not something you reach for as often.
 func getDefaultWorkspaceKeybinds() map[string][]string {
 	// On macOS, use opt+N (which expands to alt+N and unicode via normalization)
 	// On Linux/other, use alt+N
@@ -580,48 +624,30 @@ func getDefaultWorkspaceKeybinds() map[string][]string {
 
 	if isMacOS() {
 		// macOS users think in terms of Option key
-		// The KeyNormalizer will expand opt+1 → [opt+1, alt+1, ¡]
+		// The KeyNormalizer will expand opt+shift+1 → [opt+shift+1, alt+shift+1, unicode]
 		base = map[string][]string{
-			"switch_workspace_1": {"opt+1"},
-			"switch_workspace_2": {"opt+2"},
-			"switch_workspace_3": {"opt+3"},
-			"switch_workspace_4": {"opt+4"},
-			"switch_workspace_5": {"opt+5"},
-			"switch_workspace_6": {"opt+6"},
-			"switch_workspace_7": {"opt+7"},
-			"switch_workspace_8": {"opt+8"},
-			"switch_workspace_9": {"opt+9"},
-			"move_and_follow_1":  {"opt+shift+1"},
-			"move_and_follow_2":  {"opt+shift+2"},
-			"move_and_follow_3":  {"opt+shift+3"},
-			"move_and_follow_4":  {"opt+shift+4"},
-			"move_and_follow_5":  {"opt+shift+5"},
-			"move_and_follow_6":  {"opt+shift+6"},
-			"move_and_follow_7":  {"opt+shift+7"},
-			"move_and_follow_8":  {"opt+shift+8"},
-			"move_and_follow_9":  {"opt+shift+9"},
+			"move_and_follow_1": {"opt+shift+1"},
+			"move_and_follow_2": {"opt+shift+2"},
+			"move_and_follow_3": {"opt+shift+3"},
+			"move_and_follow_4": {"opt+shift+4"},
+			"move_and_follow_5": {"opt+shift+5"},
+			"move_and_follow_6": {"opt+shift+6"},
+			"move_and_follow_7": {"opt+shift+7"},
+			"move_and_follow_8": {"opt+shift+8"},
+			"move_and_follow_9": {"opt+shift+9"},
 		}
 	} else {
 		// Linux and other platforms use alt
 		base = map[string][]string{
-			"switch_workspace_1": {"alt+1"},
-			"switch_workspace_2": {"alt+2"},
-			"switch_workspace_3": {"alt+3"},
-			"switch_workspace_4": {"alt+4"},
-			"switch_workspace_5": {"alt+5"},
-			"switch_workspace_6": {"alt+6"},
-			"switch_workspace_7": {"alt+7"},
-			"switch_workspace_8": {"alt+8"},
-			"switch_workspace_9": {"alt+9"},
-			"move_and_follow_1":  {"alt+shift+1"},
-			"move_and_follow_2":  {"alt+shift+2"},
-			"move_and_follow_3":  {"alt+shift+3"},
-			"move_and_follow_4":  {"alt+shift+4"},
-			"move_and_follow_5":  {"alt+shift+5"},
-			"move_and_follow_6":  {"alt+shift+6"},
-			"move_and_follow_7":  {"alt+shift+7"},
-			"move_and_follow_8":  {"alt+shift+8"},
-			"move_and_follow_9":  {"alt+shift+9"},
+			"move_and_follow_1": {"alt+shift+1"},
+			"move_and_follow_2": {"alt+shift+2"},
+			"move_and_follow_3": {"alt+shift+3"},
+			"move_and_follow_4": {"alt+shift+4"},
+			"move_and_follow_5": {"alt+shift+5"},
+			"move_and_follow_6": {"alt+shift+6"},
+			"move_and_follow_7": {"alt+shift+7"},
+			"move_and_follow_8": {"alt+shift+8"},
+			"move_and_follow_9": {"alt+shift+9"},
 		}
 	}
 
@@ -791,13 +817,13 @@ func fillMissingAppearance(cfg, defaultCfg *UserConfig) {
 	// Note: HideWindowButtons defaults to false (zero value)
 	// In borderless mode, buttons are hidden automatically regardless of this setting
 
-	// Validate and set scrollback lines (min: 100, max: 1000000)
+	// Validate and set scrollback lines (min: 100, max: 10000000)
 	if cfg.Appearance.ScrollbackLines <= 0 {
 		cfg.Appearance.ScrollbackLines = defaultCfg.Appearance.ScrollbackLines
 	} else if cfg.Appearance.ScrollbackLines < 100 {
 		cfg.Appearance.ScrollbackLines = 100
-	} else if cfg.Appearance.ScrollbackLines > 1000000 {
-		cfg.Appearance.ScrollbackLines = 1000000
+	} else if cfg.Appearance.ScrollbackLines > 10000000 {
+		cfg.Appearance.ScrollbackLines = 10000000
 	}
 
 	// Validate and set wheel scroll speed (min: 1, max: 50)
@@ -923,6 +949,16 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// Only set global if explicitly configured
 	if cfg.Appearance.AnimationsEnabled != nil {
 		AnimationsEnabled = *cfg.Appearance.AnimationsEnabled
+	}
+
+	// MouseEnabled defaults to true (nil means use default)
+	if cfg.Appearance.MouseEnabled != nil {
+		MouseEnabled = *cfg.Appearance.MouseEnabled
+	}
+
+	// ShowWindowNumber defaults to true (nil means use default)
+	if cfg.Appearance.ShowWindowNumber != nil {
+		ShowWindowNumber = *cfg.Appearance.ShowWindowNumber
 	}
 
 	// ConfirmQuit defaults to false (nil means use default)

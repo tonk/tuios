@@ -507,9 +507,9 @@ func TestApplyOverrides_ScrollbackLines(t *testing.T) {
 
 	// Test clamping to maximum
 	config.ScrollbackLines = 10000
-	config.ApplyOverrides(config.Overrides{ScrollbackLines: 2000000}, nil)
-	if config.ScrollbackLines != 1000000 {
-		t.Errorf("Expected ScrollbackLines to be clamped to 1000000, got %d", config.ScrollbackLines)
+	config.ApplyOverrides(config.Overrides{ScrollbackLines: 20000000}, nil)
+	if config.ScrollbackLines != 10000000 {
+		t.Errorf("Expected ScrollbackLines to be clamped to 10000000, got %d", config.ScrollbackLines)
 	}
 
 	// User config fallback

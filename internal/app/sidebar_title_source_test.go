@@ -43,8 +43,8 @@ func TestRailRetitlesWindowsItStoppedWatching(t *testing.T) {
 	}
 	// A window this client still watches is titled from its own emulator, which
 	// is live and ahead of any listing.
-	if got := m.railTitleShown(watched); got != "bash" {
-		t.Errorf("rail title for a watched window = %q, want the local %q", got, "bash")
+	if got := m.railTitleShown(watched); got != "1: bash" {
+		t.Errorf("rail title for a watched window = %q, want the local %q", got, "1: bash")
 	}
 }
 
@@ -62,8 +62,8 @@ func TestRailKeepsCustomNameOverDaemonTitle(t *testing.T) {
 
 	m.updateRailTitles()
 
-	if got := m.railTitleShown(w); got != "logs" {
-		t.Errorf("rail title = %q, want the custom name %q", got, "logs")
+	if got := m.railTitleShown(w); got != "1: logs" {
+		t.Errorf("rail title = %q, want the custom name %q", got, "1: logs")
 	}
 }
 

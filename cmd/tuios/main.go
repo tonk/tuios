@@ -1335,7 +1335,7 @@ func registerInterfaceFlags(cmds ...*cobra.Command) {
 		f.StringVar(&dockbarPosition, "dockbar-position", "", "Dockbar position: bottom, top, hidden (default: from config or bottom)")
 		f.BoolVar(&hideWindowButtons, "hide-window-buttons", false, "Hide window control buttons (minimize, maximize, close)")
 		f.BoolVar(&hideScrollbar, "hide-scrollbar", false, "Hide the window scrollbar thumb on the border")
-		f.IntVar(&scrollbackLines, "scrollback-lines", 0, "Number of lines to keep in scrollback buffer (default: from config or 10000, min: 100, max: 1000000)")
+		f.IntVar(&scrollbackLines, "scrollback-lines", 0, "Number of lines to keep in scrollback buffer (default: from config or 10000, min: 100, max: 10000000)")
 		f.BoolVar(&showKeys, "show-keys", false, "Enable showkeys overlay to display pressed keys")
 		f.BoolVar(&noAnimations, "no-animations", false, "Disable UI animations for instant transitions")
 		f.BoolVar(&confirmQuit, "confirm-quit", false, "Always show quit confirmation dialog")

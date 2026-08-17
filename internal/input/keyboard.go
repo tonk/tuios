@@ -2,55 +2,25 @@
 package input
 
 import (
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 	"github.com/Gaurav-Gosain/tuios/internal/app"
 )
 
-func handleNumberKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	num := int(msg.String()[0] - '0')
-
-	if o.AutoTiling || strings.HasPrefix(msg.String(), "ctrl+") {
-		// Select window by index in current workspace
-		if o.AutoTiling {
-			// Count only visible windows in current workspace
-			visibleIndex := 0
-			for i, win := range o.Windows {
-				if win.Workspace == o.CurrentWorkspace && !win.Minimized {
-					visibleIndex++
-					if visibleIndex == num {
-						o.FocusWindow(i)
-						break
-					}
-				}
-			}
-		} else {
-			// Normal selection with Ctrl (windows in current workspace)
-			windowsInWorkspace := 0
-			for i, win := range o.Windows {
-				if win.Workspace == o.CurrentWorkspace {
-					windowsInWorkspace++
-					if windowsInWorkspace == num {
-						o.FocusWindow(i)
-						break
-					}
-				}
-			}
-		}
-	} else if num <= 4 && len(o.Windows) > 0 && o.FocusedWindow >= 0 {
-		// Corner snapping (only for 1-4)
-		switch num {
-		case 1:
-			o.Snap(o.FocusedWindow, app.SnapTopLeft)
-		case 2:
-			o.Snap(o.FocusedWindow, app.SnapTopRight)
-		case 3:
-			o.Snap(o.FocusedWindow, app.SnapBottomLeft)
-		case 4:
-			o.Snap(o.FocusedWindow, app.SnapBottomRight)
-		}
-	}
+// handleNumberKey runs the select_window_N action for the given 1-9 number.
+// num is the digit the registered action itself names (select_window_N ->
+// N), not something re-derived from the key string: a bound key like
+// "alt+1" or "ctrl+1" carries modifiers before the digit, and a macOS Option
+// chord ("opt+1") normalizes to a composed unicode glyph with no digit
+// character in it at all, so parsing the pressed key's own text can't recover
+// which of the nine actions this is.
+//
+// Corner-snapping the bare digits 1-4 used to live here too, but that is
+// snap_corner_N's own binding (see internal/config Layout section) and
+// already wins the plain "1".."4" key by default; this only duplicated it,
+// and stood in the way of select_window_N meaning the same thing on every
+// key it's bound to, floating or tiled.
+func handleNumberKey(_ tea.KeyPressMsg, o *app.OS, num int) (*app.OS, tea.Cmd) {
+	o.FocusWindowAtWorkspacePosition(num)
 	return o, nil
 }
 

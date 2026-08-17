@@ -140,7 +140,7 @@ tuios.WithHideWindowButtons(true)
 
 ### WithScrollbackLines(lines int)
 
-Set the scrollback buffer size (100-1000000).
+Set the scrollback buffer size (100-10000000).
 
 ```go
 tuios.WithScrollbackLines(50000)
