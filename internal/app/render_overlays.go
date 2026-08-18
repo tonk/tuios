@@ -120,9 +120,20 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		// there is not, so no width loses a hint entirely. They are key chips and
 		// lowercase labels, the same shape every overlay footer uses: the quoted
 		// Title-case prose was the only surface speaking that way.
+		//
+		// new window's key is read from the registry rather than hardcoded as
+		// "n": that binding is rebindable (new_window lives in the window
+		// management section), and a hint naming a key the user moved elsewhere
+		// would tell them to press something that does nothing.
+		newWindowKey := "n"
+		if m.KeybindRegistry != nil {
+			if keys := m.KeybindRegistry.GetKeys("new_window"); len(keys) > 0 {
+				newWindowKey = keys[0]
+			}
+		}
 		hints := make([]string, 0, 3)
 		for _, h := range []overlay.Hint{
-			{Key: "n", Label: "new window"},
+			{Key: newWindowKey, Label: "new window"},
 			{Key: "?", Label: "help"},
 			{Key: ",", Label: "settings"},
 		} {
@@ -154,7 +165,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 			box = lipgloss.NewStyle().
 				Foreground(ui.FgDim).
 				MaxWidth(contentW).
-				Render("n new window")
+				Render(newWindowKey + " new window")
 		}
 
 		centeredContent := lipgloss.Place(

@@ -48,7 +48,20 @@ func (e *Emulator) setAltScreenMode(on bool) {
 		e.scr.buf.Touched = nil
 		e.setCursor(0, 0)
 	} else {
+		// Cursor visibility and style are process-global in a real terminal,
+		// not scoped to whichever screen buffer happened to be current: an
+		// ncurses app commonly hides the cursor before ever entering the
+		// alternate screen and shows it again just before leaving (curs_set(0)
+		// in initscr, curs_set(1) in endwin, both ahead of the smcup/rmcup
+		// pair). Left alone, that show lands on the alt screen's cursor and
+		// the primary screen keeps the "hidden" it had from before the app
+		// ever started, so the shell prompt comes back with no visible
+		// cursor. Carry the alt screen's final visibility and style back to
+		// the primary screen on exit to match.
+		altCur := e.scrs[1].cur
 		e.scr = &e.scrs[0]
+		e.scr.setCursorHidden(altCur.Hidden)
+		e.scr.setCursorStyle(altCur.Style, !altCur.Steady)
 	}
 	// A screen switch ends any frame in progress; clear a stuck sync flag so a
 	// window is never left holding a stale frame (e.g. when an app exits without
