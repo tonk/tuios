@@ -114,6 +114,12 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 			parts = append(parts, "", lipgloss.NewStyle().
 				Foreground(ui.AccentBright).
 				Render("Terminal UI Operating System"))
+
+			if label := versionLabel(); label != "" {
+				parts = append(parts, lipgloss.NewStyle().
+					Foreground(ui.FgDim).
+					Render(label))
+			}
 		}
 
 		// The hints read as one line when there is room for one, and stack when

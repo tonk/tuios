@@ -55,6 +55,7 @@ var (
 )
 
 func main() {
+	app.Version = version
 	rootCmd := newRootCommand()
 
 	// Command failures are printed here rather than by fang, which would query

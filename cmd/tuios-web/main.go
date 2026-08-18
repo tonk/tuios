@@ -68,6 +68,7 @@ var webServerConfig struct {
 }
 
 func main() {
+	app.Version = version
 	rootCmd := &cobra.Command{
 		Use:   "tuios-web",
 		Short: "Web-based terminal server for TUIOS",
