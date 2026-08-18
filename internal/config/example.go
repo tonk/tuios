@@ -73,6 +73,7 @@ var exampleTables = []exampleTable{
 			{"session_colors", "true", "Give each session its own color on the rail and the session switcher."},
 			{"set_terminal_title", "true", `Set the host terminal's window title to "tuios" once at startup (OSC 2).`},
 			{"dock_window_list", "false", "List every window of the current workspace in the dock, not just minimized ones. A window wanting attention (agent needs input/errored/unseen-done, or new output/a bell/a notification while unfocused) blinks until focused."},
+			{"cursor_blink", "true", "Blink the focused pane's cursor. A guest app can still override it with a cursor-style sequence (DECSCUSR)."},
 		},
 	},
 	{

@@ -733,9 +733,6 @@ var errNoFocusedWindow = errors.New("no focused window")
 
 // SplitHorizontal splits the focused window horizontally.
 func (m *OS) SplitHorizontal() error {
-	if !m.AutoTiling {
-		return errTilingOff
-	}
 	if m.GetFocusedWindow() == nil {
 		return errNoFocusedWindow
 	}
@@ -748,9 +745,6 @@ func (m *OS) SplitHorizontal() error {
 
 // SplitVertical splits the focused window vertically.
 func (m *OS) SplitVertical() error {
-	if !m.AutoTiling {
-		return errTilingOff
-	}
 	if m.GetFocusedWindow() == nil {
 		return errNoFocusedWindow
 	}
@@ -959,9 +953,6 @@ func (m *OS) ToggleZoomExec() error {
 
 // SmartSplitFocusedExec performs a smart split on the focused window (tape executor interface).
 func (m *OS) SmartSplitFocusedExec() error {
-	if !m.AutoTiling {
-		return errTilingOff
-	}
 	if m.GetFocusedWindow() == nil {
 		return errNoFocusedWindow
 	}

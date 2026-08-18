@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,6 +120,104 @@ func TestRailTerminalsShowEveryWorkspace(t *testing.T) {
 	}
 	if got := rows["aaaaaaaa1111"]; strings.Contains(got, "w1") {
 		t.Errorf("a pane on the current workspace tagged itself: %q", got)
+	}
+}
+
+// interleavedWorkspaceOS is a session whose panes were created bouncing between
+// workspaces, so creation order is not workspace order. The terminals section
+// has to regroup them or the list reads as one mixed stack.
+func interleavedWorkspaceOS(t *testing.T) (*OS, sessiontree.Tree) {
+	t.Helper()
+	m := newNarrowOS(t, 120, 40)
+	m.CurrentWorkspace = 2
+	m.SessionName = "main"
+	m.Windows = []*terminal.Window{
+		{ID: "a1", CustomName: "one-a", Width: 40, Height: 20, Workspace: 1},
+		{ID: "b1", CustomName: "two-a", Width: 40, Height: 20, Workspace: 2},
+		{ID: "a2", CustomName: "one-b", Width: 40, Height: 20, Workspace: 1},
+		{ID: "c1", CustomName: "three-a", Width: 40, Height: 20, Workspace: 3},
+		{ID: "b2", CustomName: "two-b", Width: 40, Height: 20, Workspace: 2},
+	}
+	m.FocusedWindow = 1
+	withSidebar(t, true, "left", config.SidebarDefaultWidth)
+	m.SidebarOrder = nil
+	tree := m.BuildSessionTree()
+	return m, tree
+}
+
+func terminalWindowIDs(entries []sidebarTerminalEntry) []string {
+	ids := make([]string, len(entries))
+	for i, e := range entries {
+		ids[i] = e.WindowID
+	}
+	return ids
+}
+
+func drawnTerminalWindowIDs(m *OS) []string {
+	var ids []string
+	for _, h := range m.SidebarHits {
+		if h.Kind == sidebarRowWindow {
+			ids = append(ids, h.WindowID)
+		}
+	}
+	return ids
+}
+
+// TestSidebarTerminalsGroupedByWorkspace is the claim: panes that share a
+// workspace sit together, the workspace on screen leads, and within a workspace
+// the session's own pane order is kept. Creation order here is 1, 2, 1, 3, 2.
+func TestSidebarTerminalsGroupedByWorkspace(t *testing.T) {
+	m, tree := interleavedWorkspaceOS(t)
+	got := terminalWindowIDs(m.sidebarTerminals(tree.Sessions, "main"))
+	want := []string{"b1", "b2", "a1", "a2", "c1"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("terminals order = %v, want %v (workspace 2, then 1, then 3)", got, want)
+	}
+
+	m.sidebarPanelLinesForTree(tree)
+	if drawn := drawnTerminalWindowIDs(m); !slices.Equal(drawn, want) {
+		t.Fatalf("drawn terminals order = %v, want %v", drawn, want)
+	}
+}
+
+// TestPeekedTerminalsGroupedByWorkspace: a peek uses the peeked session's own
+// current workspace as "here", so its on-screen panes still lead even though
+// this client is attached to a different session.
+func TestPeekedTerminalsGroupedByWorkspace(t *testing.T) {
+	m, _ := sectionsTestOS(t, 120, 30)
+	tree := sessiontree.Build([]sessiontree.SessionInput{
+		{Name: "api", CurrentWorkspace: 3, Windows: []sessiontree.WindowInput{
+			{ID: "w1a", Title: "one-a", Workspace: 1},
+			{ID: "w3a", Title: "three-a", Workspace: 3},
+			{ID: "w1b", Title: "one-b", Workspace: 1},
+			{ID: "w2a", Title: "two-a", Workspace: 2},
+			{ID: "w3b", Title: "three-b", Workspace: 3},
+		}},
+	})
+	got := terminalWindowIDs(m.sidebarTerminals(tree.Sessions, "api"))
+	want := []string{"w3a", "w3b", "w1a", "w1b", "w2a"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("peeked terminals order = %v, want %v (workspace 3, then 1, then 2)", got, want)
+	}
+}
+
+// TestUnknownWorkspaceSortsLast: a pane whose workspace is not known must not
+// sit above panes that do name one. An older daemon omits the field, and
+// hoisting those rows would shuffle a mixed listing for a reason the user
+// cannot see.
+func TestUnknownWorkspaceSortsLast(t *testing.T) {
+	m, _ := sectionsTestOS(t, 120, 30)
+	tree := sessiontree.Build([]sessiontree.SessionInput{
+		{Name: "api", CurrentWorkspace: 1, Windows: []sessiontree.WindowInput{
+			{ID: "unk", Title: "legacy"},
+			{ID: "here", Title: "nvim", Workspace: 1},
+			{ID: "there", Title: "build", Workspace: 2},
+		}},
+	})
+	got := terminalWindowIDs(m.sidebarTerminals(tree.Sessions, "api"))
+	want := []string{"here", "there", "unk"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("terminals order = %v, want %v (known workspaces, then unknown)", got, want)
 	}
 }
 

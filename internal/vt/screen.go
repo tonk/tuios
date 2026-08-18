@@ -229,11 +229,14 @@ func (s *Screen) setCursorHidden(hidden bool) {
 }
 
 // setCursorStyle sets the cursor style.
+// setCursorStyle sets the cursor style. The callback always runs, even when
+// the style is unchanged: DECSCUSR is a guest request, and a blinking block
+// (CSI 1 q) matches the emulator default, so a "changed" guard would drop it
+// and leave appearance.cursor_blink in charge.
 func (s *Screen) setCursorStyle(style CursorStyle, blink bool) {
-	changed := s.cur.Style != style || s.cur.Steady != !blink
 	s.cur.Style = style
 	s.cur.Steady = !blink
-	if changed && s.cb.CursorStyle != nil {
+	if s.cb.CursorStyle != nil {
 		s.cb.CursorStyle(style, !blink)
 	}
 }

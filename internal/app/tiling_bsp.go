@@ -422,13 +422,37 @@ func (m *OS) SyncBSPTreeFromGeometry() {
 	}
 }
 
-// SplitFocusedHorizontal splits the focused window horizontally (top/bottom) and creates a new terminal
-func (m *OS) SplitFocusedHorizontal() {
-	if !m.AutoTiling {
-		return
+// prepareFocusedSplit gets the layout ready to split the focused pane. Zoom
+// hides every other pane, so a split that left Zoomed set would create the new
+// window and then keep it invisible. A split is a tiled operation, so tiling
+// has to be on even if the pane got fullscreen by snapping instead of zooming.
+func (m *OS) prepareFocusedSplit() *terminal.Window {
+	focused := m.GetFocusedWindow()
+	if focused == nil {
+		return nil
 	}
+	if focused.Zoomed {
+		m.ToggleZoom()
+		focused = m.GetFocusedWindow()
+		if focused == nil {
+			return nil
+		}
+	}
+	if !m.AutoTiling {
+		m.ToggleAutoTiling()
+		focused = m.GetFocusedWindow()
+		if focused == nil {
+			return nil
+		}
+	}
+	return focused
+}
 
-	focusedWin := m.GetFocusedWindow()
+// splitFocused inserts a new pane next to the focused one in dir. dir
+// PreselectionNone lets the smart-split scheme pick the axis from the pane's
+// aspect ratio.
+func (m *OS) splitFocused(dir layout.PreselectionDir) {
+	focusedWin := m.prepareFocusedSplit()
 	if focusedWin == nil {
 		return
 	}
@@ -438,7 +462,7 @@ func (m *OS) SplitFocusedHorizontal() {
 	// (AddWindow only asks the daemon and returns). Record the forced direction so
 	// the sync path applies it; see adoptSyncedWindows.
 	if m.IsDaemonSession && m.DaemonClient != nil {
-		m.pendingSplitDir = layout.PreselectionDown
+		m.pendingSplitDir = dir
 		m.pendingSplitTarget = focusedWin.ID
 		m.AddWindow("")
 		return
@@ -446,73 +470,25 @@ func (m *OS) SplitFocusedHorizontal() {
 
 	// Store the target window ID BEFORE creating new window (which will change focus)
 	m.SplitTargetWindowID = focusedWin.ID
-
-	// Set preselection direction for the next window
-	m.PreselectionDir = layout.PreselectionDown
-
-	// Create a new window - it will be added with the preselection
+	m.PreselectionDir = dir
 	m.AddWindow("")
-
-	// Clear the split target
 	m.SplitTargetWindowID = ""
+}
+
+// SplitFocusedHorizontal splits the focused window horizontally (top/bottom) and creates a new terminal
+func (m *OS) SplitFocusedHorizontal() {
+	m.splitFocused(layout.PreselectionDown)
 }
 
 // SplitFocusedVertical splits the focused window vertically (left/right) and creates a new terminal
 func (m *OS) SplitFocusedVertical() {
-	if !m.AutoTiling {
-		return
-	}
-
-	focusedWin := m.GetFocusedWindow()
-	if focusedWin == nil {
-		return
-	}
-
-	// See SplitFocusedHorizontal: on the daemon path the forced direction has to
-	// outlive the round trip that creates the pane.
-	if m.IsDaemonSession && m.DaemonClient != nil {
-		m.pendingSplitDir = layout.PreselectionRight
-		m.pendingSplitTarget = focusedWin.ID
-		m.AddWindow("")
-		return
-	}
-
-	// Store the target window ID BEFORE creating new window (which will change focus)
-	m.SplitTargetWindowID = focusedWin.ID
-
-	// Set preselection direction for the next window
-	m.PreselectionDir = layout.PreselectionRight
-
-	// Create a new window - it will be added with the preselection
-	m.AddWindow("")
-
-	// Clear the split target
-	m.SplitTargetWindowID = ""
+	m.splitFocused(layout.PreselectionRight)
 }
 
 // SmartSplitFocused splits the focused window using the smart split algorithm:
 // it chooses horizontal or vertical based on the focused window's aspect ratio.
 func (m *OS) SmartSplitFocused() {
-	if !m.AutoTiling {
-		return
-	}
-
-	focusedWin := m.GetFocusedWindow()
-	if focusedWin == nil {
-		return
-	}
-
-	// Store the target window ID so AddWindowToBSPTree splits at the focused window
-	m.SplitTargetWindowID = focusedWin.ID
-
-	// No preselection  - let determineAutoSplit (SchemeSmartSplit) pick the direction
-	m.PreselectionDir = layout.PreselectionNone
-
-	// Create a new window  - AddWindowToBSPTree will use SplitNone which triggers auto split
-	m.AddWindow("")
-
-	// Clear the split target
-	m.SplitTargetWindowID = ""
+	m.splitFocused(layout.PreselectionNone)
 }
 
 // SetPreselection sets the preselection direction for the next window insertion

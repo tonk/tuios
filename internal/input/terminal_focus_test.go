@@ -228,3 +228,56 @@ func TestAltArrowsWorkInWindowModeToo(t *testing.T) {
 		t.Errorf("alt+right in window mode focused %q, want b", got)
 	}
 }
+
+// TestTerminalModeSplitKeysResolve pins the chords a fullscreen terminal is
+// split with: they live in terminal_mode so they fire while typing, and they
+// fill in on a config written before they existed.
+func TestTerminalModeSplitKeysResolve(t *testing.T) {
+	cfg := legacyConfig(t, "[keybindings]\nleader_key = \"ctrl+b\"\n\n"+
+		"[keybindings.terminal_mode]\nterminal_next_window = [\"alt+n\"]\n")
+	r := config.NewKeybindRegistry(cfg)
+
+	if got := r.GetTerminalModeAction("alt+-"); got != "split_horizontal" {
+		t.Errorf("alt+- resolved to %q, want split_horizontal", got)
+	}
+	for _, key := range []string{"alt+|", "alt+\\"} {
+		if got := r.GetTerminalModeAction(key); got != "split_vertical" {
+			t.Errorf("%s resolved to %q, want split_vertical", key, got)
+		}
+	}
+}
+
+// TestAltMinusSplitsAFullscreenTerminal is the reported path: a zoomed pane in
+// terminal mode, alt+-, and the split must take rather than type into the shell
+// or stay hidden behind the zoom.
+func TestAltMinusSplitsAFullscreenTerminal(t *testing.T) {
+	prev := config.AnimationsEnabled
+	config.AnimationsEnabled = false
+	t.Cleanup(func() { config.AnimationsEnabled = prev })
+
+	o, pty := osWithFocusedPane(t, config.DefaultConfig(), app.TerminalMode)
+	t.Cleanup(func() {
+		for _, w := range o.Windows {
+			w.Close()
+		}
+	})
+	o.ToggleAutoTiling()
+	o.ToggleZoom()
+	if w := o.GetFocusedWindow(); w == nil || !w.Zoomed {
+		t.Fatal("setup: pane did not zoom")
+	}
+
+	o, _ = HandleKeyPress(tea.KeyPressMsg{Code: '-', Mod: tea.ModAlt}, o)
+
+	if len(pty.got) != 0 {
+		t.Errorf("alt+- leaked %q to the guest", pty.got)
+	}
+	if got := len(o.Windows); got != 2 {
+		t.Fatalf("alt+- produced %d windows, want 2", got)
+	}
+	for i, w := range o.Windows {
+		if w.Zoomed {
+			t.Errorf("window %d is still zoomed after alt+-; the other pane would be hidden", i)
+		}
+	}
+}

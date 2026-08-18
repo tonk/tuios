@@ -383,6 +383,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowWindowNumber = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Cursor blink", "Blink the focused pane's cursor. Apps can still override it with a cursor-style sequence.",
+				func() bool { return config.CursorBlink },
+				func(m *OS, v bool) {
+					config.CursorBlink = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.CursorBlink = boolPtr(v) })
+				}),
 		},
 	}
 

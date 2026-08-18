@@ -564,21 +564,20 @@ func TestApplyStateSyncSkipsInvalidWindows(t *testing.T) {
 	}
 }
 
-// TestSplitWithoutTilingIsLoud pins that the BSP commands report tiling being
-// off instead of returning nil. They used to do nothing at all, so a tape whose
-// EnableTiling had not taken effect skipped every Split silently and then typed
-// the next command into whatever pane was still focused, producing a layout that
-// looked built and was not.
+// TestSplitWithoutTilingIsLoud pins that layout-rewrite commands report tiling
+// being off instead of returning nil. They used to do nothing at all, so a tape
+// whose EnableTiling had not taken effect skipped them silently.
+//
+// Splits are the exception: they turn tiling on, because a split is how a
+// fullscreen pane becomes two panes. Rotate and equalize still need a layout
+// that already exists.
 func TestSplitWithoutTilingIsLoud(t *testing.T) {
 	m := focusedOS(t, "")
 	m.AutoTiling = false
 
 	for name, call := range map[string]func() error{
-		"SplitVertical":   m.SplitVertical,
-		"SplitHorizontal": m.SplitHorizontal,
-		"RotateSplit":     m.RotateSplit,
-		"EqualizeSplits":  m.EqualizeSplitsExec,
-		"SmartSplit":      m.SmartSplitFocusedExec,
+		"RotateSplit":    m.RotateSplit,
+		"EqualizeSplits": m.EqualizeSplitsExec,
 	} {
 		if err := call(); err == nil {
 			t.Errorf("%s with tiling off returned nil; it must say why it did nothing", name)

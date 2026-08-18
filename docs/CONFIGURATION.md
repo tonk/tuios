@@ -655,6 +655,21 @@ Clicking an entry focuses that window; a minimized one is also restored.
 
 **Also settable from:** the in-app settings page (Dock, "Window list").
 
+### cursor_blink
+
+Whether the focused pane's cursor blinks. TUIOS draws a real host-terminal
+cursor (so Ghostty, kitty, etc. see a DECSCUSR style from the app, not from
+their own config). This is the default until a program inside the pane sets
+a cursor style of its own; after that, the guest's last DECSCUSR wins.
+
+**Valid values:**
+- `true` - Blink the cursor (default)
+- `false` - Steady cursor
+
+**Default:** `true`
+
+**Also settable from:** the in-app settings page (Appearance, "Cursor blink").
+
 ### theme
 
 The color theme to use, by ID. Custom themes loaded from

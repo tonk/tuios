@@ -37,6 +37,8 @@ These work while typing into a pane, without the leader key. They live in `[keyb
 | `Alt+N` / `Alt+P` | Next / previous window |
 | `Alt+Esc` | Leave Terminal Mode |
 | `Alt+←` `Alt+→` `Alt+↑` `Alt+↓` | Focus the pane in that direction |
+| `Alt+-` | Split the focused pane horizontally (top/bottom) |
+| `Alt+\|` or `Alt+\` | Split the focused pane vertically (left/right) |
 | `Alt+S` | Toggle sidebar |
 | `Alt+M` | Toggle mouse mode |
 
@@ -159,7 +161,7 @@ TUIOS uses Binary Space Partitioning (BSP) for automatic tiling. Windows are arr
 
 ### BSP Split Controls
 
-These commands are available in tiling mode via the prefix key:
+These commands are available in tiling mode via the prefix key. In terminal mode they are also bound directly as `Alt+-` / `Alt+|` (see [Terminal Mode Keys](#terminal-mode-keys)), so a fullscreen pane can be split without leaving the shell.
 
 | Key Sequence | Action |
 |--------------|--------|

@@ -213,3 +213,64 @@ func TestClosingAPaneOnAnotherWorkspaceLeavesNoStaleTile(t *testing.T) {
 		t.Errorf("workspace 2 still holds a tile for the closed pane; tree holds %v", tree.GetAllWindowIDs())
 	}
 }
+
+// liveSplitOS is a one-pane session with a real PTY, so SplitFocused can create
+// a second pane the way the keybind does.
+func liveSplitOS(t *testing.T, tiled bool) *OS {
+	t.Helper()
+	prev := config.AnimationsEnabled
+	config.AnimationsEnabled = false
+	t.Cleanup(func() { config.AnimationsEnabled = prev })
+
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	m.Width, m.Height = 120, 40
+	m.EffectiveWidth, m.EffectiveHeight = 120, 40
+	t.Cleanup(func() { closeWindows(m) })
+	if tiled {
+		m.ToggleAutoTiling()
+	}
+	m.AddWindow("")
+	if len(m.Windows) != 1 {
+		t.Fatalf("setup: AddWindow produced %d windows", len(m.Windows))
+	}
+	return m
+}
+
+// TestSplitUnzoomsAFullscreenPane is the reason a zoomed pane could not be
+// split: zoom hides every other window, so the new pane was created and then
+// never drawn. Unzooming first leaves both tiles visible.
+func TestSplitUnzoomsAFullscreenPane(t *testing.T) {
+	m := liveSplitOS(t, true)
+	m.ToggleZoom()
+	if !m.Windows[0].Zoomed {
+		t.Fatal("setup: pane did not zoom")
+	}
+
+	m.SplitFocusedHorizontal()
+	if got := len(m.Windows); got != 2 {
+		t.Fatalf("split produced %d windows, want 2", got)
+	}
+	for i, w := range m.Windows {
+		if w.Zoomed {
+			t.Errorf("window %d is still zoomed after the split; the other pane would be hidden", i)
+		}
+	}
+}
+
+// TestSplitTurnsTilingOn: a snap-fullscreen (or any floating) pane has tiling
+// off, and split used to be a silent no-op there. The split itself is how that
+// pane becomes two, so tiling has to come on with it.
+func TestSplitTurnsTilingOn(t *testing.T) {
+	m := liveSplitOS(t, false)
+	if m.AutoTiling {
+		t.Fatal("setup: tiling was already on")
+	}
+
+	m.SplitFocusedVertical()
+	if !m.AutoTiling {
+		t.Fatal("split left tiling off")
+	}
+	if got := len(m.Windows); got != 2 {
+		t.Fatalf("split produced %d windows, want 2", got)
+	}
+}

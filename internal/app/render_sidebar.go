@@ -315,8 +315,9 @@ type sidebarTerminalEntry struct {
 	// WindowIndex is the index into m.Windows, or -1 for a pane of a session
 	// this client is not attached to.
 	WindowIndex int
-	// workspace orders the section (workspace, then the session's own pane
-	// order). It draws nothing; Tag is what a row prints.
+	// workspace orders the section: the session's current workspace first, then
+	// the rest numerically, keeping the session's own pane order inside each
+	// group. It draws nothing; Tag is what a row prints.
 	workspace int
 }
 
@@ -1132,8 +1133,10 @@ func (m *OS) sidebarShownSession(sessions []sessiontree.Node) (string, bool) {
 }
 
 // sidebarTerminals flattens the panes of one session for the terminals section,
-// ordered by workspace and then by the session's own pane order so a row never
-// moves under the pointer for a reason the user cannot see.
+// grouped by workspace so panes that share a workspace sit together. The
+// session's own current workspace leads (those are the panes on screen), then
+// the rest in numeric order. Within a workspace the session's own pane order is
+// kept, so a row never moves under the pointer for a reason the user cannot see.
 func (m *OS) sidebarTerminals(sessions []sessiontree.Node, sessionID string) []sidebarTerminalEntry {
 	var node *sessiontree.Node
 	for i := range sessions {
@@ -1176,8 +1179,29 @@ func (m *OS) sidebarTerminals(sessions []sessiontree.Node, sessionID string) []s
 		}
 		out = append(out, e)
 	}
-	sort.SliceStable(out, func(a, b int) bool { return out[a].workspace < out[b].workspace })
+	here := node.Workspace
+	sort.SliceStable(out, func(a, b int) bool {
+		return sidebarWorkspaceLess(out[a].workspace, out[b].workspace, here)
+	})
 	return out
+}
+
+// sidebarWorkspaceLess orders workspace numbers for the terminals section: the
+// session's current workspace first, then the rest ascending. Unknown (0) sorts
+// last so an older listing that names no workspace does not hoist untagged
+// rows above panes that do say where they live.
+func sidebarWorkspaceLess(a, b, here int) bool {
+	rank := func(ws int) int {
+		switch {
+		case here > 0 && ws == here:
+			return 0
+		case ws == 0:
+			return 1000 // workspaces are 1-9; keep unknown after every named one
+		default:
+			return ws
+		}
+	}
+	return rank(a) < rank(b)
 }
 
 // sidebarAgents flattens every pane running an agent, across every session.

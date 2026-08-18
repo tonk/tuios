@@ -602,6 +602,12 @@ var SetTerminalTitle = true
 // leaves the dock's item strip exactly as it was: minimized windows only.
 var DockWindowList = false
 
+// CursorBlink is whether the focused pane's host cursor blinks, until a guest
+// application sets a cursor style via DECSCUSR. Off starts the cursor steady.
+// A guest that never sends a style keeps this default for the life of the pane.
+// Set via appearance.cursor_blink config.
+var CursorBlink = true
+
 // HideWindowButtons controls whether to hide window control buttons
 // Set via --hide-window-buttons flag or appearance.hide_window_buttons config
 var HideWindowButtons = false

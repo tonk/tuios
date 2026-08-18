@@ -250,7 +250,6 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 	// dropped in every other mode. Dimming says so rather than letting the row
 	// look live and do nothing.
 	canPaste := m.Mode == TerminalMode
-	canSplit := m.AutoTiling
 
 	closeItem := m.item(glyphClose, "Close pane", "close_window", false)
 	closeItem.Warn = true
@@ -259,8 +258,8 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 		m.item(glyphCopy, "Copy selection", "copy_selection", !hasSelection),
 		m.item(glyphPaste, "Paste", "paste_clipboard", !canPaste),
 		separator(),
-		m.item(glyphSplitV, "Split right", "split_vertical", !canSplit),
-		m.item(glyphSplitH, "Split down", "split_horizontal", !canSplit),
+		m.item(glyphSplitV, "Split right", "split_vertical", false),
+		m.item(glyphSplitH, "Split down", "split_horizontal", false),
 		separator(),
 		// Never dimmed for a hidden title bar: the editor is a centred dialog and
 		// draws its own frame wherever the name happens to show.

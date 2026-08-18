@@ -93,11 +93,23 @@ func (w *Window) CursorStyle() vt.CursorStyle { return vt.CursorStyle(w.cursorSt
 // SetCursorStyle records the current cursor style.
 func (w *Window) SetCursorStyle(style vt.CursorStyle) { w.cursorStyle.Store(int32(style)) }
 
-// CursorBlink reports whether the cursor should blink.
-func (w *Window) CursorBlink() bool { return w.cursorBlink.Load() }
+// CursorBlink reports whether the cursor should blink. Until a guest sends
+// DECSCUSR, this is appearance.cursor_blink (default true) so a shell that
+// never sets a style still blinks. After that, it is whatever the guest last
+// asked for.
+func (w *Window) CursorBlink() bool {
+	if !w.cursorBlinkSet.Load() {
+		return config.CursorBlink
+	}
+	return w.cursorBlink.Load()
+}
 
-// SetCursorBlink records whether the cursor should blink.
-func (w *Window) SetCursorBlink(blink bool) { w.cursorBlink.Store(blink) }
+// SetCursorBlink records whether the cursor should blink. Called from the VT
+// DECSCUSR callback, so it also marks the guest as having chosen a style.
+func (w *Window) SetCursorBlink(blink bool) {
+	w.cursorBlink.Store(blink)
+	w.cursorBlinkSet.Store(true)
+}
 
 // Title returns the current window title.
 func (w *Window) Title() string {
@@ -244,28 +256,28 @@ type Window struct {
 	//   Two windows' ioMu are never held simultaneously, so there is no
 	//   window-to-window ordering to respect.
 	ioMu                   sync.RWMutex
-	Minimized              bool        // True when window is minimized to dock
-	Minimizing             bool        // True when window is being minimized (animation playing)
-	MinimizeHighlightUntil time.Time   // Highlight dock tab until this time
-	MinimizeOrder          int64       // Unix nano timestamp when minimized (for dock ordering)
+	Minimized              bool      // True when window is minimized to dock
+	Minimizing             bool      // True when window is being minimized (animation playing)
+	MinimizeHighlightUntil time.Time // Highlight dock tab until this time
+	MinimizeOrder          int64     // Unix nano timestamp when minimized (for dock ordering)
 	// DockAttention is set when this window receives new output, a bell, or a
 	// guest notification while it is not focused, and cleared when it is next
 	// focused. It is the generic ("something happened") half of the dock
 	// window list's blink, the classic terminal-multiplexer activity monitor;
 	// see also AgentState, whose needs_input/errored/unseen-done states are the
 	// agent-aware half (dockWindowNeedsAttention in dock_helpers.go).
-	DockAttention bool
-	PreMinimizeX           int         // Store position before minimizing
-	PreMinimizeY           int         // Store position before minimizing
-	PreMinimizeWidth       int         // Store size before minimizing
-	PreMinimizeHeight      int         // Store size before minimizing
-	Workspace              int         // Workspace this window belongs to
-	Zoomed                 bool        // True when window is zoomed (fullscreen)
-	PreZoomX               int         // Store position before zooming
-	PreZoomY               int         // Store position before zooming
-	PreZoomWidth           int         // Store size before zooming
-	PreZoomHeight          int         // Store size before zooming
-	processExited          atomic.Bool // Written on PTY/monitor goroutine, read on UI goroutine
+	DockAttention     bool
+	PreMinimizeX      int         // Store position before minimizing
+	PreMinimizeY      int         // Store position before minimizing
+	PreMinimizeWidth  int         // Store size before minimizing
+	PreMinimizeHeight int         // Store size before minimizing
+	Workspace         int         // Workspace this window belongs to
+	Zoomed            bool        // True when window is zoomed (fullscreen)
+	PreZoomX          int         // Store position before zooming
+	PreZoomY          int         // Store position before zooming
+	PreZoomWidth      int         // Store size before zooming
+	PreZoomHeight     int         // Store size before zooming
+	processExited     atomic.Bool // Written on PTY/monitor goroutine, read on UI goroutine
 	// Multi-click tracking. What a press selects is decided by how many clicks
 	// it makes; the selection itself is copy mode's, see CopyMode below.
 	LastClickTime time.Time
@@ -283,8 +295,9 @@ type Window struct {
 	IsPinned   bool // True when floating pane persists across workspace switches
 	// Cursor style tracking for passthrough to parent terminal.
 	// Written by the VT callback on the PTY goroutine, read on the UI goroutine.
-	cursorStyle atomic.Int32 // Current cursor style (block, underline, bar)
-	cursorBlink atomic.Bool  // Whether cursor should blink
+	cursorStyle    atomic.Int32 // Current cursor style (block, underline, bar)
+	cursorBlink    atomic.Bool  // Whether cursor should blink (after a guest DECSCUSR)
+	cursorBlinkSet atomic.Bool  // True once a guest has sent DECSCUSR
 	// Cell dimensions in pixels (for TIOCGWINSZ pixel reporting to child processes)
 	CellPixelWidth  int
 	CellPixelHeight int

@@ -74,6 +74,8 @@ func (m *OS) getRealCursor() *tea.Cursor {
 
 	cursor := tea.NewCursor(screenX, screenY)
 	cursor.Shape = mapCursorStyle(window.CursorStyle())
+	// Blink follows the pane: appearance.cursor_blink until a guest sends
+	// DECSCUSR, then whatever the guest last asked for.
 	cursor.Blink = window.CursorBlink()
 	return cursor
 }

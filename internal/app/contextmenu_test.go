@@ -526,10 +526,13 @@ func TestContextMenuDimsUnavailableActions(t *testing.T) {
 			dim[it.Action] = it.Dim
 		}
 	}
-	for _, action := range []string{"copy_selection", "split_vertical", "split_horizontal", "paste_clipboard"} {
+	for _, action := range []string{"copy_selection", "paste_clipboard"} {
 		if !dim[action] {
-			t.Errorf("%s should be dimmed: no selection, no tiling, and not in terminal mode", action)
+			t.Errorf("%s should be dimmed: no selection, and not in terminal mode", action)
 		}
+	}
+	if dim["split_vertical"] || dim["split_horizontal"] {
+		t.Error("split turns tiling on, so it must not be dimmed on a floating pane")
 	}
 	if dim["toggle_zoom"] || dim["close_window"] {
 		t.Error("zoom and close always apply to a pane and must not be dimmed")

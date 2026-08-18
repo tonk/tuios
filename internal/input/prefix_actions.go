@@ -385,18 +385,20 @@ func handlePrefixFullscreen(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 }
 
 func handlePrefixSplitHorizontal(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if o.AutoTiling {
-		o.SplitFocusedHorizontal()
-		o.ShowNotification("Split Horizontal", "info", config.NotificationDuration)
+	if o.GetFocusedWindow() == nil {
+		return o, nil
 	}
+	o.SplitFocusedHorizontal()
+	o.ShowNotification("Split Horizontal", "info", config.NotificationDuration)
 	return o, nil
 }
 
 func handlePrefixSplitVertical(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if o.AutoTiling {
-		o.SplitFocusedVertical()
-		o.ShowNotification("Split Vertical", "info", config.NotificationDuration)
+	if o.GetFocusedWindow() == nil {
+		return o, nil
 	}
+	o.SplitFocusedVertical()
+	o.ShowNotification("Split Vertical", "info", config.NotificationDuration)
 	return o, nil
 }
 

@@ -495,26 +495,29 @@ func handleToggleZoom(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 }
 
 func handleSmartSplit(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if o.AutoTiling {
-		o.SmartSplitFocused()
-		o.ShowNotification("Smart Split", "info", config.NotificationDuration)
+	if o.GetFocusedWindow() == nil {
+		return o, nil
 	}
+	o.SmartSplitFocused()
+	o.ShowNotification("Smart Split", "info", config.NotificationDuration)
 	return o, nil
 }
 
 func handleSplitHorizontal(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if o.AutoTiling {
-		o.SplitFocusedHorizontal()
-		o.ShowNotification("Split Horizontal", "info", config.NotificationDuration)
+	if o.GetFocusedWindow() == nil {
+		return o, nil
 	}
+	o.SplitFocusedHorizontal()
+	o.ShowNotification("Split Horizontal", "info", config.NotificationDuration)
 	return o, nil
 }
 
 func handleSplitVertical(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if o.AutoTiling {
-		o.SplitFocusedVertical()
-		o.ShowNotification("Split Vertical", "info", config.NotificationDuration)
+	if o.GetFocusedWindow() == nil {
+		return o, nil
 	}
+	o.SplitFocusedVertical()
+	o.ShowNotification("Split Vertical", "info", config.NotificationDuration)
 	return o, nil
 }
 
