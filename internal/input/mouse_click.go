@@ -330,9 +330,15 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				return o, nil
 			}
 		} else {
-			// Non-tiling: maximize button in middle
+			// Non-tiling: maximize button in middle (toggle zoom/snap)
 			if mouse.Button == tea.MouseLeft && X >= leftMost-7 && X <= leftMost-5 && Y == titleBarY {
-				o.Snap(clickedWindowIndex, app.SnapFullScreen)
+				if clickedWindow.Zoomed {
+					o.ToggleZoom()
+				} else if clickedWindow.Snapped {
+					o.Snap(clickedWindowIndex, app.Unsnap)
+				} else {
+					o.Snap(clickedWindowIndex, app.SnapFullScreen)
+				}
 				o.InteractionMode = false
 				return o, nil
 			}

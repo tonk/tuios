@@ -10,13 +10,37 @@ func (m *OS) Snap(i int, quarter SnapQuarter) *OS {
 		return m
 	}
 
+	win := m.Windows[i]
+
+	if quarter == Unsnap {
+		// Restore pre-snap position if available
+		if win.Snapped {
+			win.Snapped = false
+			win.X = win.PreSnapX
+			win.Y = win.PreSnapY
+			win.Width = win.PreSnapWidth
+			win.Height = win.PreSnapHeight
+			win.InvalidateCache()
+			win.Resize(win.Width, win.Height)
+		}
+		return m
+	}
+
+	// Save pre-snap position before snapping (only if not already tracked)
+	if !win.Snapped {
+		win.PreSnapX = win.X
+		win.PreSnapY = win.Y
+		win.PreSnapWidth = win.Width
+		win.PreSnapHeight = win.Height
+	}
+	win.Snapped = true
+
 	// Create and start snap animation
 	anim := m.CreateSnapAnimation(i, quarter)
 	if anim != nil {
 		m.Animations = append(m.Animations, anim)
 	} else {
 		// No animation needed (already at target), but still resize terminal if needed
-		win := m.Windows[i]
 		_, _, targetWidth, targetHeight := m.calculateSnapBounds(quarter)
 
 		// Enforce minimum size

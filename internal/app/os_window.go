@@ -460,6 +460,19 @@ func (m *OS) AddWindow(name string) *OS {
 	window.Workspace = m.CurrentWorkspace
 	window.CustomName = name
 
+	// When MaximizeNewWindows creates a fullscreen window, mark it as snapped
+	// so the maximize button can toggle it back to half-screen width.
+	if !m.AutoTiling && m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+		leftMargin := m.GetLeftMargin()
+		contentWidth := m.GetContentWidth()
+		usableHeight := m.GetUsableHeight()
+		window.Snapped = true
+		window.PreSnapX = leftMargin + contentWidth/4
+		window.PreSnapY = usableHeight / 4
+		window.PreSnapWidth = contentWidth / 2
+		window.PreSnapHeight = usableHeight / 2
+	}
+
 	m.installPassthroughs(window)
 	m.setupCwdWatch(window)
 

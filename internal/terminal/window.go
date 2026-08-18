@@ -277,6 +277,11 @@ type Window struct {
 	PreZoomY          int         // Store position before zooming
 	PreZoomWidth      int         // Store size before zooming
 	PreZoomHeight     int         // Store size before zooming
+	Snapped           bool        // True when window is snapped (fullscreen snap)
+	PreSnapX          int         // Store position before snapping
+	PreSnapY          int         // Store position before snapping
+	PreSnapWidth      int         // Store size before snapping
+	PreSnapHeight     int         // Store size before snapping
 	processExited     atomic.Bool // Written on PTY/monitor goroutine, read on UI goroutine
 	// Multi-click tracking. What a press selects is decided by how many clicks
 	// it makes; the selection itself is copy mode's, see CopyMode below.
