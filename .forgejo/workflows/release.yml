@@ -10,28 +10,43 @@ on:
 
 jobs:
   build:
+    # This label's image (see the "golang" runner config) is what every step
+    # below actually executes inside - there is no bare host to fall back to
+    # and no docker socket to assume, so the job is self-sufficient rather
+    # than nesting a second container built from Containerfile. That file
+    # stays in the repo for reproducing this build locally (podman/docker
+    # build -f Containerfile .), it just isn't what CI itself runs in.
     runs-on: golang
     steps:
+      # A plain git checkout rather than actions/checkout: that action is a
+      # JS action, and this runner's job image has no node in it (only Go),
+      # so it can't execute one - see the "node not found" failure this
+      # replaced.
       - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          git init -q .
+          auth_url=$(printf '%s' "$GITHUB_SERVER_URL" | sed "s#://#://x-access-token:${FORGEJO_TOKEN}@#")
+          git remote add origin "${auth_url}/${GITHUB_REPOSITORY}.git"
+          git fetch --depth=1 origin "refs/tags/${GITHUB_REF_NAME}"
+          git checkout -q FETCH_HEAD
 
-      - name: Build CI image from Containerfile
-        run: docker build -t tuios-ci:${{ github.sha }} -f Containerfile .
+      - name: Install build tooling (make, nfpm)
+        run: |
+          set -eu
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends make
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
       - name: Cross-compile and package (deb, rpm, standalone binaries)
         run: |
           set -eu
+          export PATH="$PATH:$(go env GOPATH)/bin"
           VERSION="${GITHUB_REF_NAME#v}"
-          docker run --rm \
-            -v "${GITHUB_WORKSPACE}:/workspace" -w /workspace \
-            "tuios-ci:${GITHUB_SHA}" \
-            make package VERSION="${VERSION}"
-          docker run --rm \
-            -v "${GITHUB_WORKSPACE}:/workspace" -w /workspace \
-            "tuios-ci:${GITHUB_SHA}" \
-            make checksums
+          make package VERSION="${VERSION}"
+          make checksums
 
       - name: List built artifacts
         run: ls -la dist/
