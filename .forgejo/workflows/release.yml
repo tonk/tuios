@@ -10,13 +10,7 @@ on:
 
 jobs:
   build:
-    # Adjust to whatever label your Forgejo runner exposes for a Docker-capable
-    # executor (see the "Prerequisites" note below) - this job shells out to
-    # `docker build`/`docker run` itself rather than using the job-level
-    # `container:` key, since that key needs an image already sitting in a
-    # registry and the whole point here is building one from Containerfile
-    # on the fly.
-    runs-on: docker
+    runs-on: golang
     steps:
       - name: Checkout
         uses: actions/checkout@v4
