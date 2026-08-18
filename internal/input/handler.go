@@ -264,8 +264,8 @@ func HandleKeyPress(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 
 	// Handle tape manager overlay (high priority - intercepts keys when shown)
 	if o.ShowTapeManager {
-		if o.HandleTapeManagerInput(msg.String()) {
-			return o, nil
+		if handled, cmd := o.HandleTapeManagerInput(msg.String()); handled {
+			return o, cmd
 		}
 		// Key not handled by tape manager, fall through
 	}
@@ -276,6 +276,15 @@ func HandleKeyPress(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// decoded key event so it works under every Kitty keyboard encoding.
 	if o.ScriptMode && isCtrlP(msg) {
 		o.ScriptPaused = !o.ScriptPaused
+		return o, nil
+	}
+
+	// A running Lua tape has no fixed command list to pause over, and no bound
+	// step to resume from mid-loop, so unlike the DSL there is no pause/resume
+	// here — only stop. Ctrl+P and Esc both cancel it, matched on the decoded
+	// key event so it works under every Kitty keyboard encoding.
+	if o.LuaRunning && (isCtrlP(msg) || msg.String() == "esc") {
+		o.CancelLuaPlayback()
 		return o, nil
 	}
 

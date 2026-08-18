@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
@@ -35,12 +36,24 @@ const (
 	TapeManagerNaming
 )
 
+// TapeFileKind distinguishes the two tape script formats that can live in the
+// tape directory.
+type TapeFileKind int
+
+const (
+	// TapeFileDSL is the original .tape lexer/parser/Player format.
+	TapeFileDSL TapeFileKind = iota
+	// TapeFileLua is a .lua script run through internal/tape/luascript.
+	TapeFileLua
+)
+
 // TapeFile represents a tape file with metadata
 type TapeFile struct {
-	Name     string    // Display name (without extension)
-	Path     string    // Full path to the file
-	Size     int64     // File size in bytes
-	Modified time.Time // Last modification time
+	Name     string       // Display name (without extension)
+	Path     string       // Full path to the file
+	Size     int64        // File size in bytes
+	Modified time.Time    // Last modification time
+	Kind     TapeFileKind // .tape (DSL) or .lua
 }
 
 // TapeManagerState holds the state for the tape manager UI
@@ -92,7 +105,16 @@ func LoadTapeFiles() ([]TapeFile, error) {
 		}
 
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".tape") {
+		var kind TapeFileKind
+		var displayName string
+		switch {
+		case strings.HasSuffix(name, ".tape"):
+			kind = TapeFileDSL
+			displayName = strings.TrimSuffix(name, ".tape")
+		case strings.HasSuffix(name, ".lua"):
+			kind = TapeFileLua
+			displayName = strings.TrimSuffix(name, ".lua")
+		default:
 			continue
 		}
 
@@ -102,10 +124,11 @@ func LoadTapeFiles() ([]TapeFile, error) {
 		}
 
 		files = append(files, TapeFile{
-			Name:     strings.TrimSuffix(name, ".tape"),
+			Name:     displayName,
 			Path:     filepath.Join(tapeDir, name),
 			Size:     info.Size(),
 			Modified: info.ModTime(),
+			Kind:     kind,
 		})
 	}
 
@@ -356,10 +379,13 @@ func (m *OS) TapeManagerStopRecording() {
 	m.RefreshTapeFiles()
 }
 
-// TapeManagerPlaySelected plays the selected tape file
-func (m *OS) TapeManagerPlaySelected() {
+// TapeManagerPlaySelected plays the selected tape file. It returns a tea.Cmd
+// when the selected file is a .lua script (its listeners need to be
+// dispatched into the already-running Update loop); DSL playback needs
+// nothing extra, since the periodic tick loop discovers ScriptMode on its own.
+func (m *OS) TapeManagerPlaySelected() tea.Cmd {
 	if m.TapeManager == nil || len(m.TapeManager.Files) == 0 {
-		return
+		return nil
 	}
 
 	selected := m.TapeManager.Files[m.TapeManager.SelectedIndex]
@@ -369,7 +395,13 @@ func (m *OS) TapeManagerPlaySelected() {
 	if err != nil {
 		m.TapeManager.ErrorMessage = fmt.Sprintf("Failed to read tape: %s", err)
 		m.TapeManager.MessageTime = time.Now()
-		return
+		return nil
+	}
+
+	if selected.Kind == TapeFileLua {
+		cmds := m.StartLuaPlayback(string(content), selected.Name)
+		m.ShowTapeManager = false
+		return tea.Batch(cmds...)
 	}
 
 	// Parse the tape
@@ -392,6 +424,7 @@ func (m *OS) TapeManagerPlaySelected() {
 	// Close the manager UI
 	m.ShowTapeManager = false
 	m.ShowNotification("Playing: "+selected.Name, "info", 2*time.Second)
+	return nil
 }
 
 // RenderTapeManager renders the tape manager overlay
@@ -556,10 +589,12 @@ func truncateString(s string, maxLen int) string {
 	return string(runes[:maxLen-3]) + "..."
 }
 
-// HandleTapeManagerInput handles keyboard input for the tape manager
-func (m *OS) HandleTapeManagerInput(key string) bool {
+// HandleTapeManagerInput handles keyboard input for the tape manager. The
+// returned tea.Cmd is non-nil only when playing a .lua tape, whose listeners
+// must be dispatched into the running Update loop.
+func (m *OS) HandleTapeManagerInput(key string) (bool, tea.Cmd) {
 	if m.TapeManager == nil {
-		return false
+		return false, nil
 	}
 
 	switch m.TapeManager.Mode {
@@ -567,20 +602,20 @@ func (m *OS) HandleTapeManagerInput(key string) bool {
 		switch key {
 		case "enter":
 			m.TapeManagerConfirmRecording()
-			return true
+			return true, nil
 		case "esc":
 			m.TapeManager.Mode = TapeManagerList
-			return true
+			return true, nil
 		case "backspace":
 			if len(m.TapeManager.NameBuffer) > 0 {
 				m.TapeManager.NameBuffer = m.TapeManager.NameBuffer[:len(m.TapeManager.NameBuffer)-1]
 			}
-			return true
+			return true, nil
 		default:
 			// Add printable characters to buffer
 			if len(key) == 1 && key[0] >= 32 && key[0] <= 126 {
 				m.TapeManager.NameBuffer += key
-				return true
+				return true, nil
 			}
 		}
 
@@ -588,38 +623,38 @@ func (m *OS) HandleTapeManagerInput(key string) bool {
 		switch key {
 		case "y", "Y":
 			m.TapeManagerConfirmDeleteAction()
-			return true
+			return true, nil
 		case "n", "N", "esc":
 			m.TapeManagerCancelDelete()
-			return true
+			return true, nil
 		}
 
 	case TapeManagerList:
 		switch key {
 		case "up", "k":
 			m.TapeManagerSelectPrev()
-			return true
+			return true, nil
 		case "down", "j":
 			m.TapeManagerSelectNext()
-			return true
+			return true, nil
 		case "enter":
 			if len(m.TapeManager.Files) > 0 {
-				m.TapeManagerPlaySelected()
+				return true, m.TapeManagerPlaySelected()
 			}
-			return true
+			return true, nil
 		case "r":
 			m.TapeManagerStartRecording()
-			return true
+			return true, nil
 		case "d":
 			if len(m.TapeManager.Files) > 0 {
 				m.TapeManagerDelete()
 			}
-			return true
+			return true, nil
 		case "esc", "q":
 			m.ShowTapeManager = false
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }

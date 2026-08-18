@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -16,12 +17,23 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
 	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	lua "github.com/yuin/gopher-lua"
 )
+
+// isLuaTape reports whether path names a .lua tape script rather than the
+// .tape DSL.
+func isLuaTape(path string) bool {
+	return strings.HasSuffix(path, ".lua")
+}
 
 func runTapeInteractive(tapeFile string) error {
 	content, err := os.ReadFile(tapeFile)
 	if err != nil {
 		return fmt.Errorf("failed to read tape file: %w", err)
+	}
+
+	if isLuaTape(tapeFile) {
+		return runLuaTapeInteractive(tapeFile, string(content))
 	}
 
 	commands, parseErrors := tape.ParseFile(string(content))
@@ -38,6 +50,38 @@ func runTapeInteractive(tapeFile string) error {
 	fmt.Println("Press Ctrl+C to cancel, Ctrl+P to pause/resume playback")
 	fmt.Println("\nStarting TUIOS with tape playback...")
 
+	initialOS := newTapeInteractiveOS()
+
+	player := tape.NewPlayer(commands)
+	initialOS.ScriptMode = true
+	initialOS.ScriptPlayer = player
+	initialOS.ScriptPaused = false
+	initialOS.ScriptExecutor = tape.NewCommandExecutor(initialOS)
+
+	return runTapeProgram(initialOS)
+}
+
+// runLuaTapeInteractive is runTapeInteractive's counterpart for .lua tape
+// scripts: same model setup and program lifecycle, but the script drives its
+// own control flow instead of a fixed Player command list (see
+// app.StartLuaPlayback).
+func runLuaTapeInteractive(tapeFile, content string) error {
+	fmt.Printf("Preparing Lua tape script: %s\n", tapeFile)
+	fmt.Println("Press Ctrl+C to cancel, Ctrl+P or Esc to stop the script")
+	fmt.Println("\nStarting TUIOS with tape playback...")
+
+	initialOS := newTapeInteractiveOS()
+	initialOS.StartLuaPlayback(content, strings.TrimSuffix(filepath.Base(tapeFile), ".lua"))
+
+	return runTapeProgram(initialOS)
+}
+
+// newTapeInteractiveOS builds the app.OS model shared by every tape playback
+// entry point (DSL or Lua): config/theme loading, the input handler and a
+// freshly seeded, zero-window session. Animations are forced off for
+// deterministic playback, matching recorded tapes (the recorder prepends
+// DisableAnimations); a tape can still re-enable them explicitly.
+func newTapeInteractiveOS() *app.OS {
 	userConfig, err := config.LoadUserConfig()
 	if err != nil {
 		log.Printf("Warning: Failed to load config, using defaults: %v", err)
@@ -45,8 +89,7 @@ func runTapeInteractive(tapeFile string) error {
 	}
 
 	// LoadUserConfig no longer applies globals; apply the config appearance so
-	// tape playback honors the user's borders/dock/etc. Animations are forced
-	// off below for deterministic playback.
+	// tape playback honors the user's borders/dock/etc.
 	config.ApplyAppearanceConfig(userConfig)
 
 	if err := theme.Initialize(themeName); err != nil {
@@ -56,15 +99,9 @@ func runTapeInteractive(tapeFile string) error {
 	app.SetInputHandler(input.HandleInput)
 
 	keybindRegistry := config.NewKeybindRegistry(userConfig)
-
-	// Force animations off for deterministic playback of hand-written tapes,
-	// matching recorded tapes (the recorder prepends DisableAnimations). Tapes
-	// can still re-enable them explicitly with EnableAnimations.
 	config.AnimationsEnabled = false
 
-	player := tape.NewPlayer(commands)
-
-	initialOS := &app.OS{
+	return &app.OS{
 		FocusedWindow:        -1,
 		WindowExitChan:       make(chan string, 10),
 		StateSyncChan:        make(chan *session.SessionState, 10),
@@ -82,14 +119,12 @@ func runTapeInteractive(tapeFile string) error {
 		ShowKeys:             showKeys,
 		RecentKeys:           []app.KeyEvent{},
 		KeyHistoryMaxSize:    5,
-		ScriptMode:           true,
-		ScriptPlayer:         player,
-		ScriptPaused:         false,
-		ScriptExecutor:       tape.NewCommandExecutor(nil),
 	}
+}
 
-	initialOS.ScriptExecutor = tape.NewCommandExecutor(initialOS)
-
+// runTapeProgram runs a tape-playback model to completion and restores the
+// terminal, shared by the DSL and Lua interactive playback paths.
+func runTapeProgram(initialOS *app.OS) error {
 	p := tea.NewProgram(
 		initialOS,
 		tea.WithFPS(config.MaxFPSCap),
@@ -133,6 +168,10 @@ func validateTapeFile(tapeFile string) error {
 	content, err := os.ReadFile(tapeFile)
 	if err != nil {
 		return fmt.Errorf("failed to read tape file: %w", err)
+	}
+
+	if isLuaTape(tapeFile) {
+		return validateLuaTapeFile(tapeFile, string(content))
 	}
 
 	commands, parseErrors := tape.ParseFile(string(content))
@@ -185,6 +224,29 @@ func validateTapeFile(tapeFile string) error {
 	return nil
 }
 
+// validateLuaTapeFile checks that content compiles as Lua without running it
+// (lua.LState.LoadString parses and compiles a chunk but does not call it),
+// so validation never executes a tuios.* side effect.
+func validateLuaTapeFile(tapeFile, content string) error {
+	L := lua.NewState(lua.Options{SkipOpenLibs: true})
+	defer L.Close()
+
+	if _, err := L.LoadString(content); err != nil {
+		fmt.Fprintf(os.Stderr, "Parsing errors found:\n  ✗ %s\n", err)
+		return fmt.Errorf("tape file has parsing errors")
+	}
+
+	checkmark := lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render("✓")
+	validText := lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render("Tape file is valid Lua")
+	fmt.Printf("%s %s\n", checkmark, validText)
+
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
+	fmt.Printf("  %s: %s\n", labelStyle.Render("File"), valueStyle.Render(tapeFile))
+
+	return nil
+}
+
 func listTapeFiles() error {
 	files, err := app.LoadTapeFiles()
 	if err != nil {
@@ -231,20 +293,34 @@ func showTapeDirectory() error {
 	return nil
 }
 
+// findTapeFile locates a tape by display name or by name with its .tape/.lua
+// extension still attached, shared by every CLI subcommand that takes a tape
+// name rather than a full path.
+func findTapeFile(files []app.TapeFile, name string) *app.TapeFile {
+	stripped := strings.TrimSuffix(strings.TrimSuffix(name, ".tape"), ".lua")
+	for i := range files {
+		if files[i].Name == name || files[i].Name == stripped {
+			return &files[i]
+		}
+	}
+	return nil
+}
+
+// tapeFileExt returns the extension a TapeFile was loaded with, for display.
+func tapeFileExt(kind app.TapeFileKind) string {
+	if kind == app.TapeFileLua {
+		return ".lua"
+	}
+	return ".tape"
+}
+
 func deleteTapeFile(name string) error {
 	files, err := app.LoadTapeFiles()
 	if err != nil {
 		return fmt.Errorf("failed to load tape files: %w", err)
 	}
 
-	var targetFile *app.TapeFile
-	for i := range files {
-		if files[i].Name == name || files[i].Name == strings.TrimSuffix(name, ".tape") {
-			targetFile = &files[i]
-			break
-		}
-	}
-
+	targetFile := findTapeFile(files, name)
 	if targetFile == nil {
 		return fmt.Errorf("tape file '%s' not found", name)
 	}
@@ -274,14 +350,7 @@ func showTapeFile(name string) error {
 		return fmt.Errorf("failed to load tape files: %w", err)
 	}
 
-	var targetFile *app.TapeFile
-	for i := range files {
-		if files[i].Name == name || files[i].Name == strings.TrimSuffix(name, ".tape") {
-			targetFile = &files[i]
-			break
-		}
-	}
-
+	targetFile := findTapeFile(files, name)
 	if targetFile == nil {
 		return fmt.Errorf("tape file '%s' not found", name)
 	}
@@ -293,7 +362,7 @@ func showTapeFile(name string) error {
 
 	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
 	pathStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	fmt.Printf("%s\n", headerStyle.Render(targetFile.Name+".tape"))
+	fmt.Printf("%s\n", headerStyle.Render(targetFile.Name+tapeFileExt(targetFile.Kind)))
 	fmt.Printf("%s\n\n", pathStyle.Render(targetFile.Path))
 
 	fmt.Print(string(content))

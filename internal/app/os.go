@@ -2,6 +2,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -16,6 +17,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/Gaurav-Gosain/tuios/internal/tape/luascript"
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 	"github.com/Gaurav-Gosain/tuios/internal/ui"
 	"github.com/charmbracelet/ssh"
@@ -427,6 +429,24 @@ type OS struct {
 	// tape for a few seconds rather than forever.
 	ScriptAwaitWindows  int
 	ScriptAwaitDeadline time.Time
+	// Lua tape scripting support (internal/tape/luascript). Unlike the DSL's
+	// Player, a running Lua script has no fixed command count to show
+	// progress against, so it gets its own minimal state instead of reusing
+	// Script*.
+	LuaRunning bool               // True while a .lua tape's goroutine is executing
+	LuaName    string             // Display name of the running Lua tape
+	LuaBridge  *luascript.Bridge  // Relays Lua-triggered calls onto Update()
+	LuaCancel  context.CancelFunc // Stops the running Lua script (see cancelLuaPlayback)
+	// LuaCanceled distinguishes a user-requested stop from a script error in
+	// LuaFinishedMsg: gopher-lua surfaces a canceled context as the plain
+	// string ctx.Err().Error() (via LState.RaiseError), so the resulting error
+	// can't be matched with errors.Is(err, context.Canceled).
+	LuaCanceled bool
+	// luaDone is the running script's completion channel. It is stashed here
+	// (rather than only closed over by a returned tea.Cmd) so Init() can also
+	// arm listenForLuaDone when a Lua tape is started before the Bubble Tea
+	// program exists yet (the `tuios tape run foo.lua` CLI path).
+	luaDone chan error
 	// Tape manager UI
 	ShowTapeManager    bool              // True when showing tape manager overlay
 	TapeManager        *TapeManagerState // Tape manager state

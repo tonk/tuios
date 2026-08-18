@@ -11,6 +11,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/hooks"
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/Gaurav-Gosain/tuios/internal/tape/luascript"
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
@@ -313,6 +314,14 @@ func (m *OS) Init() tea.Cmd {
 			cmds = append(cmds, refreshForeignSessionsCmd(m.DaemonClient))
 		}
 		cmds = append(cmds, foreignSessionRefreshTick(after))
+	}
+
+	// A Lua tape started before the program existed (the `tuios tape run
+	// foo.lua` CLI path builds the model with LuaRunning already set) needs
+	// its listeners armed here; the interactive tape manager path arms them
+	// itself as a tea.Cmd returned alongside the keypress that started it.
+	if m.LuaRunning && m.LuaBridge != nil && m.luaDone != nil {
+		cmds = append(cmds, m.LuaBridge.Listen(), listenForLuaDone(m.luaDone))
 	}
 
 	return tea.Batch(cmds...)
@@ -1428,6 +1437,36 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 				m.SyncStateToDaemon()
 			}
 		}
+		return m, nil
+
+	case luascript.CallMsg:
+		// Run the Lua-triggered Executor call on this goroutine (the only place
+		// window/executor state may be mutated), then keep relaying subsequent
+		// calls for as long as the script is still running.
+		msg.Fn()
+		m.SyncStateToDaemon()
+		if m.LuaRunning && m.LuaBridge != nil {
+			return m, m.LuaBridge.Listen()
+		}
+		return m, nil
+
+	case LuaFinishedMsg:
+		m.LuaRunning = false
+		m.LuaBridge = nil
+		m.LuaCancel = nil
+		name := m.LuaName
+		canceled := m.LuaCanceled
+		m.LuaName = ""
+		m.LuaCanceled = false
+		switch {
+		case canceled:
+			m.ShowNotification(fmt.Sprintf("Lua tape %q canceled", name), "warning", config.NotificationDuration)
+		case msg.Err != nil:
+			m.ShowNotification(fmt.Sprintf("Lua tape %q failed: %v", name, msg.Err), "error", config.NotificationDuration*2)
+		default:
+			m.ShowNotification(fmt.Sprintf("Lua tape %q finished", name), "success", config.NotificationDuration)
+		}
+		m.MarkAllDirty()
 		return m, nil
 
 	case RemoteCommandMsg:

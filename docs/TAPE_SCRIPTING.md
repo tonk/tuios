@@ -814,6 +814,7 @@ Sleep 1s
 - [TUIOS Keybindings Documentation](KEYBINDINGS.md)
 - [TUIOS Configuration Guide](CONFIGURATION.md)
 - [Example Tape Scripts](../examples/)
+- [Lua Tape Scripting](TAPE_LUA.md) - variables, loops and conditionals, for when this DSL isn't enough
 - [AGENTS.md](../AGENTS.md) - Development guide
 
 ---

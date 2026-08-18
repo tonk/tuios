@@ -17,6 +17,11 @@ type Executor interface {
 	// GetFocusedWindowID returns the ID of the focused window
 	GetFocusedWindowID() string
 
+	// GetWindowContent returns the current visible screen content of a window
+	// (windowID empty means the focused window). Used by Lua tape scripts to
+	// poll for a pattern (e.g. a password prompt) before deciding what to do.
+	GetWindowContent(windowID string) (string, error)
+
 	// SendToWindow sends bytes to a window's PTY
 	SendToWindow(windowID string, data []byte) error
 

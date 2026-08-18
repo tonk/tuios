@@ -20,6 +20,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.2
 	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
+	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/sys v0.46.0
 	golang.org/x/term v0.44.0
 )

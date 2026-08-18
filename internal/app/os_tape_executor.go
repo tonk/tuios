@@ -113,6 +113,14 @@ func (m *OS) GetFocusedWindowID() string {
 	return ""
 }
 
+// GetWindowContent returns the visible screen content of a window (windowID
+// empty means the focused window). It is the tape.Executor counterpart of
+// capturePane's plain-text mode, exposed so Lua tape scripts can poll for a
+// pattern (e.g. a password prompt) via tuios.wait_until.
+func (m *OS) GetWindowContent(windowID string) (string, error) {
+	return m.capturePane(windowID, "")
+}
+
 // resolveWindowTarget resolves a window target string to a window ID.
 // If target is empty, returns the focused window ID.
 // Matching order: exact ID, the position list-windows prints (all-digit
