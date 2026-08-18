@@ -56,20 +56,16 @@ type TapeManagerState struct {
 	MessageTime    time.Time
 }
 
-// GetTapeDirectory returns the XDG data directory for tape files
+// GetTapeDirectory returns the config directory for tape files (alongside
+// layout templates - see layout_templates.go's GetTemplatesDir - rather than
+// the XDG data directory it used to sit in: a hand-written or recorded tape
+// is user content someone edits and syncs with dotfiles, not app state).
 func GetTapeDirectory() (string, error) {
-	tapeDir, err := xdg.DataFile("tuios/tapes")
-	if err != nil {
-		return "", fmt.Errorf("failed to get tape directory: %w", err)
-	}
-
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(tapeDir), 0750); err != nil {
+	tapeDir := filepath.Join(xdg.ConfigHome, "tuios", "tapes")
+	if err := os.MkdirAll(tapeDir, 0750); err != nil {
 		return "", fmt.Errorf("failed to create tape directory: %w", err)
 	}
-
-	// Return the directory path (not the file path)
-	return filepath.Dir(tapeDir), nil
+	return tapeDir, nil
 }
 
 // LoadTapeFiles loads all tape files from the XDG data directory
