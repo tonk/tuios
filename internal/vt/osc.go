@@ -185,53 +185,116 @@ func (e *Emulator) handleTextSizing(data []byte) {
 	if len(parts) < 3 {
 		return
 	}
-	text := parts[2]
-	if len(text) == 0 {
+	text := string(parts[2])
+	if text == "" {
 		return
 	}
 
-	// Parse scale
-	scale := 1
-	for kv := range bytes.SplitSeq(parts[1], []byte{':'}) {
-		if bytes.HasPrefix(kv, []byte("s=")) && len(kv) > 2 {
-			if s := kv[2] - '0'; s >= 1 && s <= 7 {
-				scale = int(s)
+	scale, width := parseTextSizingMeta(parts[1])
+	e.paintTextSizing(text, scale, width)
+}
+
+// parseTextSizingMeta reads OSC 66 key=value pairs. s is the scale (1-7) and w
+// is the explicit cell width (0 means "split as normal text"). Other keys
+// (fractional scale, alignment) only affect font size inside those cells, which
+// a cell-grid multiplexer cannot honor, so they are ignored.
+func parseTextSizingMeta(meta []byte) (scale, width int) {
+	scale, width = 1, 0
+	for kv := range bytes.SplitSeq(meta, []byte{':'}) {
+		k, v, ok := bytes.Cut(kv, []byte{'='})
+		if !ok || len(v) == 0 {
+			continue
+		}
+		n := 0
+		for _, b := range v {
+			if b < '0' || b > '9' {
+				n = -1
+				break
+			}
+			n = n*10 + int(b-'0')
+		}
+		if n < 0 {
+			continue
+		}
+		switch string(k) {
+		case "s":
+			if n >= 1 && n <= 7 {
+				scale = n
+			}
+		case "w":
+			if n >= 0 && n <= 7 {
+				width = n
 			}
 		}
 	}
+	return scale, width
+}
 
-	textRunes := len([]rune(string(text)))
-	curX, curY := e.scr.CursorPosition()
-
-	// Forward to host terminal
-	if e.textSizingFunc != nil {
-		var rawOSC []byte
-		rawOSC = append(rawOSC, "\x1b]"...)
-		rawOSC = append(rawOSC, data...)
-		rawOSC = append(rawOSC, '\a')
-		e.textSizingFunc(rawOSC, curX, curY, scale, textRunes)
+// paintTextSizing puts OSC 66 text into the cell grid at the current cursor.
+//
+// Kitty's protocol carries the glyphs inside the escape sequence, so a handler
+// that only forwards or clears leaves nothing on the screen. OpenTUI (and
+// Cursor's agent TUI) detect that OSC 66 is consumed, then emit it for every
+// explicit-width cell. The previous implementation wiped whole rows and never
+// wrote the payload, which shredded that output into scattered letters.
+//
+// Scale > 1 still occupies s*w cells so CPR probes and app layout stay honest;
+// the extra cells are left blank rather than drawn at a larger font size.
+func (e *Emulator) paintTextSizing(text string, scale, width int) {
+	if width > 0 {
+		e.handleGrapheme(text, width)
+		e.finishScaledCell(width, scale)
+		return
 	}
+	method := ansi.GraphemeWidth
+	for len(text) > 0 {
+		cluster, w := ansi.FirstGraphemeCluster(text, method)
+		e.handleGrapheme(cluster, w)
+		e.finishScaledCell(w, scale)
+		text = text[len(cluster):]
+	}
+}
 
-	// Clear rows occupied by the scaled text so bubbletea renders spaces,
-	// allowing our post-render OSC 66 passthrough to persist.
-	// Also clear columns beyond the scaled text on the row above (curY-1)
-	// to remove wrapped command text like "ext\a\n\n"".
-	w := e.Width()
-	h := e.Height()
-	scaledCols := textRunes * scale
-	for row := range scale {
-		y := curY + row
-		if y >= h {
+// finishScaledCell occupies the rest of an s-by-(unitWidth*s) block after the
+// primary cell has been written. The spec moves the cursor s*unitWidth cells
+// right on the same row; extra columns and the rows below are blanked so stale
+// glyphs do not show through the interior of the scaled cell.
+func (e *Emulator) finishScaledCell(unitWidth, scale int) {
+	if scale <= 1 || unitWidth <= 0 {
+		return
+	}
+	extra := unitWidth * (scale - 1)
+	x, y := e.scr.CursorPosition()
+	w := e.scr.Width()
+	h := e.scr.Height()
+	for range extra {
+		if x >= w {
 			break
 		}
-		for x := range w {
-			e.scr.SetCell(x, y, nil)
-		}
+		e.scr.SetCell(x, y, nil)
+		x++
 	}
-	// Clear only columns beyond scaledCols on the row above (command text wrap area)
-	if curY > 0 && scaledCols < w {
-		for x := scaledCols; x < w; x++ {
-			e.scr.SetCell(x, curY-1, nil)
+	if x >= w {
+		x = w - 1
+		e.atPhantom = e.autoWrapMode()
+	} else {
+		e.atPhantom = false
+	}
+	e.scr.setCursor(x, y, false)
+
+	startX := e.lastCellX
+	blockW := unitWidth * scale
+	for row := 1; row < scale; row++ {
+		yy := e.lastCellY + row
+		if yy >= h {
+			break
+		}
+		for col := range blockW {
+			xx := startX + col
+			if xx >= w {
+				break
+			}
+			e.scr.SetCell(xx, yy, nil)
 		}
 	}
 }
