@@ -88,10 +88,10 @@ func checksum(dirs []string) (map[string]string, error) {
 func seedUsedHome(t *testing.T, home string) {
 	t.Helper()
 	files := map[string]string{
-		"state/tuios/sidebar.json":   `{"width":28,"accent_colors":{"real-window":"#ff8800"}}`,
-		"config/tuios/config.toml":   "[appearance]\ntheme = \"catppuccin-mocha\"\n",
-		"data/tuios/tape-trust.toml": "\n",
-		"cache/tuios/marker":         "\n",
+		"state/tuios/sidebar.json":     `{"width":28,"accent_colors":{"real-window":"#ff8800"}}`,
+		"config/tuios/config.toml":     "[appearance]\ntheme = \"catppuccin-mocha\"\n",
+		"config/tuios/tape-trust.toml": "\n",
+		"cache/tuios/marker":           "\n",
 	}
 	for rel, body := range files {
 		path := filepath.Join(home, filepath.FromSlash(rel))

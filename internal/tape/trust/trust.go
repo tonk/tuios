@@ -35,8 +35,13 @@ import (
 // slurped into memory.
 const MaxTapeSize = 64 * 1024
 
-// TapeFileName is the fixed basename of a project tape.
+// TapeFileName is the fixed basename of a project tape (DSL).
 const TapeFileName = ".tuios.tape"
+
+// LuaTapeFileName is the fixed basename of a Lua project tape. It goes through
+// the same hygiene checks and (path, hash) trust model as TapeFileName; only
+// execution differs (internal/tape/luascript instead of the DSL player).
+const LuaTapeFileName = ".tuios.tape.lua"
 
 // Status is the trust verdict for a tape encountered at a directory.
 type Status int
@@ -129,11 +134,9 @@ type Store struct {
 }
 
 // DefaultPath returns the trust store location,
-// $XDG_DATA_HOME/tuios/tape-trust.toml, creating the parent directory. It is a
-// state file, not config, so it does not travel with dotfile syncing: trust
-// decisions are per-machine by design.
+// $XDG_CONFIG_HOME/tuios/tape-trust.toml, creating the parent directory.
 func DefaultPath() (string, error) {
-	return xdg.DataFile("tuios/" + trustFileBaseName)
+	return xdg.ConfigFile("tuios/" + trustFileBaseName)
 }
 
 const trustFileBaseName = "tape-trust.toml"

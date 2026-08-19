@@ -33,7 +33,7 @@ func TestReviewRunOnceDoesNotPersistTrust(t *testing.T) {
 		t.Fatalf("dialog not open on an untrusted tape: show=%v status=%v", m.ShowTapeReview, m.TapeReview)
 	}
 
-	if !m.HandleTapeReviewInput("r") {
+	if handled, _ := m.HandleTapeReviewInput("r"); !handled {
 		t.Fatalf("run-once key not consumed")
 	}
 	if !m.ScriptMode {
@@ -52,7 +52,7 @@ func TestReviewTrustAndRunPersists(t *testing.T) {
 	dir := tapeDir(t, "Scope current\nType \"echo hi\" Enter\n")
 
 	m.openTapeReviewForDir(dir)
-	if !m.HandleTapeReviewInput("t") {
+	if handled, _ := m.HandleTapeReviewInput("t"); !handled {
 		t.Fatalf("trust-and-run key not consumed")
 	}
 	if !m.ScriptMode {
@@ -68,7 +68,7 @@ func TestReviewNeverDenies(t *testing.T) {
 	dir := tapeDir(t, "Type \"echo hi\" Enter\n")
 
 	m.openTapeReviewForDir(dir)
-	if !m.HandleTapeReviewInput("n") {
+	if handled, _ := m.HandleTapeReviewInput("n"); !handled {
 		t.Fatalf("never key not consumed")
 	}
 	if m.ScriptMode {
@@ -87,7 +87,7 @@ func TestReviewNotNowDismisses(t *testing.T) {
 	dir := tapeDir(t, "Type \"echo hi\" Enter\n")
 
 	m.openTapeReviewForDir(dir)
-	if !m.HandleTapeReviewInput("esc") {
+	if handled, _ := m.HandleTapeReviewInput("esc"); !handled {
 		t.Fatalf("not-now key not consumed")
 	}
 	if m.ShowTapeReview {
@@ -114,14 +114,14 @@ func TestReviewTrustedTapeRunsAndRevokes(t *testing.T) {
 	if m.TapeReview.Status != trust.StatusTrusted {
 		t.Fatalf("status = %v, want trusted", m.TapeReview.Status)
 	}
-	if !m.HandleTapeReviewInput("r") || !m.ScriptMode {
+	if handled, _ := m.HandleTapeReviewInput("r"); !handled || !m.ScriptMode {
 		t.Fatalf("trusted Run did not start the tape")
 	}
 
 	// Revoke with 'n'.
 	m.ScriptMode = false
 	m.openTapeReviewForDir(dir)
-	if !m.HandleTapeReviewInput("n") {
+	if handled, _ := m.HandleTapeReviewInput("n"); !handled {
 		t.Fatalf("revoke key not consumed")
 	}
 	if got := checkTape(t, store, dir).Status; got != trust.StatusUntrusted {
@@ -147,7 +147,7 @@ func TestReviewIneligibleOffersNoRun(t *testing.T) {
 	if m.ScriptMode {
 		t.Fatalf("ScriptMode = true, an ineligible tape must never run")
 	}
-	if !m.HandleTapeReviewInput("esc") || m.ShowTapeReview {
+	if handled, _ := m.HandleTapeReviewInput("esc"); !handled || m.ShowTapeReview {
 		t.Fatalf("ineligible tape should dismiss on esc")
 	}
 }

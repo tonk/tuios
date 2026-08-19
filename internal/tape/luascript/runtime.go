@@ -21,15 +21,23 @@ type binding struct {
 	executor tape.Executor
 	bridge   *Bridge
 	ctx      context.Context
+	// dir is the directory the running script's own file lives in - the
+	// project root for a .tuios.tape.lua project tape, the tape directory for
+	// one played from the tape manager or `tuios tape run`, or "" for a script
+	// with no file of its own. It is host-provided, not filesystem access the
+	// script performed itself, so it does not conflict with the sandbox having
+	// no io/os.
+	dir string
 }
 
 // Register builds the global `tuios` table that .lua tape scripts call into.
 // Every verb that touches window/app state runs through bridge.Call so it
 // executes on the Bubble Tea Update() goroutine, the same as every other
 // mutation in the app; sleep and wait_until are the two exceptions and are
-// documented at their definitions below.
-func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, bridge *Bridge, ctx context.Context) {
-	b := &binding{ce: ce, executor: executor, bridge: bridge, ctx: ctx}
+// documented at their definitions below. dir is exposed to the script as
+// tuios.project_dir().
+func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, bridge *Bridge, ctx context.Context, dir string) {
+	b := &binding{ce: ce, executor: executor, bridge: bridge, ctx: ctx, dir: dir}
 	tbl := L.NewTable()
 	L.SetGlobal("tuios", tbl)
 
@@ -185,6 +193,12 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 			return 0
 		}
 		L.Push(lua.LString(content))
+		return 1
+	})
+	// project_dir needs no bridge.Call: it is static data the host already
+	// knew before the script started, not app state that can change.
+	reg("project_dir", func(b *binding, L *lua.LState) int {
+		L.Push(lua.LString(b.dir))
 		return 1
 	})
 

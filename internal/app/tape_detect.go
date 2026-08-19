@@ -48,6 +48,7 @@ type tapeIndicator struct {
 	active bool
 	status trust.Status
 	dir    string
+	kind   TapeFileKind
 }
 
 // tapeDetectState holds all project-tape detection state on the OS. It lives
@@ -169,13 +170,15 @@ func (m *OS) onCwdChange(msg CwdChangedMsg) tea.Cmd {
 }
 
 // handleTapeDebounce evaluates the pending directory once the cwd has been
-// stable for the debounce interval, unless a newer change superseded it.
-func (m *OS) handleTapeDebounce(gen uint64) {
+// stable for the debounce interval, unless a newer change superseded it. The
+// returned command is non-nil only when auto mode just started a Lua project
+// tape, whose playback needs its listener commands dispatched.
+func (m *OS) handleTapeDebounce(gen uint64) tea.Cmd {
 	if gen != m.tapeDetect.gen {
 		// Superseded by a later cwd change; that one owns the evaluation.
-		return
+		return nil
 	}
-	m.evaluateTapeDir(m.tapeDetect.pendingD)
+	return m.evaluateTapeDir(m.tapeDetect.pendingD)
 }
 
 // localCwdPath extracts a local filesystem path from an OSC 7 payload. OSC 7
@@ -218,34 +221,59 @@ func isLocalHost(host string) bool {
 	return false
 }
 
-// evaluateTapeDir checks whether dir carries a .tuios.tape and, if so, updates
-// the passive indicator and (once per directory per run) shows a passive banner.
+// projectTapeCandidates lists the filenames evaluateTapeDir looks for, in
+// precedence order: a DSL .tuios.tape wins over a .tuios.tape.lua in the same
+// directory, so a directory has exactly one project tape at a time.
+var projectTapeCandidates = []struct {
+	name string
+	kind TapeFileKind
+}{
+	{trust.TapeFileName, TapeFileDSL},
+	{trust.LuaTapeFileName, TapeFileLua},
+}
+
+// resolveProjectTapePath stats dir for each candidate project-tape filename in
+// precedence order and returns the first one present. A plain stat, not a walk
+// and not a read.
+func resolveProjectTapePath(dir string) (path string, kind TapeFileKind, ok bool) {
+	for _, cand := range projectTapeCandidates {
+		p := filepath.Join(dir, cand.name)
+		if info, err := os.Lstat(p); err == nil && !info.IsDir() {
+			return p, cand.kind, true
+		}
+	}
+	return "", 0, false
+}
+
+// evaluateTapeDir checks whether dir carries a .tuios.tape or .tuios.tape.lua
+// and, if so, updates the passive indicator and (once per directory per run)
+// shows a passive banner. The returned command is non-nil only when auto mode
+// just started a Lua project tape (its playback needs its listener commands
+// dispatched); a DSL autorun needs none, as startTapePlayback is pumped by the
+// existing tick loop.
 //
-// This is the entire user-visible surface of stage 1. It stats the directory,
-// and for an existing tape reads it once to hash and classify it. It never
-// parses the tape as a program, never executes it, and never creates a session,
-// window, or layout.
-func (m *OS) evaluateTapeDir(dir string) {
+// This is the entire user-visible surface of stage 1 for the tape it finds. It
+// stats the directory, and for an existing tape reads it once to hash and
+// classify it. It never parses or executes a DSL tape, and for a Lua tape it
+// only runs it when auto mode and a prior trust decision both allow it.
+func (m *OS) evaluateTapeDir(dir string) tea.Cmd {
 	if !m.tapeAutorunEnabled() || dir == "" {
-		return
+		return nil
 	}
 
 	store := m.ensureTapeTrust()
 	if store == nil {
-		return
+		return nil
 	}
 	if m.tapeDetect.handled == nil {
 		m.tapeDetect.handled = make(map[string]bool)
 	}
 
-	tapePath := filepath.Join(dir, trust.TapeFileName)
-
-	// A plain stat, not a walk and not a read: is there a tape file here at all?
-	info, err := os.Lstat(tapePath)
-	if err != nil || info.IsDir() {
+	tapePath, kind, found := resolveProjectTapePath(dir)
+	if !found {
 		// No tape in this directory: clear any stale indicator.
 		m.tapeDetect.indicator = tapeIndicator{}
-		return
+		return nil
 	}
 
 	// A tape exists. Check reads it exactly once, hashes it, and classifies it.
@@ -259,11 +287,11 @@ func (m *OS) evaluateTapeDir(dir string) {
 		// clears it. Mark it handled so it is not re-evaluated needlessly.
 		m.tapeDetect.indicator = tapeIndicator{}
 		m.tapeDetect.handled[dir] = true
-		return
+		return nil
 	}
 
 	// Reflect the current location in the dock badge on every evaluation.
-	m.tapeDetect.indicator = tapeIndicator{active: true, status: res.Status, dir: dir}
+	m.tapeDetect.indicator = tapeIndicator{active: true, status: res.Status, dir: dir, kind: kind}
 
 	// Auto mode: a trusted, unedited tape runs automatically. Untrusted or
 	// changed tapes never auto-run; they fall through to the passive indicator
@@ -271,17 +299,20 @@ func (m *OS) evaluateTapeDir(dir string) {
 	// marked handled before playback starts so an autorun can never chain.
 	if m.tapeAutorunMode() == config.TapeAutorunAuto && res.Status == trust.StatusTrusted {
 		if m.tapeDetect.handled[dir] {
-			return
+			return nil
 		}
 		m.tapeDetect.handled[dir] = true
 		m.ShowNotification("Running trusted project tape", "info", 2*time.Second)
+		if kind == TapeFileLua {
+			return m.runProjectTapeLua(res.Content, dir)
+		}
 		m.runProjectTape(res.Content, dir)
-		return
+		return nil
 	}
 
 	// One prompt per directory per run.
 	if m.tapeDetect.handled[dir] {
-		return
+		return nil
 	}
 	m.tapeDetect.handled[dir] = true
 
@@ -293,11 +324,12 @@ func (m *OS) evaluateTapeDir(dir string) {
 	// act on would only be in the way.
 	if m.tapeAutoReviewEnabled() && (res.Status == trust.StatusUntrusted || res.Status == trust.StatusTrusted) {
 		m.openTapeReviewForDir(dir)
-		return
+		return nil
 	}
 
 	message, notifType := tapeBanner(res)
 	m.ShowNotification(message, notifType, tapeBannerDuration)
+	return nil
 }
 
 // tapeAutoReviewEnabled reports whether the user opted into auto-opening the
@@ -363,13 +395,17 @@ func (m *OS) tapeDockBadge() string {
 	if !m.tapeDetect.indicator.active {
 		return ""
 	}
+	label := "tape"
+	if m.tapeDetect.indicator.kind == TapeFileLua {
+		label = "tape(lua)"
+	}
 	switch m.tapeDetect.indicator.status {
 	case trust.StatusTrusted:
-		return "tape " + tapeGlyphTrusted
+		return label + " " + tapeGlyphTrusted
 	case trust.StatusUntrusted:
-		return "tape " + tapeGlyphUntrusted
+		return label + " " + tapeGlyphUntrusted
 	case trust.StatusIneligible:
-		return "tape " + tapeGlyphIneligible
+		return label + " " + tapeGlyphIneligible
 	default:
 		return ""
 	}

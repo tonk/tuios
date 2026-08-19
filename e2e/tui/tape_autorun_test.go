@@ -273,7 +273,7 @@ func TestProjectTapeSessionScopeBuildsSession(t *testing.T) {
 	waitWindowCount(t, c2, 3, "fresh client on the built session")
 
 	// Trust persisted.
-	storePath := filepath.Join(base, "XDG_DATA_HOME", "tuios", "tape-trust.toml")
+	storePath := filepath.Join(base, "XDG_CONFIG_HOME", "tuios", "tape-trust.toml")
 	data, _ := os.ReadFile(storePath)
 	if !contains(string(data), "[[trusted]]") || !contains(string(data), ".tuios.tape") {
 		t.Fatalf("trust was not persisted to %s:\n%s", storePath, string(data))

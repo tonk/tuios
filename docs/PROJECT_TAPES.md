@@ -1,13 +1,17 @@
 # Project Tapes (`.tuios.tape` autorun)
 
-A project tape is a `.tuios.tape` file in a project directory. When the focused
-shell inside TUIOS enters a directory that carries one, TUIOS can build a project
-session and layout from it, the same way a `.envrc` file works for direnv.
+A project tape is a `.tuios.tape` (or `.tuios.tape.lua`) file in a project
+directory. When the focused shell inside TUIOS enters a directory that carries
+one, TUIOS can build a project session and layout from it, the same way a
+`.envrc` file works for direnv. A directory has exactly one project tape: if
+both files are present, `.tuios.tape` wins and the `.lua` file is ignored.
 
 Because a tape is arbitrary command execution (`Type "curl x | sh" Enter` is a
-legal tape), the feature is built around a trust boundary: **an untrusted tape is
-inert.** TUIOS only stats it, reads it once, hashes it, and shows it to you.
-Nothing runs until you review the content and choose to run or trust it.
+legal tape, and a `.tuios.tape.lua` script is a real program), the feature is
+built around a trust boundary: **an untrusted tape is inert.** TUIOS only stats
+it, reads it once, hashes it, and shows it to you. Nothing runs until you
+review the content and choose to run or trust it - the same dialog, and the
+same (path, hash) trust model, for both kinds.
 
 ## Contents
 
@@ -17,6 +21,7 @@ Nothing runs until you review the content and choose to run or trust it.
 - [Config: `autorun` modes](#config-autorun-modes)
 - [The tape header](#the-tape-header)
 - [Scope: what running a tape does](#scope-what-running-a-tape-does)
+- [Lua project tapes](#lua-project-tapes)
 - [Security properties](#security-properties)
 
 ## Quick start
@@ -50,8 +55,10 @@ model:
   disk is never re-read between review and execution, so swapping the file (or a
   symlink target) after you approve changes nothing about what runs.
 
-Trust decisions live in `$XDG_DATA_HOME/tuios/tape-trust.toml` (mode 0600). It is
-per-machine state and does not travel with dotfile syncing.
+Trust decisions live in `$XDG_CONFIG_HOME/tuios/tape-trust.toml` (mode 0600). It
+sits alongside `config.toml`, so if you sync `~/.config` between machines your
+trust decisions travel with it — keep that in mind before trusting a tape on a
+box whose `~/.config` is shared or synced elsewhere.
 
 ### Ineligible tapes
 
@@ -219,6 +226,31 @@ best-effort - good for tiny tapes ("split once, run `make watch`").
 
 `Require "pnpm"` skips the whole tape with a notice if `pnpm` is not on `PATH`,
 rather than typing a command into a shell that cannot run it.
+
+## Lua project tapes
+
+A `.tuios.tape.lua` file goes through the same detection, hygiene checks, and
+trust dialog as a `.tuios.tape` - the badge, the banner, and `Ctrl+B T t` all
+work the same way (the dock badge reads `tape(lua)` to tell them apart at a
+glance). What differs is execution and scope:
+
+- It always builds a session named after the project directory (or `project`
+  if the name sanitizes to nothing) - there is no header, since `Session`,
+  `Scope`, `Workspace`, and `Require` are a DSL-only concept a Lua script can
+  express directly (`tuios.set_config`, `tuios.switch_workspace`, an `if` around
+  a missing binary, etc.).
+- The script itself runs through [Lua tape scripting](TAPE_LUA.md)'s `tuios.*`
+  API instead of the DSL's command list, so it gets variables, loops, and
+  conditionals - "create N windows and tile them" is a `for` loop here, not N
+  repeated `Split` lines.
+- Outside a daemon-backed session it falls back to running the raw script in
+  the current session, same as the DSL's `Scope current`.
+
+Because a Lua script can branch and loop, its full source is what the review
+dialog shows and what you are trusting - there is no bounded command list to
+audit at a glance the way a DSL tape's is, so read it before choosing **Trust
+and run**. See [Sandboxing](TAPE_LUA.md#sandboxing) for what a Lua tape
+cannot do regardless (no filesystem, process, or environment access).
 
 ## Security properties
 

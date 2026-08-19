@@ -257,8 +257,8 @@ func HandleKeyPress(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// quit): it must swallow keys so a keystroke meant for the dialog never leaks
 	// to the shell or a window-manager binding.
 	if o.ShowTapeReview {
-		if o.HandleTapeReviewInput(msg.String()) {
-			return o, nil
+		if handled, cmd := o.HandleTapeReviewInput(msg.String()); handled {
+			return o, cmd
 		}
 	}
 

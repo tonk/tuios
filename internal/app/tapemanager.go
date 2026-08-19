@@ -399,7 +399,7 @@ func (m *OS) TapeManagerPlaySelected() tea.Cmd {
 	}
 
 	if selected.Kind == TapeFileLua {
-		cmds := m.StartLuaPlayback(string(content), selected.Name)
+		cmds := m.StartLuaPlayback(string(content), selected.Name, filepath.Dir(selected.Path))
 		m.ShowTapeManager = false
 		return tea.Batch(cmds...)
 	}

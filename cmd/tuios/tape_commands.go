@@ -71,7 +71,11 @@ func runLuaTapeInteractive(tapeFile, content string) error {
 	fmt.Println("\nStarting TUIOS with tape playback...")
 
 	initialOS := newTapeInteractiveOS()
-	initialOS.StartLuaPlayback(content, strings.TrimSuffix(filepath.Base(tapeFile), ".lua"))
+	dir, err := filepath.Abs(filepath.Dir(tapeFile))
+	if err != nil {
+		dir = filepath.Dir(tapeFile)
+	}
+	initialOS.StartLuaPlayback(content, strings.TrimSuffix(filepath.Base(tapeFile), ".lua"), dir)
 
 	return runTapeProgram(initialOS)
 }

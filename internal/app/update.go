@@ -981,8 +981,8 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 
 	case tapeDebounceMsg:
 		// The focused cwd held still long enough; evaluate it for a project tape.
-		m.handleTapeDebounce(msg.gen)
-		return m, nil
+		// A non-nil command only happens when auto mode just started a Lua tape.
+		return m, m.handleTapeDebounce(msg.gen)
 
 	case WindowExitMsg:
 		windowID := msg.WindowID

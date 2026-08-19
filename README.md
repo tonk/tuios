@@ -1,14 +1,15 @@
-<div align="center">
-  <h1>TUIOS - Terminal UI Operating System</h1>
+This started as a clone from https://github.com/Gaurav-Gosain/tuios,
+but I have changed it a lot, to make it exactly work the way I want it.
+That's probably not the way it was intended to work and surely not
+something to be merged into the upstream project.
 
-  <a href="https://github.com/Gaurav-Gosain/tuios/releases"><img src="https://img.shields.io/github/release/Gaurav-Gosain/tuios.svg" alt="Latest Release"></a>
-  <a href="https://pkg.go.dev/github.com/Gaurav-Gosain/tuios?tab=doc"><img src="https://godoc.org/github.com/Gaurav-Gosain/tuios?status.svg" alt="GoDoc"></a>
-  <a href="https://deepwiki.com/Gaurav-Gosain/tuios"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-  <br>
-  <a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/"><img src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/png/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.png" alt="Terminal Trove Tool of The Week" style="width: 250px;" /></a>
-</div>
+If you think parts of my changes are worthwhile, please do not hesitate
+to use them in your own project. But do *not* forget to mention the
+original author of tuios, Gaurav Gosain , whom I owe many thanks for
+starting this.
 
-![TUIOS](./assets/demo.gif)
+======
+
 
 TUIOS is a modern terminal multiplexer and window manager built with Go. It provides a vim-like modal interface with multiple terminal panes, workspaces, BSP tiling, kitty graphics protocol support, and a command palette - all running inside your existing terminal.
 

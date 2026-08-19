@@ -83,6 +83,13 @@ func (f *fakeExecutor) SetTheme(name string) error {
 // the test if the script doesn't finish within timeout.
 func runScript(t *testing.T, script string, exec *fakeExecutor, timeout time.Duration) error {
 	t.Helper()
+	return runScriptInDir(t, script, exec, timeout, "")
+}
+
+// runScriptInDir is runScript with control over the project_dir() value; most
+// tests don't care and go through runScript's "" default.
+func runScriptInDir(t *testing.T, script string, exec *fakeExecutor, timeout time.Duration, dir string) error {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -94,7 +101,7 @@ func runScript(t *testing.T, script string, exec *fakeExecutor, timeout time.Dur
 	defer L.Close()
 	OpenSafeLibs(L)
 	L.SetContext(ctx)
-	Register(L, ce, exec, bridge, ctx)
+	Register(L, ce, exec, bridge, ctx, dir)
 
 	done := make(chan error, 1)
 	go func() { done <- L.DoString(script) }()
@@ -156,6 +163,26 @@ func TestSleepBlocksForRoughlyTheRequestedDuration(t *testing.T) {
 	}
 }
 
+func TestProjectDirIsExposedAsHostState(t *testing.T) {
+	exec := &fakeExecutor{}
+	script := `tuios.notify(tuios.project_dir())`
+	if err := runScriptInDir(t, script, exec, 2*time.Second, "/some/project/dir"); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+	calls := exec.Calls()
+	if len(calls) != 1 || calls[0].method != "ShowNotificationCmd" || len(calls[0].args) == 0 || calls[0].args[0] != "/some/project/dir" {
+		t.Fatalf("calls = %+v, want a single notify with the project dir", calls)
+	}
+}
+
+func TestProjectDirDefaultsToEmpty(t *testing.T) {
+	exec := &fakeExecutor{}
+	script := `if tuios.project_dir() ~= "" then error("expected empty project_dir") end`
+	if err := runScript(t, script, exec, 2*time.Second); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+}
+
 func TestWaitUntilReturnsTrueOnMatch(t *testing.T) {
 	exec := &fakeExecutor{}
 	exec.SetContent("$ ")
@@ -197,7 +224,7 @@ func TestContextCancellationStopsAScript(t *testing.T) {
 	defer L.Close()
 	OpenSafeLibs(L)
 	L.SetContext(ctx)
-	Register(L, ce, exec, bridge, ctx)
+	Register(L, ce, exec, bridge, ctx, "")
 
 	done := make(chan error, 1)
 	go func() { done <- L.DoString(`tuios.wait_until("never", 60000)`) }()

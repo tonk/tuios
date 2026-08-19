@@ -10,10 +10,13 @@ DSL scripts in the same tape directory, giving you a real language (variables,
 `if`/`else`, `for`/`while`, functions) that calls into the same window-manager
 actions the DSL commands do.
 
-A `.lua` script is a second, additive format, not a replacement — the DSL,
-its recorder, and its `.tuios.tape` project-autorun flow are unchanged. Lua
-tapes only ever run when you explicitly ask for them (see
-[Explicit-run only](#explicit-run-only) below).
+A `.lua` script is a second, additive format, not a replacement — the DSL and
+its recorder are unchanged. As a standalone `.lua` file it only ever runs when
+you explicitly ask for it (`tuios tape run`, or Enter in the tape manager); as
+a `.tuios.tape.lua` project tape it can also autorun on `cd`, through the same
+trust dialog as a `.tuios.tape` DSL project tape (see
+[Running a Lua tape as a project tape](#running-a-lua-tape-as-a-project-tape)
+below).
 
 ## Running a Lua tape
 
@@ -62,7 +65,25 @@ it's safe to call in a tight loop or from inside a conditional.
 
 **Timing and state** (the two verbs that don't work like the rest — see
 below): `tuios.sleep(ms)`, `tuios.wait_until(pattern, [timeout_ms],
-[window_id])`, `tuios.focused_window_id()`, `tuios.window_content([window_id])`
+[window_id])`, `tuios.focused_window_id()`, `tuios.window_content([window_id])`,
+`tuios.project_dir()`
+
+### `project_dir`
+
+`tuios.project_dir()` returns the directory the running script's own file
+lives in — the project root for a `.tuios.tape.lua` project tape, or the tape
+directory for one played from the tape manager or `tuios tape run`. It's `""`
+for a script with no file of its own. This is host-provided information, not
+filesystem access the script performed itself, so it doesn't need `io` or
+`os`: it's how a project tape avoids hardcoding its own location, e.g. to `cd`
+a pane created by `tuios.split` (which, unlike the tape's own seed window,
+starts in tuios's launch directory, not the project root):
+
+```lua
+tuios.split("vertical")
+tuios.type("cd '" .. tuios.project_dir() .. "' && npm run dev")
+tuios.enter()
+```
 
 ### `sleep` and `wait_until`
 
@@ -113,14 +134,20 @@ tuios.type('SSHPASS="$(pass show cust/passwd)" sshpass -e ssh user@example.com')
 The secret passes from `pass` to `sshpass` to `ssh` entirely inside that
 shell; Lua never sees it, and it's never written to the tape file.
 
-## Explicit-run only
+## Running a Lua tape as a project tape
 
-Lua tapes are never eligible for the `.tuios.tape` project-autorun flow: that
-flow's trust/review dialog shows you the raw source of a tape before it's
-allowed to run unattended, which is a reasonable safety net for the DSL's
-bounded command list but a much weaker one for an arbitrary Lua program. For
-now, a `.lua` tape only ever runs when you explicitly invoke it — `tuios tape
-run`, or Enter in the tape manager.
+A `.tuios.tape.lua` file in a project directory goes through the same
+detection, trust dialog, and `autorun` modes as a `.tuios.tape` DSL project
+tape — see [Project Tapes](PROJECT_TAPES.md#lua-project-tapes) for the
+autorun flow and the (path, hash) trust model both kinds share. The one thing
+worth restating here: because a Lua script can branch and loop, the review
+dialog's full-source display is a weaker at-a-glance safety net than it is for
+the DSL's bounded command list — read it before choosing **Trust and run**,
+especially before turning on `autorun = "auto"` for a project whose tape you
+did not write yourself.
+
+Outside a project directory, a `.lua` tape still only ever runs when you
+explicitly invoke it — `tuios tape run`, or Enter in the tape manager.
 
 ## See Also
 

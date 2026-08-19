@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/overlay"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
@@ -32,6 +33,7 @@ type TapeReviewState struct {
 	Content []byte
 	Reason  string // why an ineligible tape was rejected
 	Header  tape.ProjectHeader
+	Kind    TapeFileKind // DSL (.tuios.tape) or Lua (.tuios.tape.lua)
 	// Changed is true when the path was trusted before but its content hash no
 	// longer matches: the tape was edited since it was trusted.
 	Changed bool
@@ -51,7 +53,7 @@ func (m *OS) OpenTapeReview() {
 		m.ShowNotification("No project tape in the current directory", "info", config.NotificationDuration)
 		return
 	}
-	if m.ScriptMode {
+	if m.ScriptMode || m.LuaRunning {
 		m.ShowNotification("A tape is already running", "warning", config.NotificationDuration)
 		return
 	}
@@ -66,7 +68,12 @@ func (m *OS) openTapeReviewForDir(dir string) {
 		return
 	}
 
-	tapePath := filepath.Join(dir, trust.TapeFileName)
+	tapePath, kind, found := resolveProjectTapePath(dir)
+	if !found {
+		m.ShowNotification("No project tape in the current directory", "info", config.NotificationDuration)
+		return
+	}
+
 	res, err := store.Check(tapePath)
 	if err != nil {
 		m.LogInfo("tape review: %v", err)
@@ -85,7 +92,13 @@ func (m *OS) openTapeReviewForDir(dir string) {
 		}
 	}
 
-	header, _ := tape.ParseProjectHeader(string(res.Content))
+	// The DSL header (Session/Scope/Workspace/Require) is a DSL-only concept; a
+	// Lua tape has no equivalent, so parsing it is skipped and the zero header
+	// (session-scope defaults) is used only for kind == TapeFileDSL rendering.
+	var header tape.ProjectHeader
+	if kind == TapeFileDSL {
+		header, _ = tape.ParseProjectHeader(string(res.Content))
+	}
 
 	m.TapeReview = &TapeReviewState{
 		Path:    res.Path,
@@ -95,6 +108,7 @@ func (m *OS) openTapeReviewForDir(dir string) {
 		Content: res.Content,
 		Reason:  res.Reason,
 		Header:  header,
+		Kind:    kind,
 		Changed: changed,
 	}
 	m.ShowTapeReview = true
@@ -106,23 +120,30 @@ func (m *OS) CloseTapeReview() {
 	m.TapeReview = nil
 }
 
-// tapeReviewRunOnce runs the reviewed content without persisting trust.
-func (m *OS) tapeReviewRunOnce() {
+// tapeReviewRunOnce runs the reviewed content without persisting trust. The
+// returned command is non-nil only for a Lua tape, whose playback needs its
+// listener commands dispatched.
+func (m *OS) tapeReviewRunOnce() tea.Cmd {
 	r := m.TapeReview
 	if r == nil {
-		return
+		return nil
 	}
-	content, dir := r.Content, r.Dir
+	content, dir, kind := r.Content, r.Dir, r.Kind
 	m.CloseTapeReview()
+	if kind == TapeFileLua {
+		return m.runProjectTapeLua(content, dir)
+	}
 	m.runProjectTape(content, dir)
+	return nil
 }
 
 // tapeReviewTrustAndRun persists trust for the reviewed (path, hash) pair and
-// then runs the reviewed content.
-func (m *OS) tapeReviewTrustAndRun() {
+// then runs the reviewed content. The returned command is non-nil only for a
+// Lua tape, whose playback needs its listener commands dispatched.
+func (m *OS) tapeReviewTrustAndRun() tea.Cmd {
 	r := m.TapeReview
 	if r == nil {
-		return
+		return nil
 	}
 	store := m.ensureTapeTrust()
 	if store != nil {
@@ -133,9 +154,13 @@ func (m *OS) tapeReviewTrustAndRun() {
 			m.ShowNotification("Trusted "+shortTapePath(r.Path)+" (tip: set tape.autorun = \"auto\" to skip this next time)", "success", config.NotificationDuration*2)
 		}
 	}
-	content, dir := r.Content, r.Dir
+	content, dir, kind := r.Content, r.Dir, r.Kind
 	m.CloseTapeReview()
+	if kind == TapeFileLua {
+		return m.runProjectTapeLua(content, dir)
+	}
 	m.runProjectTape(content, dir)
+	return nil
 }
 
 // tapeReviewNever records a deny entry for the path and clears the indicator.
@@ -180,11 +205,12 @@ func (m *OS) tapeReviewRevoke() {
 }
 
 // HandleTapeReviewInput handles a keypress while the review dialog is open. It
-// returns true when the key was consumed.
-func (m *OS) HandleTapeReviewInput(key string) bool {
+// returns true when the key was consumed, plus a command to dispatch (non-nil
+// only when the key started a Lua tape's playback).
+func (m *OS) HandleTapeReviewInput(key string) (bool, tea.Cmd) {
 	r := m.TapeReview
 	if r == nil {
-		return false
+		return false, nil
 	}
 
 	// Scrolling is available in every mode.
@@ -193,47 +219,44 @@ func (m *OS) HandleTapeReviewInput(key string) bool {
 		if r.Scroll > 0 {
 			r.Scroll--
 		}
-		return true
+		return true, nil
 	case "down", "j":
 		if r.Scroll < m.tapeReviewMaxScroll() {
 			r.Scroll++
 		}
-		return true
+		return true, nil
 	case "esc", "q":
 		m.CloseTapeReview()
-		return true
+		return true, nil
 	}
 
 	if r.Status == trust.StatusIneligible {
 		// An ineligible tape offers no run or trust option; only dismissal.
-		return true
+		return true, nil
 	}
 
 	if r.Status == trust.StatusTrusted {
 		switch key {
 		case "r", "enter":
-			m.tapeReviewRunOnce()
-			return true
+			return true, m.tapeReviewRunOnce()
 		case "n":
 			m.tapeReviewRevoke()
-			return true
+			return true, nil
 		}
-		return true
+		return true, nil
 	}
 
 	// Untrusted (including changed-since-trusted).
 	switch key {
 	case "r":
-		m.tapeReviewRunOnce()
-		return true
+		return true, m.tapeReviewRunOnce()
 	case "t", "enter":
-		m.tapeReviewTrustAndRun()
-		return true
+		return true, m.tapeReviewTrustAndRun()
 	case "n":
 		m.tapeReviewNever()
-		return true
+		return true, nil
 	}
-	return true
+	return true, nil
 }
 
 // tapeContentLines returns the reviewed content split into display lines.
@@ -286,7 +309,7 @@ func (m *OS) RenderTapeReview() string {
 	lines = append(lines, label("trust ")+tapeStatusLabel(r.Status, r.Changed, bg, pal))
 
 	// What running it will do, from a cheap header parse (no execution).
-	lines = append(lines, label("runs  ")+value(overlay.Truncate(tapeRunSummary(r.Header, r.Dir), max(width-6, 1))))
+	lines = append(lines, label("runs  ")+value(overlay.Truncate(tapeRunSummary(r.Kind, r.Header, r.Dir), max(width-6, 1))))
 	if r.Status == trust.StatusIneligible && r.Reason != "" {
 		lines = append(lines, overlay.Style(bg).Foreground(pal.Warning).Render("ignored: "+r.Reason))
 	}
@@ -382,8 +405,16 @@ func tapeStatusLabel(status trust.Status, changed bool, bg color.Color, pal over
 }
 
 // tapeRunSummary describes, from the parsed header alone, what running the tape
-// will do. It executes nothing.
-func tapeRunSummary(h tape.ProjectHeader, dir string) string {
+// will do. It executes nothing. A Lua tape has no header (Session/Scope are a
+// DSL-only concept), so it always builds a session named after the directory.
+func tapeRunSummary(kind TapeFileKind, h tape.ProjectHeader, dir string) string {
+	if kind == TapeFileLua {
+		name := sanitizeSessionName(filepath.Base(dir))
+		if name == "" {
+			name = "project"
+		}
+		return "lua script, session \"" + name + "\""
+	}
 	if h.Scope == tape.ScopeCurrent {
 		return "in the current session (Scope current)"
 	}
