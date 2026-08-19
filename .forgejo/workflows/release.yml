@@ -38,7 +38,9 @@ jobs:
           set -eu
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends make
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          # Pinned, not @latest: nfpm's own go.mod can require a newer Go than
+          # this runner's image has (v2.47.0 needs >=1.26.4).
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
 
       - name: Cross-compile and package (deb, rpm, standalone binaries)
         run: |

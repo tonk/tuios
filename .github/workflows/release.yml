@@ -28,7 +28,10 @@ jobs:
           go-version-file: go.mod
 
       - name: Install build tooling (make, nfpm)
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+        # Pinned, not @latest: nfpm's own go.mod can require a newer Go than
+        # this repo's go.mod asks setup-go to install (v2.47.0 needs >=1.26.4),
+        # and GOTOOLCHAIN=local means setup-go's version is final, not a floor.
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
 
       - name: Cross-compile and package (deb, rpm, standalone binaries)
         run: |
