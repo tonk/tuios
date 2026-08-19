@@ -1,5 +1,10 @@
 name: Release
 
+# Same trigger and build as .forgejo/workflows/release.yml: any v*.*.* tag
+# push builds and packages the binaries. Tags are cut from main by
+# convention, not enforced here. This runner has none of the Forgejo runner's
+# restrictions (Node and a docker socket are both available), so it uses the
+# standard actions and `gh` instead of that workflow's manual git/curl steps.
 on:
   push:
     tags:
@@ -7,10 +12,9 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
-  goreleaser:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,19 +25,26 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          # Track go.mod rather than a literal. Pinning "1.24" here while go.mod
-          # asked for a newer language version meant the release build resolved
-          # its own toolchain at build time instead of using the one set up
-          # above, which is slower and makes the pin a lie.
           go-version-file: go.mod
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+      - name: Install build tooling (make, nfpm)
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Cross-compile and package (deb, rpm, standalone binaries)
+        run: |
+          set -eu
+          VERSION="${GITHUB_REF_NAME#v}"
+          make package VERSION="${VERSION}"
+          make checksums
+
+      - name: List built artifacts
+        run: ls -la dist/
+
+      - name: Create GitHub release and upload assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          set -eu
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
