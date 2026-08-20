@@ -614,19 +614,23 @@ whose pane is in another session. Those rows also name that session in words.
 
 ### set_terminal_title
 
-Sets the host terminal's own window/tab title to `tuios` once, on startup
-(an OSC 2 escape sequence). Without it, the host keeps showing whatever it
-shows by default - a terminal like Ghostty shows its own name until
-something sets the title otherwise.
+Sets the host terminal's own window/tab title (an OSC 2 escape sequence) to
+follow whatever the focused pane has titled itself - the same title a
+status-bar/taskbar applet would show if that program ran directly, with no
+tuios in between - falling back to `tuios` when nothing is focused or focus
+has not set a title yet. Without it, the host keeps showing whatever it shows
+by default - a terminal like Ghostty shows its own name until something sets
+the title otherwise.
 
 Reaches the host the same way a guest's OSC 9 desktop notification already
 does: through the same per-client passthrough, so it lands on the right
-terminal in local, daemon-attached, `tuios ssh`, and web mode alike. Applied
-once per attach, so reattaching resets a title something inside a pane may
-have changed since.
+terminal in local, daemon-attached, `tuios ssh`, and web mode alike. Kept live
+for as long as the client is attached, following focus changes and whatever
+the focused pane sets its title to; a reattach starts it fresh from `tuios`
+until the focused pane's title is seen again.
 
 **Valid values:**
-- `true` - Set the host terminal's title to `tuios` on startup (default)
+- `true` - Follow the focused pane's title, falling back to `tuios` (default)
 - `false` - Leave the host terminal's title untouched
 
 **Default:** `true`

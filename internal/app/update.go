@@ -454,7 +454,29 @@ func (m *OS) tickNeedsWork() bool {
 			return true
 		}
 	}
+	// Catches a host title gone stale from something other than new PTY output
+	// - a focus change onto a pane with a different title, or the focused
+	// window closing - which the per-window loop above has no reason to see.
+	if m.hostTitleDrifted() {
+		return true
+	}
 	return false
+}
+
+// hostTitleDrifted reports whether the host terminal's title (last written by
+// syncHostTitle) no longer matches what the focused window is titled. A cheap
+// string compare, safe to call every idle-gate check.
+func (m *OS) hostTitleDrifted() bool {
+	if !config.SetTerminalTitle || m.KittyPassthrough == nil {
+		return false
+	}
+	title := hostTerminalTitle
+	if w := m.GetFocusedWindow(); w != nil {
+		if t := w.Title(); t != "" {
+			title = t
+		}
+	}
+	return title != m.lastHostTitle
 }
 
 // IdleTickCmd creates a command that generates tick messages at 10 FPS.
@@ -632,6 +654,10 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// Graphics refresh (kitty/sixel) happens in GetCanvas during View().
 		m.MarkTerminalsWithNewContent()
 		m.renderSkipped = false
+		// A title-setting OSC arrives as ordinary PTY output, so this is the
+		// hot path for the host title to follow the focused pane live rather
+		// than waiting for the next maintenance tick.
+		m.syncHostTitle()
 		return m, ListenForPTYData(m.PTYDataChan)
 
 	case PendingCopyMsg:
@@ -844,6 +870,11 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// keeps the tick running until the final title settles.
 		railTitleChanged := m.updateRailTitles()
 
+		// Fallback for a host title gone stale without new PTY output (a focus
+		// change, or the focused window closing); the hot path is the
+		// PTYDataMsg handler above.
+		m.syncHostTitle()
+
 		// Messages expire here, on the tick, and not inside render composition.
 		//
 		// They used to be retired by the renderer, which meant expiry could only
@@ -966,6 +997,16 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			// one you are looking at. FocusWindow clears it.
 			if i := m.windowIndexByID(msg.WindowID); i >= 0 && i != m.FocusedWindow {
 				m.Windows[i].DockAttention = true
+			} else if msg.Message == "bell" {
+				// The focused pane's bell, forwarded raw. This is what makes a host
+				// terminal (Kitty, etc.) raise its own urgency/attention marker -
+				// the same thing that would happen running this program directly,
+				// with no tuios in between. Gated on focus (only reachable here on
+				// this goroutine, unlike BellFunc's PTY goroutine) so a background
+				// pane's bell does not fire the host marker for a pane the user is
+				// not looking at; the DockAttention branch above already covers that
+				// case inside tuios's own UI.
+				m.writeHostSequence([]byte{'\a'})
 			}
 		} else {
 			m.ShowNotification(msg.Message, msg.Type, msg.Duration)

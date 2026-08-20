@@ -461,6 +461,9 @@ type OS struct {
 	RemoteScriptTotal int // Total commands in remote script
 	// Kitty Graphics Protocol passthrough for forwarding to host terminal
 	KittyPassthrough *KittyPassthrough
+	// lastHostTitle is the title last written to the host terminal, so
+	// syncHostTitle only writes on an actual change.
+	lastHostTitle string
 	// Sixel Graphics passthrough for forwarding to host terminal
 	SixelPassthrough *SixelPassthrough
 	TextSizingState  *TextSizingState

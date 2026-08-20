@@ -168,7 +168,7 @@ type AppearanceConfig struct {
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
 	DockPillCaps         *bool  `toml:"dock_pill_caps"`         // Powerline caps on the dock's pills (default: false, flat)
 	SessionColors        *bool  `toml:"session_colors"`         // Give each session its own colour on the rail and the switcher (default: true)
-	SetTerminalTitle     *bool  `toml:"set_terminal_title"`     // Set the host terminal's window title to "tuios" on startup (default: true)
+	SetTerminalTitle     *bool  `toml:"set_terminal_title"`     // Set the host terminal's window title to the focused pane's title, or "tuios" (default: true)
 	DockWindowList       *bool  `toml:"dock_window_list"`       // List every window of the current workspace in the dock, not just minimized ones; a window wanting attention blinks (default: false)
 	CursorBlink          *bool  `toml:"cursor_blink"`           // Blink the focused pane's cursor until a guest sets DECSCUSR (default: true)
 

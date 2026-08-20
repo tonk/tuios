@@ -591,9 +591,11 @@ var DockWorkspaceTooltip = true
 // beads. The capped look is one key away for anyone who wants it.
 var DockPillCaps = false
 
-// SetTerminalTitle sets the host terminal's window title to "tuios" once at
-// startup (OSC 2), so a host that shows its own name (e.g. Ghostty) shows
-// tuios's instead. Off leaves the host terminal's title untouched.
+// SetTerminalTitle sets the host terminal's window title (OSC 2) to whatever
+// the focused pane has titled itself - the same title a status-bar/taskbar
+// applet would show if that program ran directly with no tuios in between -
+// falling back to "tuios" when nothing is focused or focus has not set a
+// title. Off leaves the host terminal's title untouched.
 var SetTerminalTitle = true
 
 // DockWindowList lists every window of the current workspace in the dock, not

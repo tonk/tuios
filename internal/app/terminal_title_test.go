@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 )
 
 // withSetTerminalTitle sets config.SetTerminalTitle for one test and restores it.
@@ -53,4 +54,57 @@ func TestApplyTerminalTitleNoPassthroughIsSafe(t *testing.T) {
 	withSetTerminalTitle(t, true)
 	m := &OS{}
 	m.applyTerminalTitle()
+}
+
+// TestSyncHostTitleFollowsFocusedWindow is the reported bug: the host title
+// must track whatever the focused pane has titled itself, not stay pinned to
+// "tuios" forever.
+func TestSyncHostTitleFollowsFocusedWindow(t *testing.T) {
+	withSetTerminalTitle(t, true)
+
+	win := &terminal.Window{ID: "w1"}
+	win.SetTitle("claude - working")
+	var buf bytes.Buffer
+	m := &OS{
+		KittyPassthrough: NewKittyPassthroughWithOptions(KittyPassthroughOptions{Output: &buf}),
+		Windows:          []*terminal.Window{win},
+		FocusedWindow:    0,
+	}
+
+	m.syncHostTitle()
+	if got := buf.String(); !strings.Contains(got, "\x1b]2;claude - working\x07") {
+		t.Errorf("host terminal write = %q, want it to contain the focused pane's title", got)
+	}
+
+	// No change: no repeat write.
+	buf.Reset()
+	m.syncHostTitle()
+	if buf.Len() != 0 {
+		t.Errorf("unchanged title still wrote %q to the host terminal", buf.String())
+	}
+
+	// Title drifts: exactly one new write, with the new title.
+	win.SetTitle("claude - done")
+	buf.Reset()
+	m.syncHostTitle()
+	if got := buf.String(); !strings.Contains(got, "\x1b]2;claude - done\x07") {
+		t.Errorf("host terminal write = %q, want the drifted title", got)
+	}
+}
+
+// TestSyncHostTitleFallsBackWithNoFocus covers an empty workspace (no focused
+// window) and a focused window that has not set a title yet: both must show
+// the "tuios" fallback rather than carrying over a stale title.
+func TestSyncHostTitleFallsBackWithNoFocus(t *testing.T) {
+	withSetTerminalTitle(t, true)
+
+	var buf bytes.Buffer
+	m := &OS{
+		KittyPassthrough: NewKittyPassthroughWithOptions(KittyPassthroughOptions{Output: &buf}),
+		FocusedWindow:    -1,
+	}
+	m.syncHostTitle()
+	if got := buf.String(); !strings.Contains(got, "\x1b]2;tuios\x07") {
+		t.Errorf("host terminal write = %q, want the tuios fallback", got)
+	}
 }
