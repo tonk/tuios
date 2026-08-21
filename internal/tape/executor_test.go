@@ -68,6 +68,10 @@ func (nopExecutor) SetConfig(_, _ string) error                     { return nil
 func (nopExecutor) ShowNotificationCmd(_, _ string) error           { return nil }
 func (nopExecutor) RenameWindowByID(_, _ string) error              { return nil }
 func (nopExecutor) MoveWindowToWorkspaceByID(_ string, _ int) error { return nil }
+func (nopExecutor) SetWorkspaceName(_ int, _ string) error          { return nil }
+func (nopExecutor) SetSessionName(_ string) error                   { return nil }
+func (nopExecutor) SetSessionAccent(_ string) error                 { return nil }
+func (nopExecutor) SetAgentState(_, _, _, _ string) error           { return nil }
 
 // TestExecuteRejectsUnusableCommands pins that a command with nothing to act on
 // reports the problem. Every one of these used to fall through to a bare
@@ -91,6 +95,10 @@ func TestExecuteRejectsUnusableCommands(t *testing.T) {
 		{"Notify with no message", Command{Type: CommandTypeShowNotification}},
 		{"Switch with no workspace", Command{Type: CommandTypeSwitchWS}},
 		{"Switch with a non-numeric workspace", Command{Type: CommandTypeSwitchWS, Args: []string{"main"}}},
+		{"SetWorkspaceName with no workspace", Command{Type: CommandTypeSetWorkspaceName}},
+		{"SetWorkspaceName with a non-numeric workspace", Command{Type: CommandTypeSetWorkspaceName, Args: []string{"main", "IRVN"}}},
+		{"SetAgentState with no state", Command{Type: CommandTypeSetAgentState}},
+		{"SetAgentState with an empty state", Command{Type: CommandTypeSetAgentState, Args: []string{""}}},
 	}
 
 	for _, tt := range tests {

@@ -124,6 +124,64 @@ func (d *Daemon) executeDaemonCommand(sess *Session, commandType string, args []
 		}
 		return nil, sess.SwitchDaemonWorkspace(ws)
 
+	case "SetWorkspaceName":
+		ws, err := parseWorkspaceArg(args)
+		if err != nil {
+			return nil, err
+		}
+		name := ""
+		if len(args) > 1 {
+			name = args[1]
+		}
+		return nil, sess.SetDaemonWorkspaceName(ws, name)
+
+	case "SetSessionName":
+		name := ""
+		if len(args) > 0 {
+			name = args[0]
+		}
+		return nil, sess.SetDisplayName(name)
+
+	case "SetSessionAccent":
+		accent := ""
+		if len(args) > 0 {
+			accent = args[0]
+		}
+		return nil, sess.SetAccent(accent)
+
+	case "SetAgentState":
+		if len(args) < 1 || args[0] == "" {
+			return nil, fmt.Errorf("state is required, one of: %s", strings.Join(AgentStateNames, ", "))
+		}
+		state, ok := ParseAgentState(args[0])
+		if !ok {
+			return nil, fmt.Errorf("unknown agent state %q", args[0])
+		}
+		message := ""
+		if len(args) > 1 {
+			message = args[1]
+		}
+		sourceArg := ""
+		if len(args) > 2 {
+			sourceArg = args[2]
+		}
+		source, ok := ParseAgentSource(sourceArg)
+		if !ok {
+			return nil, fmt.Errorf("unknown agent state source %q", sourceArg)
+		}
+		harness := ""
+		if len(args) > 3 {
+			harness = args[3]
+		}
+		target, err := focusedWindowID(sess.GetState())
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = sess.ApplyAgentReport(target, AgentReport{
+			State: state, Message: message, Source: source, Harness: harness,
+		})
+		return nil, err
+
 	case "MoveToWorkspace", "MoveAndFollowWorkspace":
 		ws, err := parseWorkspaceArg(args)
 		if err != nil {

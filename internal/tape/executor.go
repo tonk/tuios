@@ -22,6 +22,27 @@ type Executor interface {
 	// poll for a pattern (e.g. a password prompt) before deciding what to do.
 	GetWindowContent(windowID string) (string, error)
 
+	// GetWindowScrollback returns a window's content plus its scrollback
+	// (windowID empty means the focused window), the tuios.wait_until(...,
+	// true) counterpart of `tuios wait-for window-output`, which matches
+	// against the full scrollback rather than only the visible screen.
+	GetWindowScrollback(windowID string) (string, error)
+
+	// WindowProcessExited reports whether a window's shell has exited
+	// (windowID empty means the focused window). Backs tuios.wait_for_exit,
+	// the counterpart of `tuios wait-for window-exit`.
+	WindowProcessExited(windowID string) (bool, error)
+
+	// GetWindowData, GetFocusedWindowData, GetWindowListData and
+	// GetSessionInfoData answer the same structured queries as the
+	// `get-window`, `list-windows` and `session-info` CLI verbs, but read
+	// directly from this client's own live state instead of round-tripping to
+	// the daemon - the same trade-off GetWindowContent already makes.
+	GetWindowData(identifier string) (map[string]any, error)
+	GetFocusedWindowData() (map[string]any, error)
+	GetWindowListData() map[string]any
+	GetSessionInfoData() map[string]any
+
 	// SendToWindow sends bytes to a window's PTY
 	SendToWindow(windowID string, data []byte) error
 
@@ -61,6 +82,14 @@ type Executor interface {
 	SwitchWorkspace(workspace int) error
 	MoveWindowToWorkspaceByID(windowID string, workspace int) error
 	MoveAndFollowWorkspaceByID(windowID string, workspace int) error
+	SetWorkspaceName(workspace int, name string) error // empty name clears the label
+
+	// Session
+	SetSessionName(name string) error     // empty name clears the label
+	SetSessionAccent(accent string) error // empty accent clears it
+
+	// Agent state
+	SetAgentState(state, message, source, harness string) error // targets the focused window
 
 	// Animations
 	EnableAnimations() error
@@ -285,6 +314,47 @@ func (ce *CommandExecutor) Execute(cmd *Command) error {
 			return err
 		}
 		return ce.executor.MoveAndFollowWorkspaceByID(ce.executor.GetFocusedWindowID(), ws)
+
+	case CommandTypeSetWorkspaceName:
+		ws, err := workspaceArg("SetWorkspaceName", cmd)
+		if err != nil {
+			return err
+		}
+		name := ""
+		if len(cmd.Args) > 1 {
+			name = cmd.Args[1]
+		}
+		return ce.executor.SetWorkspaceName(ws, name)
+
+	case CommandTypeSetSessionName:
+		name := ""
+		if len(cmd.Args) > 0 {
+			name = cmd.Args[0]
+		}
+		return ce.executor.SetSessionName(name)
+
+	case CommandTypeSetSessionAccent:
+		accent := ""
+		if len(cmd.Args) > 0 {
+			accent = cmd.Args[0]
+		}
+		return ce.executor.SetSessionAccent(accent)
+
+	case CommandTypeSetAgentState:
+		if len(cmd.Args) == 0 || cmd.Args[0] == "" {
+			return errMissingArg("SetAgentState", "a state name (none, working, needs_input, idle, done, errored)")
+		}
+		message, source, harness := "", "", ""
+		if len(cmd.Args) > 1 {
+			message = cmd.Args[1]
+		}
+		if len(cmd.Args) > 2 {
+			source = cmd.Args[2]
+		}
+		if len(cmd.Args) > 3 {
+			harness = cmd.Args[3]
+		}
+		return ce.executor.SetAgentState(cmd.Args[0], message, source, harness)
 
 	case CommandTypeKeyCombo:
 		if len(cmd.Args) == 0 {

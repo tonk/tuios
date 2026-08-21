@@ -24,10 +24,15 @@ type call struct {
 type fakeExecutor struct {
 	tape.Executor
 
-	mu        sync.Mutex
-	calls     []call
-	content   string
-	focusedID string
+	mu             sync.Mutex
+	calls          []call
+	content        string
+	scrollback     string
+	processExited  bool
+	focusedID      string
+	windowData     map[string]any
+	windowListData map[string]any
+	sessionData    map[string]any
 }
 
 func (f *fakeExecutor) log(method string, args ...string) {
@@ -63,8 +68,50 @@ func (f *fakeExecutor) GetWindowContent(_ string) (string, error) {
 	defer f.mu.Unlock()
 	return f.content, nil
 }
+func (f *fakeExecutor) GetWindowScrollback(_ string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.scrollback, nil
+}
+func (f *fakeExecutor) WindowProcessExited(_ string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.processExited, nil
+}
+func (f *fakeExecutor) GetWindowData(identifier string) (map[string]any, error) {
+	f.log("GetWindowData", identifier)
+	return f.windowData, nil
+}
+func (f *fakeExecutor) GetFocusedWindowData() (map[string]any, error) {
+	f.log("GetFocusedWindowData")
+	return f.windowData, nil
+}
+func (f *fakeExecutor) GetWindowListData() map[string]any {
+	f.log("GetWindowListData")
+	return f.windowListData
+}
+func (f *fakeExecutor) GetSessionInfoData() map[string]any {
+	f.log("GetSessionInfoData")
+	return f.sessionData
+}
+func (f *fakeExecutor) SetSessionName(name string) error {
+	f.log("SetSessionName", name)
+	return nil
+}
+func (f *fakeExecutor) SetSessionAccent(accent string) error {
+	f.log("SetSessionAccent", accent)
+	return nil
+}
+func (f *fakeExecutor) SetAgentState(state, message, source, harness string) error {
+	f.log("SetAgentState", state, message, source, harness)
+	return nil
+}
 func (f *fakeExecutor) SwitchWorkspace(ws int) error {
 	f.log("SwitchWorkspace", strconv.Itoa(ws))
+	return nil
+}
+func (f *fakeExecutor) SetWorkspaceName(ws int, name string) error {
+	f.log("SetWorkspaceName", strconv.Itoa(ws), name)
 	return nil
 }
 func (f *fakeExecutor) ShowNotificationCmd(msg, kind string) error {
@@ -126,6 +173,10 @@ func TestDispatchVerbsCallThroughToExecutor(t *testing.T) {
 		tuios.type("echo hi")
 		tuios.split("horizontal")
 		tuios.switch_workspace(2)
+		tuios.set_workspace_name(2, "IRVN")
+		tuios.set_session_name("irvn")
+		tuios.set_session_accent("#ff0000")
+		tuios.set_agent_state("working", "installing", "report", "claude-code")
 		tuios.notify("hello", "info")
 		tuios.set_theme("dracula")
 	`
@@ -138,6 +189,10 @@ func TestDispatchVerbsCallThroughToExecutor(t *testing.T) {
 		{"SendToWindow", []string{"", "echo hi"}},
 		{"SplitHorizontal", nil},
 		{"SwitchWorkspace", []string{"2"}},
+		{"SetWorkspaceName", []string{"2", "IRVN"}},
+		{"SetSessionName", []string{"irvn"}},
+		{"SetSessionAccent", []string{"#ff0000"}},
+		{"SetAgentState", []string{"working", "installing", "report", "claude-code"}},
 		{"ShowNotificationCmd", []string{"hello", "info"}},
 		{"SetTheme", []string{"dracula"}},
 	}
@@ -253,6 +308,161 @@ func TestSandboxHasNoFilesystemOrProcessAccess(t *testing.T) {
 		exec := &fakeExecutor{}
 		if err := runScript(t, script, exec, time.Second); err != nil {
 			t.Errorf("sandbox check failed for %q: %v", script, err)
+		}
+	}
+}
+
+func TestWaitUntilMatchesScrollbackWhenRequested(t *testing.T) {
+	exec := &fakeExecutor{content: "visible only", scrollback: "scrolled off\nvisible only"}
+
+	script := `
+		if tuios.wait_until("scrolled off", 200) then
+			tuios.notify("matched-visible", "info")
+		end
+		if tuios.wait_until("scrolled off", 200, "", true) then
+			tuios.notify("matched-scrollback", "info")
+		end
+	`
+	if err := runScript(t, script, exec, 2*time.Second); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+
+	calls := exec.Calls()
+	if len(calls) != 1 || calls[0].method != "ShowNotificationCmd" || calls[0].args[0] != "matched-scrollback" {
+		t.Fatalf("calls = %+v, want exactly one notify from the scrollback-matching wait_until", calls)
+	}
+}
+
+func TestWaitForIdleReturnsTrueOnceContentStopsChanging(t *testing.T) {
+	exec := &fakeExecutor{content: "building..."}
+
+	go func() {
+		time.Sleep(60 * time.Millisecond)
+		exec.SetContent("build done")
+	}()
+
+	start := time.Now()
+	var result bool
+	done := make(chan error, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	ce := tape.NewCommandExecutor(exec)
+	bridge := NewBridge()
+	L := lua.NewState(lua.Options{SkipOpenLibs: true})
+	defer L.Close()
+	OpenSafeLibs(L)
+	L.SetContext(ctx)
+	Register(L, ce, exec, bridge, ctx, "")
+	L.SetGlobal("record", L.NewFunction(func(L *lua.LState) int {
+		result = L.ToBool(1)
+		return 0
+	}))
+
+	go func() { done <- L.DoString(`record(tuios.wait_for_idle(80, 2000))`) }()
+	for {
+		select {
+		case fn := <-bridge.reqCh:
+			fn()
+		case err := <-done:
+			if err != nil {
+				t.Fatalf("script failed: %v", err)
+			}
+			if !result {
+				t.Error("wait_for_idle returned false, want true once content stopped changing")
+			}
+			if elapsed := time.Since(start); elapsed < 140*time.Millisecond {
+				t.Errorf("wait_for_idle returned after %s, want >= idle(80ms) after the last change at ~60ms", elapsed)
+			}
+			return
+		case <-ctx.Done():
+			t.Fatal("script did not finish in time")
+			return
+		}
+	}
+}
+
+func TestWaitForExitReturnsTrueWhenProcessExited(t *testing.T) {
+	exec := &fakeExecutor{processExited: true}
+	script := `
+		if tuios.wait_for_exit(1000) then
+			tuios.notify("exited", "info")
+		end
+	`
+	if err := runScript(t, script, exec, 2*time.Second); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+	calls := exec.Calls()
+	if len(calls) != 1 || calls[0].args[0] != "exited" {
+		t.Fatalf("calls = %+v, want a single notify confirming the exit was observed", calls)
+	}
+}
+
+func TestWaitForExitTimesOutWhenProcessStillRunning(t *testing.T) {
+	exec := &fakeExecutor{processExited: false}
+	start := time.Now()
+	script := `
+		if not tuios.wait_for_exit(100) then
+			tuios.notify("still-running", "info")
+		end
+	`
+	if err := runScript(t, script, exec, 2*time.Second); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed < 100*time.Millisecond {
+		t.Errorf("wait_for_exit(100) returned after %s, want >= 100ms", elapsed)
+	}
+	calls := exec.Calls()
+	if len(calls) != 1 || calls[0].args[0] != "still-running" {
+		t.Fatalf("calls = %+v, want a single notify confirming the timeout", calls)
+	}
+}
+
+func TestStructuredQueriesConvertToIndexableLuaTables(t *testing.T) {
+	exec := &fakeExecutor{
+		windowData: map[string]any{
+			"id": "abc123", "workspace": 2, "focused": true,
+		},
+		windowListData: map[string]any{
+			"total": 2,
+			"windows": []map[string]any{
+				{"id": "abc123", "workspace": 1},
+				{"id": "def456", "workspace": 2},
+			},
+		},
+		sessionData: map[string]any{
+			"current_workspace": 1, "tiling_enabled": false,
+		},
+	}
+
+	script := `
+		local w = tuios.get_window("abc123")
+		tuios.notify(w.id .. "," .. tostring(w.workspace) .. "," .. tostring(w.focused), "info")
+
+		local list = tuios.list_windows()
+		tuios.notify(tostring(list.total) .. "," .. list.windows[1].id .. "," .. tostring(list.windows[2].workspace), "info")
+
+		local info = tuios.session_info()
+		tuios.notify(tostring(info.current_workspace) .. "," .. tostring(info.tiling_enabled), "info")
+	`
+	if err := runScript(t, script, exec, 2*time.Second); err != nil {
+		t.Fatalf("script failed: %v", err)
+	}
+
+	calls := exec.Calls()
+	notifies := make([]string, 0, len(calls))
+	for _, c := range calls {
+		if c.method == "ShowNotificationCmd" {
+			notifies = append(notifies, c.args[0])
+		}
+	}
+	want := []string{"abc123,2,true", "2,abc123,2", "1,false"}
+	if len(notifies) != len(want) {
+		t.Fatalf("notifies = %v, want %v", notifies, want)
+	}
+	for i, w := range want {
+		if notifies[i] != w {
+			t.Errorf("notify %d = %q, want %q", i, notifies[i], w)
 		}
 	}
 }

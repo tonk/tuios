@@ -3,6 +3,7 @@ package luascript
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -141,6 +142,23 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 	reg("focus_direction", func(b *binding, L *lua.LState) int {
 		return b.dispatch(L, tape.CommandTypeFocusDirection, L.CheckString(1))
 	})
+	reg("set_workspace_name", func(b *binding, L *lua.LState) int {
+		return b.dispatch(L, tape.CommandTypeSetWorkspaceName, strconv.Itoa(L.CheckInt(1)), L.OptString(2, ""))
+	})
+
+	// Session
+	reg("set_session_name", func(b *binding, L *lua.LState) int {
+		return b.dispatch(L, tape.CommandTypeSetSessionName, L.OptString(1, ""))
+	})
+	reg("set_session_accent", func(b *binding, L *lua.LState) int {
+		return b.dispatch(L, tape.CommandTypeSetSessionAccent, L.OptString(1, ""))
+	})
+
+	// Agent state
+	reg("set_agent_state", func(b *binding, L *lua.LState) int {
+		return b.dispatch(L, tape.CommandTypeSetAgentState,
+			L.CheckString(1), L.OptString(2, ""), L.OptString(3, ""), L.OptString(4, ""))
+	})
 
 	// Animations
 	reg("enable_animations", func(b *binding, L *lua.LState) int { return b.dispatch(L, tape.CommandTypeEnableAnimations) })
@@ -218,15 +236,18 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 		return 0
 	})
 
-	// wait_until polls a window's visible content against a regex, blocking the
-	// script's goroutine (not Update()) until it matches or times out. It
-	// returns true on a match and false on timeout, so a script can branch on
-	// the outcome (e.g. "try an SSH key; if a password prompt appears, type the
-	// password") instead of treating a timeout as fatal.
+	// wait_until polls a window's visible content (or, with scrollback=true,
+	// its content plus everything scrolled off screen - the counterpart of
+	// `tuios wait-for window-output`'s scrollback-wide match) against a regex,
+	// blocking the script's goroutine (not Update()) until it matches or times
+	// out. It returns true on a match and false on timeout, so a script can
+	// branch on the outcome (e.g. "try an SSH key; if a password prompt
+	// appears, type the password") instead of treating a timeout as fatal.
 	reg("wait_until", func(b *binding, L *lua.LState) int {
 		pattern := L.CheckString(1)
 		timeoutMs := L.OptInt(2, 5000)
 		windowID := L.OptString(3, "")
+		scrollback := L.OptBool(4, false)
 
 		re, err := regexp.Compile(pattern)
 		if err != nil {
@@ -234,9 +255,14 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 			return 0
 		}
 
+		read := b.readWindowContent
+		if scrollback {
+			read = b.readWindowScrollback
+		}
+
 		deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
 		for {
-			content, err := b.readWindowContent(windowID)
+			content, err := read(windowID)
 			if err != nil {
 				L.RaiseError("wait_until: %v", err)
 				return 0
@@ -259,6 +285,141 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 				return 0
 			}
 		}
+	})
+
+	// wait_for_idle polls a window's visible content and returns true once it
+	// has stopped changing for idle_ms, or false if timeout_ms elapses first.
+	// It is a content-diffing approximation of `tuios wait-for window-idle`,
+	// which instead watches the daemon's own PTY output events; this is close
+	// enough for the common case (waiting out a build or install) without
+	// wiring the sandbox into that event stream.
+	reg("wait_for_idle", func(b *binding, L *lua.LState) int {
+		idleMs := L.CheckInt(1)
+		timeoutMs := L.OptInt(2, 30000)
+		windowID := L.OptString(3, "")
+
+		idle := time.Duration(idleMs) * time.Millisecond
+		deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+
+		last, err := b.readWindowContent(windowID)
+		if err != nil {
+			L.RaiseError("wait_for_idle: %v", err)
+			return 0
+		}
+		quietSince := time.Now()
+		for {
+			now := time.Now()
+			if now.Sub(quietSince) >= idle {
+				L.Push(lua.LBool(true))
+				return 1
+			}
+			if now.After(deadline) {
+				L.Push(lua.LBool(false))
+				return 1
+			}
+
+			t := time.NewTimer(pollInterval)
+			select {
+			case <-t.C:
+			case <-b.ctx.Done():
+				t.Stop()
+				L.RaiseError("wait_for_idle: %v", b.ctx.Err())
+				return 0
+			}
+
+			content, err := b.readWindowContent(windowID)
+			if err != nil {
+				L.RaiseError("wait_for_idle: %v", err)
+				return 0
+			}
+			if content != last {
+				last = content
+				quietSince = time.Now()
+			}
+		}
+	})
+
+	// wait_for_exit polls a window's shell process and returns true once it
+	// has exited, or false if timeout_ms elapses first. The counterpart of
+	// `tuios wait-for window-exit`.
+	reg("wait_for_exit", func(b *binding, L *lua.LState) int {
+		timeoutMs := L.OptInt(1, 30000)
+		windowID := L.OptString(2, "")
+
+		deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
+		for {
+			var exited bool
+			var err error
+			if callErr := b.bridge.Call(b.ctx, func() { exited, err = b.executor.WindowProcessExited(windowID) }); callErr != nil {
+				L.RaiseError("wait_for_exit: %v", callErr)
+				return 0
+			}
+			if err != nil {
+				L.RaiseError("wait_for_exit: %v", err)
+				return 0
+			}
+			if exited {
+				L.Push(lua.LBool(true))
+				return 1
+			}
+			if time.Now().After(deadline) {
+				L.Push(lua.LBool(false))
+				return 1
+			}
+
+			t := time.NewTimer(pollInterval)
+			select {
+			case <-t.C:
+			case <-b.ctx.Done():
+				t.Stop()
+				L.RaiseError("wait_for_exit: %v", b.ctx.Err())
+				return 0
+			}
+		}
+	})
+
+	// Structured, read-only queries. Each answers the same question as the
+	// matching CLI verb (get-window, list-windows, session-info) but, like
+	// window_content, reads this client's own live state directly instead of
+	// round-tripping to the daemon.
+	reg("get_window", func(b *binding, L *lua.LState) int {
+		identifier := L.OptString(1, "")
+		var data map[string]any
+		var err error
+		if callErr := b.bridge.Call(b.ctx, func() {
+			if identifier == "" {
+				data, err = b.executor.GetFocusedWindowData()
+			} else {
+				data, err = b.executor.GetWindowData(identifier)
+			}
+		}); callErr != nil {
+			L.RaiseError("get_window: %v", callErr)
+			return 0
+		}
+		if err != nil {
+			L.RaiseError("get_window: %v", err)
+			return 0
+		}
+		L.Push(toLuaValue(L, data))
+		return 1
+	})
+	reg("list_windows", func(b *binding, L *lua.LState) int {
+		var data map[string]any
+		if err := b.bridge.Call(b.ctx, func() { data = b.executor.GetWindowListData() }); err != nil {
+			L.RaiseError("list_windows: %v", err)
+			return 0
+		}
+		L.Push(toLuaValue(L, data))
+		return 1
+	})
+	reg("session_info", func(b *binding, L *lua.LState) int {
+		var data map[string]any
+		if err := b.bridge.Call(b.ctx, func() { data = b.executor.GetSessionInfoData() }); err != nil {
+			L.RaiseError("session_info: %v", err)
+			return 0
+		}
+		L.Push(toLuaValue(L, data))
+		return 1
 	})
 }
 
@@ -292,4 +453,58 @@ func (b *binding) readWindowContent(windowID string) (string, error) {
 		return "", fmt.Errorf("read window content: %w", readErr)
 	}
 	return content, nil
+}
+
+// readWindowScrollback is readWindowContent's scrollback-inclusive sibling,
+// used when wait_until is asked to match against more than the visible screen.
+func (b *binding) readWindowScrollback(windowID string) (string, error) {
+	var content string
+	var readErr error
+	if err := b.bridge.Call(b.ctx, func() { content, readErr = b.executor.GetWindowScrollback(windowID) }); err != nil {
+		return "", err
+	}
+	if readErr != nil {
+		return "", fmt.Errorf("read window scrollback: %w", readErr)
+	}
+	return content, nil
+}
+
+// toLuaValue converts a Go value built by one of the structured-query
+// Executor methods (map[string]any, with nested maps, slices, strings, bools
+// and numbers - the same shapes the CLI's --json output serializes) into the
+// equivalent Lua value, so tuios.get_window/list_windows/session_info hand a
+// script something it can index instead of a string it would have to parse.
+func toLuaValue(L *lua.LState, v any) lua.LValue {
+	if v == nil {
+		return lua.LNil
+	}
+	switch val := v.(type) {
+	case string:
+		return lua.LString(val)
+	case bool:
+		return lua.LBool(val)
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Map:
+		t := L.NewTable()
+		for _, key := range rv.MapKeys() {
+			L.SetField(t, fmt.Sprint(key.Interface()), toLuaValue(L, rv.MapIndex(key).Interface()))
+		}
+		return t
+	case reflect.Slice, reflect.Array:
+		t := L.NewTable()
+		for i := range rv.Len() {
+			t.Append(toLuaValue(L, rv.Index(i).Interface()))
+		}
+		return t
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return lua.LNumber(rv.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return lua.LNumber(rv.Uint())
+	case reflect.Float32, reflect.Float64:
+		return lua.LNumber(rv.Float())
+	default:
+		return lua.LString(fmt.Sprint(v))
+	}
 }

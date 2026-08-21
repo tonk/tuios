@@ -183,6 +183,152 @@ func TestRenameWindowWithAttachedTUIUpdatesDaemonState(t *testing.T) {
 
 }
 
+// TestSetWorkspaceNameWithAttachedTUIUpdatesDaemonState mirrors
+// TestRenameWindowWithAttachedTUIUpdatesDaemonState for the workspace label: a
+// tape's tuios.set_workspace_name() reaches the app through
+// DaemonClient.SendIntent, which lands here as the same "SetWorkspaceName"
+// verb the set-workspace-name CLI command sends. With a TUI attached it must
+// still land in daemon state (the label's source of truth, see WorkspaceNames
+// on OS), not just the client's own copy.
+func TestSetWorkspaceNameWithAttachedTUIUpdatesDaemonState(t *testing.T) {
+	d := NewDaemon(&DaemonConfig{Version: "test", DisableAutoRestore: true})
+	defer d.manager.Shutdown()
+
+	sess := makeSessionWithWindow(t, d, "irvn")
+
+	_, clientSide := newFakeTUI(t, d, sess.ID)
+	go func() {
+		for {
+			if _, _, err := ReadMessageWithCodec(clientSide); err != nil {
+				return
+			}
+		}
+	}()
+
+	requester := &connState{
+		conn: newDiscardConn(t), clientID: "ctl",
+		done: make(chan struct{}), codec: DefaultCodec(),
+	}
+	msg, err := NewMessage(MsgExecuteCommand, &ExecuteCommandPayload{
+		RequestID:   "req-set-workspace-name",
+		SessionName: "irvn",
+		CommandType: "SetWorkspaceName",
+		Args:        []string{"2", "IRVN"},
+	})
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	if err := d.handleExecuteCommand(requester, msg); err != nil {
+		t.Fatalf("handleExecuteCommand: %v", err)
+	}
+
+	if got := sess.GetState().WorkspaceNames[2]; got != "IRVN" {
+		t.Fatalf("daemon state WorkspaceNames[2] = %q, want %q", got, "IRVN")
+	}
+}
+
+// TestSetSessionNameAndAccentWithAttachedTUIUpdateDaemonState mirrors the
+// workspace-name test above for the session's own label and accent, reached
+// from tuios.set_session_name/set_session_accent through DaemonClient.SendIntent.
+func TestSetSessionNameAndAccentWithAttachedTUIUpdateDaemonState(t *testing.T) {
+	d := NewDaemon(&DaemonConfig{Version: "test", DisableAutoRestore: true})
+	defer d.manager.Shutdown()
+
+	sess := makeSessionWithWindow(t, d, "irvn")
+
+	_, clientSide := newFakeTUI(t, d, sess.ID)
+	go func() {
+		for {
+			if _, _, err := ReadMessageWithCodec(clientSide); err != nil {
+				return
+			}
+		}
+	}()
+
+	requester := &connState{
+		conn: newDiscardConn(t), clientID: "ctl",
+		done: make(chan struct{}), codec: DefaultCodec(),
+	}
+
+	for _, tc := range []struct {
+		commandType string
+		arg         string
+	}{
+		{"SetSessionName", "IRVN"},
+		{"SetSessionAccent", "#ff6600"},
+	} {
+		msg, err := NewMessage(MsgExecuteCommand, &ExecuteCommandPayload{
+			RequestID:   "req-" + tc.commandType,
+			SessionName: "irvn",
+			CommandType: tc.commandType,
+			Args:        []string{tc.arg},
+		})
+		if err != nil {
+			t.Fatalf("NewMessage: %v", err)
+		}
+		if err := d.handleExecuteCommand(requester, msg); err != nil {
+			t.Fatalf("handleExecuteCommand(%s): %v", tc.commandType, err)
+		}
+	}
+
+	state := sess.GetState()
+	if state.DisplayName != "IRVN" {
+		t.Errorf("daemon state DisplayName = %q, want %q", state.DisplayName, "IRVN")
+	}
+	if state.Accent != "#ff6600" {
+		t.Errorf("daemon state Accent = %q, want %q", state.Accent, "#ff6600")
+	}
+}
+
+// TestSetAgentStateWithAttachedTUIUpdatesDaemonState mirrors the same pattern
+// for tuios.set_agent_state, which must land in the daemon's agent-claims
+// table (see Session.ApplyAgentReport) rather than just the client's copy,
+// since that table is what ranks a later, weaker source's report against it.
+func TestSetAgentStateWithAttachedTUIUpdatesDaemonState(t *testing.T) {
+	d := NewDaemon(&DaemonConfig{Version: "test", DisableAutoRestore: true})
+	defer d.manager.Shutdown()
+
+	sess := makeSessionWithWindow(t, d, "irvn-agent")
+	win := sess.GetState().Windows[0]
+
+	_, clientSide := newFakeTUI(t, d, sess.ID)
+	go func() {
+		for {
+			if _, _, err := ReadMessageWithCodec(clientSide); err != nil {
+				return
+			}
+		}
+	}()
+
+	requester := &connState{
+		conn: newDiscardConn(t), clientID: "ctl",
+		done: make(chan struct{}), codec: DefaultCodec(),
+	}
+	msg, err := NewMessage(MsgExecuteCommand, &ExecuteCommandPayload{
+		RequestID:   "req-set-agent-state",
+		SessionName: "irvn-agent",
+		CommandType: "SetAgentState",
+		Args:        []string{"working", "installing deps", "report", "claude-code"},
+	})
+	if err != nil {
+		t.Fatalf("NewMessage: %v", err)
+	}
+	if err := d.handleExecuteCommand(requester, msg); err != nil {
+		t.Fatalf("handleExecuteCommand: %v", err)
+	}
+
+	got := sess.GetState().Windows[0]
+	if got.ID != win.ID {
+		t.Fatalf("window set moved under us: got %q, want %q", got.ID, win.ID)
+	}
+	if got.AgentState != "working" {
+		t.Errorf("daemon state AgentState = %q, want %q", got.AgentState, "working")
+	}
+	if got.AgentMessage != "installing deps" {
+		t.Errorf("daemon state AgentMessage = %q, want %q", got.AgentMessage, "installing deps")
+	}
+}
+
 // newDiscardConn returns a connection whose writes go nowhere, for a fake
 // requester that never reads its replies.
 func newDiscardConn(t *testing.T) net.Conn {

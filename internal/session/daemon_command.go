@@ -16,6 +16,20 @@ import (
 // renderer would. Everything still absent from it is routed as before.
 var daemonOwnedCommands = map[string]bool{
 	"RenameWindow": true,
+	// A workspace's label is the same kind of daemon-owned field a window's
+	// custom name is (see RenameWindow above): every read verb and every
+	// other attached client takes it from here, so it cannot be left to a
+	// renderer to apply and hope a later sync carries it.
+	"SetWorkspaceName": true,
+	// A session's display name and accent are the same trade-off one level up:
+	// every read verb (session-info, ls) and every other attached client reads
+	// them from daemon state.
+	"SetSessionName":   true,
+	"SetSessionAccent": true,
+	// Agent state is ranked against other sources' claims (see
+	// Session.ApplyAgentReport), and that claims table lives only in daemon
+	// state - there is nothing for a renderer to contribute.
+	"SetAgentState": true,
 	// Closing a window is removing it from the window set and killing its PTY,
 	// both of which the daemon owns outright. The renderer has nothing to
 	// contribute: it learns the window is gone from the state push and gives the

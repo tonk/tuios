@@ -54,7 +54,21 @@ it's safe to call in a tight loop or from inside a conditional.
 `tuios.equalize_splits()`, `tuios.preselect("left"|"right"|"up"|"down")`
 
 **Workspaces**: `tuios.switch_workspace(n)`, `tuios.move_to_workspace(n)`,
-`tuios.move_and_follow_workspace(n)`, `tuios.focus_direction(dir)`
+`tuios.move_and_follow_workspace(n)`, `tuios.focus_direction(dir)`,
+`tuios.set_workspace_name(n, [name])` (labels workspace `n` — 1-9, there's no
+way to add a tenth — instead of showing its bare number; omit `name` or pass
+`""` to clear it)
+
+**Session**: `tuios.set_session_name([name])` (labels the session; the
+identity it's addressed and persisted by is unaffected — omit or pass `""` to
+clear it), `tuios.set_session_accent([accent])` (omit or pass `""` to clear it)
+
+**Agent state**: `tuios.set_agent_state(state, [message], [source],
+[harness])` reports the focused window's semantic state — one of `none`,
+`working`, `needs_input`, `idle`, `done`, `errored` — the same as `tuios
+set-agent-state`. `source` (`report`, `osc`, `screen`, `stall`; default
+`report`) and the ranking it plays into are documented in
+[Agent state](AGENT_STATE.md).
 
 **Misc**: `tuios.enable_animations()`, `tuios.disable_animations()`,
 `tuios.toggle_animations()`, `tuios.toggle_zoom()`, `tuios.smart_split()`,
@@ -63,10 +77,17 @@ it's safe to call in a tight loop or from inside a conditional.
 `tuios.set_theme(name)`, `tuios.set_dockbar_position(pos)`,
 `tuios.set_border_style(style)`, `tuios.notify(message, [kind])`
 
-**Timing and state** (the two verbs that don't work like the rest — see
-below): `tuios.sleep(ms)`, `tuios.wait_until(pattern, [timeout_ms],
-[window_id])`, `tuios.focused_window_id()`, `tuios.window_content([window_id])`,
-`tuios.project_dir()`
+**Timing and state** (the verbs that don't work like the rest — see below):
+`tuios.sleep(ms)`, `tuios.wait_until(pattern, [timeout_ms], [window_id],
+[scrollback])`, `tuios.wait_for_idle(idle_ms, [timeout_ms], [window_id])`,
+`tuios.wait_for_exit([timeout_ms], [window_id])`, `tuios.focused_window_id()`,
+`tuios.window_content([window_id])`, `tuios.project_dir()`
+
+**Structured queries**: `tuios.get_window([id_or_name])`,
+`tuios.list_windows()`, `tuios.session_info()` — each returns a Lua table with
+the same shape as the matching CLI verb's `--json` output (`get-window`,
+`list-windows`, `session-info`), read from this client's own live state rather
+than the daemon.
 
 ### `project_dir`
 
@@ -113,6 +134,57 @@ end
 normal `"..."` Lua string you'd have to double every backslash (`"\\$\\s*$"`);
 Lua's long-bracket string form passes them through untouched, so
 `[[\$\s*$]]` is easier to read than `"\\$\\s*$"` for the same pattern.
+
+By default `wait_until` matches only the visible screen, same as
+`window_content`. Pass `true` as the fourth argument to match against the
+window's scrollback too — the counterpart of `tuios wait-for window-output`,
+which matches the full scrollback by default:
+
+```lua
+tuios.wait_until("BUILD OK", 60000, "", true)
+```
+
+### `wait_for_idle` and `wait_for_exit`
+
+`tuios.wait_for_idle(idle_ms, [timeout_ms], [window_id])` polls a window's
+visible content and returns `true` once it stops changing for `idle_ms`, or
+`false` if `timeout_ms` (default 30000) elapses first. It approximates `tuios
+wait-for window-idle` by diffing content on the same poll loop `wait_until`
+uses, rather than watching the daemon's PTY output events directly — close
+enough for "wait out a build," not a byte-for-byte port.
+
+`tuios.wait_for_exit([timeout_ms], [window_id])` polls a window's shell
+process and returns `true` once it has exited, or `false` on timeout. It is
+the counterpart of `tuios wait-for window-exit`.
+
+```lua
+tuios.type("npm run build")
+tuios.enter()
+if tuios.wait_for_idle(2000, 120000) then
+    tuios.notify("build went quiet", "success")
+end
+```
+
+### Structured queries
+
+`tuios.get_window([id_or_name])`, `tuios.list_windows()` and
+`tuios.session_info()` return a Lua table instead of a string, so a script can
+index a field directly instead of parsing `window_content`:
+
+```lua
+local info = tuios.get_window("build")
+if info.has_foreground_process then
+    tuios.notify(info.display_name .. " is still busy", "warning")
+end
+
+local windows = tuios.list_windows()
+tuios.notify(windows.total .. " windows open", "info")
+```
+
+These read this client's own live state the same way `window_content` and
+`focused_window_id` do, so the field set is close to but not always identical
+to the corresponding CLI verb's `--json` output (e.g. `get-window`'s `agent`
+fields come from data this client doesn't hold locally and are omitted).
 
 ## Sandboxing
 

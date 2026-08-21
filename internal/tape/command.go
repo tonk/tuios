@@ -85,6 +85,19 @@ const (
 	CommandTypeMoveToWS CommandType = "MoveToWorkspace"
 	// CommandTypeMoveAndFollowWS represents the MoveAndFollowWorkspace command.
 	CommandTypeMoveAndFollowWS CommandType = "MoveAndFollowWorkspace"
+	// CommandTypeSetWorkspaceName represents the SetWorkspaceName command,
+	// which labels a workspace (1-9) instead of showing its bare number.
+	CommandTypeSetWorkspaceName CommandType = "SetWorkspaceName"
+	// CommandTypeSetSessionName represents the SetSessionName command, which
+	// labels the session (its display name; the session's address/identity is
+	// unaffected).
+	CommandTypeSetSessionName CommandType = "SetSessionName"
+	// CommandTypeSetSessionAccent represents the SetSessionAccent command.
+	CommandTypeSetSessionAccent CommandType = "SetSessionAccent"
+	// CommandTypeSetAgentState represents the SetAgentState command, which
+	// reports the focused window's semantic agent state (working, idle, etc.),
+	// same as the `set-agent-state` CLI verb.
+	CommandTypeSetAgentState CommandType = "SetAgentState"
 
 	// CommandTypeSplit represents the Split command (horizontal/vertical).
 	CommandTypeSplit CommandType = "Split"
@@ -185,6 +198,8 @@ func (ct CommandType) IsCommand() bool {
 		CommandTypeToggleTiling, CommandTypeEnableTiling, CommandTypeDisableTiling,
 		CommandTypeSnapLeft, CommandTypeSnapRight, CommandTypeSnapFullscreen,
 		CommandTypeSwitchWS, CommandTypeMoveToWS, CommandTypeMoveAndFollowWS,
+		CommandTypeSetWorkspaceName, CommandTypeSetSessionName, CommandTypeSetSessionAccent,
+		CommandTypeSetAgentState,
 		CommandTypeSplit, CommandTypeFocus, CommandTypeRotateSplit,
 		CommandTypeEqualizeSplits, CommandTypePreselect,
 		CommandTypeWait, CommandTypeWaitUntilRegex,

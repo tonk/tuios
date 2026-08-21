@@ -121,6 +121,47 @@ func (m *OS) GetWindowContent(windowID string) (string, error) {
 	return m.capturePane(windowID, "")
 }
 
+// GetWindowScrollback returns a window's content plus its scrollback (windowID
+// empty means the focused window). It is capturePane's scrollback mode, exposed
+// for tuios.wait_until's scrollback-matching flag the same way GetWindowContent
+// is exposed for its default, visible-screen-only one.
+func (m *OS) GetWindowScrollback(windowID string) (string, error) {
+	return m.capturePane(windowID, "scrollback")
+}
+
+// WindowProcessExited reports whether a window's shell has exited (windowID
+// empty means the focused window). It backs tuios.wait_for_exit, the tape
+// counterpart of `tuios wait-for window-exit`.
+func (m *OS) WindowProcessExited(windowID string) (bool, error) {
+	win, err := m.resolveWindowForRead(windowID)
+	if err != nil {
+		return false, err
+	}
+	return win.ProcessExited(), nil
+}
+
+// resolveWindowForRead resolves a window target the way capturePane does
+// (empty means focused), for read-only tape queries that need the *Window
+// itself rather than captured text.
+func (m *OS) resolveWindowForRead(windowTarget string) (*terminal.Window, error) {
+	if windowTarget == "" {
+		if win := m.GetFocusedWindow(); win != nil {
+			return win, nil
+		}
+		return nil, fmt.Errorf("no window is focused")
+	}
+	windowID, err := m.resolveWindowTarget(windowTarget)
+	if err != nil {
+		return nil, err
+	}
+	for _, w := range m.Windows {
+		if w.ID == windowID {
+			return w, nil
+		}
+	}
+	return nil, fmt.Errorf("no window found")
+}
+
 // resolveWindowTarget resolves a window target string to a window ID.
 // If target is empty, returns the focused window ID.
 // Matching order: exact ID, the position list-windows prints (all-digit
@@ -492,6 +533,87 @@ func (m *OS) SwitchWorkspace(workspace int) error {
 	m.TapeRecorder = nil
 	m.SwitchToWorkspace(workspace)
 	m.TapeRecorder = recorder
+	m.MarkAllDirty()
+	return nil
+}
+
+// SetWorkspaceName labels a workspace so the dock and sidebar show it instead
+// of the bare number; an empty name clears the label, same as the
+// `set-workspace-name` CLI verb this shares its daemon plumbing with.
+//
+// The label is daemon-owned (see WorkspaceNames on OS) for the same reason a
+// window's custom name is: it is what every read verb and every other
+// attached client sees, so a daemon session sends it there instead of setting
+// it locally and hoping a later sync carries it, exactly like
+// RenameWindowByID above.
+func (m *OS) SetWorkspaceName(workspace int, name string) error {
+	if workspace < 1 || workspace > m.NumWorkspaces {
+		return fmt.Errorf("workspace %d is out of range (1-%d)", workspace, m.NumWorkspaces)
+	}
+	if m.IsDaemonSession && m.DaemonClient != nil {
+		return m.DaemonClient.SendIntent("SetWorkspaceName", strconv.Itoa(workspace), name)
+	}
+	if name == "" {
+		delete(m.WorkspaceNames, workspace)
+	} else {
+		if m.WorkspaceNames == nil {
+			m.WorkspaceNames = make(map[int]string)
+		}
+		m.WorkspaceNames[workspace] = name
+	}
+	m.MarkAllDirty()
+	return nil
+}
+
+// SetSessionName labels the session (its display name) instead of showing its
+// identity name, same as the `set-session-name` CLI verb. The identity - what
+// the session is addressed and persisted by - is unaffected; only the label
+// shown in the dock and sidebar changes. An empty name clears the label.
+//
+// Like a workspace's label, this is daemon-owned: see SetWorkspaceName above
+// for why a daemon session sends it there instead of setting it locally.
+func (m *OS) SetSessionName(name string) error {
+	if m.IsDaemonSession && m.DaemonClient != nil {
+		return m.DaemonClient.SendIntent("SetSessionName", name)
+	}
+	m.SessionDisplayName = name
+	m.MarkAllDirty()
+	return nil
+}
+
+// SetSessionAccent sets the session's accent color, same as the
+// `set-session-accent` CLI verb. An empty accent clears it, putting the
+// session back on the color it is assigned automatically.
+func (m *OS) SetSessionAccent(accent string) error {
+	if m.IsDaemonSession && m.DaemonClient != nil {
+		return m.DaemonClient.SendIntent("SetSessionAccent", accent)
+	}
+	m.SessionAccent = accent
+	m.MarkAllDirty()
+	return nil
+}
+
+// SetAgentState reports the focused window's semantic agent state (working,
+// needs_input, idle, done, errored, or none to clear it), same as the
+// `set-agent-state` CLI verb with no --window (it targets the focused pane)
+// and no --source (it reports at the highest rank, as if from the harness
+// itself).
+//
+// Ranking a report against others already held on a pane is daemon-owned (see
+// Session.ApplyAgentReport): a bare non-daemon session has no claims table to
+// rank against, so it accepts the report unconditionally, the same trade-off
+// SetWorkspaceName's local fallback makes.
+func (m *OS) SetAgentState(state, message, source, harness string) error {
+	if m.IsDaemonSession && m.DaemonClient != nil {
+		return m.DaemonClient.SendIntent("SetAgentState", state, message, source, harness)
+	}
+	win := m.GetFocusedWindow()
+	if win == nil {
+		return fmt.Errorf("no window is focused")
+	}
+	win.AgentState = state
+	win.AgentMessage = message
+	win.AgentStateAt = time.Now().UnixNano()
 	m.MarkAllDirty()
 	return nil
 }
