@@ -424,8 +424,19 @@ func (m *OS) renderDockString() (string, int) {
 		if config.ShowRAM {
 			sysInfoParts = append(sysInfoParts, m.GetRAMUsage())
 		}
-		// The CPU graph is the first thing dropped on a dock too narrow for
-		// both readouts, then the RAM figure; a clipped graph reads as noise.
+		if config.ShowMouseIndicator {
+			sysInfoParts = append(sysInfoParts, m.GetMouseIndicator())
+		}
+		if config.ShowTilingIndicator {
+			sysInfoParts = append(sysInfoParts, m.GetTilingIndicator())
+		}
+		if config.ShowFocusFollowsMouseIndicator {
+			sysInfoParts = append(sysInfoParts, m.GetFocusFollowsMouseIndicator())
+		}
+		// The CPU graph is the first thing dropped on a dock too narrow for all
+		// the readouts, then RAM, then the mode indicators - the figures a user
+		// only glances at give way before the readout they turned on to answer
+		// "is this mode actually on".
 		for len(sysInfoParts) > 0 {
 			rightInfo = sysInfoStyle.Render(strings.Join(sysInfoParts, " "))
 			if lipgloss.Width(rightInfo) <= rightWidth {

@@ -731,6 +731,15 @@ func (m *OS) calculateDockRightWidth() int {
 	if config.ShowRAM {
 		parts = append(parts, m.GetRAMUsage())
 	}
+	if config.ShowMouseIndicator {
+		parts = append(parts, m.GetMouseIndicator())
+	}
+	if config.ShowTilingIndicator {
+		parts = append(parts, m.GetTilingIndicator())
+	}
+	if config.ShowFocusFollowsMouseIndicator {
+		parts = append(parts, m.GetFocusFollowsMouseIndicator())
+	}
 	if len(parts) == 0 {
 		return 0
 	}

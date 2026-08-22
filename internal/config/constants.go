@@ -696,6 +696,20 @@ var ShowCPU = false
 // Set via --show-ram flag or appearance.show_ram config
 var ShowRAM = false
 
+// ShowMouseIndicator controls whether a mouse-mode ON/OFF readout is shown in
+// the dock (default: hidden). Set via appearance.show_mouse_indicator config.
+var ShowMouseIndicator = false
+
+// ShowTilingIndicator controls whether a tiling-mode ON/OFF readout is shown
+// in the dock (default: hidden). Set via appearance.show_tiling_indicator
+// config.
+var ShowTilingIndicator = false
+
+// ShowFocusFollowsMouseIndicator controls whether a focus-follows-mouse
+// ON/OFF readout is shown in the dock (default: hidden). Set via
+// appearance.show_focus_follows_mouse_indicator config.
+var ShowFocusFollowsMouseIndicator = false
+
 // NeedsDockTick returns true if any dock element requires periodic updates.
 func NeedsDockTick() bool {
 	return ShowClock || ShowCPU || ShowRAM

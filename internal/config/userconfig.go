@@ -130,32 +130,35 @@ type DaemonConfig struct {
 
 // AppearanceConfig holds appearance-related settings
 type AppearanceConfig struct {
-	BorderStyle                 string  `toml:"border_style"`                    // Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block (borderless mode not yet implemented)
-	HideWindowButtons           bool    `toml:"hide_window_buttons"`             // Hide window control buttons (minimize, maximize, close)
-	HideScrollbar               bool    `toml:"hide_scrollbar"`                  // Hide the window scrollbar thumb on the border
-	ScrollbackLines             int     `toml:"scrollback_lines"`                // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000)
-	ScrollLines                 int     `toml:"scroll_lines"`                    // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
-	CopyOnSelect                *bool   `toml:"copy_on_select"`                  // Copy a mouse selection to the clipboard on release (default: true)
-	FocusFollowsMouse           *bool   `toml:"focus_follows_mouse"`             // Focus the pane under the cursor as the mouse moves (default: false)
-	FocusFollowsMouseInTerminal *bool   `toml:"focus_follows_mouse_in_terminal"` // Also hover-focus while in terminal mode (default: false)
-	AltDrag                     *bool   `toml:"alt_drag"`                        // Alt + left-drag moves a pane (default: true)
-	ClickToType                 string  `toml:"click_to_type"`                   // What a click on a pane's content does in window-management mode: single, double, off (default: single)
-	WordCharacters              *string `toml:"word_characters"`                 // Punctuation that counts as part of a word for double-click selection (default: "@-./_~?&=%+#")
-	DockbarPosition             string  `toml:"dockbar_position"`                // Dockbar position: bottom, top, hidden
-	PreferredShell              string  `toml:"preferred_shell"`                 // Preferred shell: if empty, auto-detect based on platform.
-	AnimationsEnabled           *bool   `toml:"animations_enabled"`              // Enable UI animations (default: true). Set to false for instant transitions.
-	MouseEnabled                *bool   `toml:"mouse_enabled"`                   // Enable tuios's mouse handling: hover, click, drag, scroll, selection (default: true). Disable to fall back to the terminal emulator's native mouse handling.
-	ConfirmQuit                 *bool   `toml:"confirm_quit"`                    // Always show quit confirmation dialog (default: false). When false, only shown if foreground processes are running.
-	WhichKeyEnabled             *bool   `toml:"whichkey_enabled"`                // Show which-key popup after pressing leader key (default: true)
-	WhichKeyPosition            string  `toml:"whichkey_position"`               // Which-key popup position: bottom-right, bottom-left, top-right, top-left, center (default: bottom-right)
-	WindowTitlePosition         string  `toml:"window_title_position"`           // Window title position: bottom, top, hidden (default: bottom). Shows CustomName if set, else terminal title.
-	HideClock                   bool    `toml:"hide_clock"`                      // Hide the clock overlay (deprecated, use show_clock)
-	ShowClock                   bool    `toml:"show_clock"`                      // Show the clock overlay (default: false)
-	ShowCPU                     bool    `toml:"show_cpu"`                        // Show CPU graph in dock (default: false)
-	ShowRAM                     bool    `toml:"show_ram"`                        // Show RAM usage in dock (default: false)
-	Theme                       string  `toml:"theme"`                           // Color theme name (e.g., dracula, nord, my-custom-theme)
-	SharedBorders               *bool   `toml:"shared_borders"`                  // Share borders between adjacent tiled windows (default: false)
-	MaximizeNewWindows          bool    `toml:"maximize_new_windows"`            // A new floating window fills the content area instead of spawning at half size (default: false). No effect while auto-tiling is on.
+	BorderStyle                    string  `toml:"border_style"`                       // Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block (borderless mode not yet implemented)
+	HideWindowButtons              bool    `toml:"hide_window_buttons"`                // Hide window control buttons (minimize, maximize, close)
+	HideScrollbar                  bool    `toml:"hide_scrollbar"`                     // Hide the window scrollbar thumb on the border
+	ScrollbackLines                int     `toml:"scrollback_lines"`                   // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000)
+	ScrollLines                    int     `toml:"scroll_lines"`                       // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
+	CopyOnSelect                   *bool   `toml:"copy_on_select"`                     // Copy a mouse selection to the clipboard on release (default: true)
+	FocusFollowsMouse              *bool   `toml:"focus_follows_mouse"`                // Focus the pane under the cursor as the mouse moves (default: false)
+	FocusFollowsMouseInTerminal    *bool   `toml:"focus_follows_mouse_in_terminal"`    // Also hover-focus while in terminal mode (default: false)
+	AltDrag                        *bool   `toml:"alt_drag"`                           // Alt + left-drag moves a pane (default: true)
+	ClickToType                    string  `toml:"click_to_type"`                      // What a click on a pane's content does in window-management mode: single, double, off (default: single)
+	WordCharacters                 *string `toml:"word_characters"`                    // Punctuation that counts as part of a word for double-click selection (default: "@-./_~?&=%+#")
+	DockbarPosition                string  `toml:"dockbar_position"`                   // Dockbar position: bottom, top, hidden
+	PreferredShell                 string  `toml:"preferred_shell"`                    // Preferred shell: if empty, auto-detect based on platform.
+	AnimationsEnabled              *bool   `toml:"animations_enabled"`                 // Enable UI animations (default: true). Set to false for instant transitions.
+	MouseEnabled                   *bool   `toml:"mouse_enabled"`                      // Enable tuios's mouse handling: hover, click, drag, scroll, selection (default: true). Disable to fall back to the terminal emulator's native mouse handling.
+	ConfirmQuit                    *bool   `toml:"confirm_quit"`                       // Always show quit confirmation dialog (default: false). When false, only shown if foreground processes are running.
+	WhichKeyEnabled                *bool   `toml:"whichkey_enabled"`                   // Show which-key popup after pressing leader key (default: true)
+	WhichKeyPosition               string  `toml:"whichkey_position"`                  // Which-key popup position: bottom-right, bottom-left, top-right, top-left, center (default: bottom-right)
+	WindowTitlePosition            string  `toml:"window_title_position"`              // Window title position: bottom, top, hidden (default: bottom). Shows CustomName if set, else terminal title.
+	HideClock                      bool    `toml:"hide_clock"`                         // Hide the clock overlay (deprecated, use show_clock)
+	ShowClock                      bool    `toml:"show_clock"`                         // Show the clock overlay (default: false)
+	ShowCPU                        bool    `toml:"show_cpu"`                           // Show CPU graph in dock (default: false)
+	ShowRAM                        bool    `toml:"show_ram"`                           // Show RAM usage in dock (default: false)
+	ShowMouseIndicator             bool    `toml:"show_mouse_indicator"`               // Show a mouse-mode ON/OFF readout in the dock (default: false)
+	ShowTilingIndicator            bool    `toml:"show_tiling_indicator"`              // Show a tiling-mode ON/OFF readout in the dock (default: false)
+	ShowFocusFollowsMouseIndicator bool    `toml:"show_focus_follows_mouse_indicator"` // Show a focus-follows-mouse ON/OFF readout in the dock (default: false)
+	Theme                          string  `toml:"theme"`                              // Color theme name (e.g., dracula, nord, my-custom-theme)
+	SharedBorders                  *bool   `toml:"shared_borders"`                     // Share borders between adjacent tiled windows (default: false)
+	MaximizeNewWindows             bool    `toml:"maximize_new_windows"`               // A new floating window fills the content area instead of spawning at half size (default: false). No effect while auto-tiling is on.
 	// Customization
 	BorderFocusedColor   string `toml:"border_focused_color"`   // Hex color for focused pane border (e.g., "#89b4fa")
 	BorderUnfocusedColor string `toml:"border_unfocused_color"` // Hex color for unfocused pane border (e.g., "#585b70")
@@ -401,27 +404,28 @@ func DefaultConfig() *UserConfig {
 				// Capital X, one shift away from the x that closes a single pane.
 				// The two verbs sound alike and only one of them is recoverable, so
 				// the slip that matters costs a pane and never the session.
-				"prefix_close_session":      {"X"},
-				"prefix_exit_mode":          {"esc"},
-				"prefix_selection":          {"["},
-				"prefix_help":               {"?"},
-				"prefix_debug":              {"D"},
-				"prefix_tape":               {"T"},
-				"prefix_quit":               {"q"},
-				"prefix_fullscreen":         {"z"},
-				"prefix_split_horizontal":   {"-"},
-				"prefix_split_vertical":     {"|", "\\"},
-				"prefix_rotate_split":       {"R"},
-				"prefix_equalize_splits":    {"="},
-				"prefix_scrollback":         {"s"},
-				"prefix_command_palette":    {"P"},
-				"prefix_toggle_sidebar":     {"b"},
-				"prefix_toggle_mouse":       {"M"},
-				"prefix_session_switcher":   {"S"},
-				"prefix_workspace_switcher": {"W"},
-				"prefix_layout":             {"L"},
-				"prefix_explore":            {"e"}, // the same key goes to the rail and comes back
-				"prefix_jump_notif":         {"j"}, // the keyboard twin of clicking a message
+				"prefix_close_session":              {"X"},
+				"prefix_exit_mode":                  {"esc"},
+				"prefix_selection":                  {"["},
+				"prefix_help":                       {"?"},
+				"prefix_debug":                      {"D"},
+				"prefix_tape":                       {"T"},
+				"prefix_quit":                       {"q"},
+				"prefix_fullscreen":                 {"z"},
+				"prefix_split_horizontal":           {"-"},
+				"prefix_split_vertical":             {"|", "\\"},
+				"prefix_rotate_split":               {"R"},
+				"prefix_equalize_splits":            {"="},
+				"prefix_scrollback":                 {"s"},
+				"prefix_command_palette":            {"P"},
+				"prefix_toggle_sidebar":             {"b"},
+				"prefix_toggle_mouse":               {"M"},
+				"prefix_toggle_focus_follows_mouse": {"f"},
+				"prefix_session_switcher":           {"S"},
+				"prefix_workspace_switcher":         {"W"},
+				"prefix_layout":                     {"L"},
+				"prefix_explore":                    {"e"}, // the same key goes to the rail and comes back
+				"prefix_jump_notif":                 {"j"}, // the keyboard twin of clicking a message
 			},
 			WindowPrefix: map[string][]string{
 				"window_prefix_new":    {"n"},
@@ -961,6 +965,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	ShowClock = cfg.Appearance.ShowClock
 	ShowCPU = cfg.Appearance.ShowCPU
 	ShowRAM = cfg.Appearance.ShowRAM
+	ShowMouseIndicator = cfg.Appearance.ShowMouseIndicator
+	ShowTilingIndicator = cfg.Appearance.ShowTilingIndicator
+	ShowFocusFollowsMouseIndicator = cfg.Appearance.ShowFocusFollowsMouseIndicator
 	NiriReverseScroll = cfg.Appearance.NiriReverseScroll
 
 	if cfg.Appearance.ScrollbackLines > 0 {

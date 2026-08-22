@@ -102,6 +102,7 @@ func GetPrefixKeybindings(prefixType string, registry *KeybindRegistry, isDaemon
 			{"L", "Layout commands..."},
 			{"b", "Toggle sidebar"},
 			{"M", "Toggle mouse mode"},
+			{"f", "Toggle focus follows mouse"},
 			{"e", "Focus/leave sidebar"},
 			{"j", "Jump to newest message"},
 			{"X", "Close session"},
@@ -235,6 +236,7 @@ func getLivePrefixKeybindings(prefixType string, registry *KeybindRegistry, daem
 		bindings = add(bindings, "prefix_layout", "Layout commands...")
 		bindings = add(bindings, "prefix_toggle_sidebar", "Toggle sidebar")
 		bindings = add(bindings, "prefix_toggle_mouse", "Toggle mouse mode")
+		bindings = add(bindings, "prefix_toggle_focus_follows_mouse", "Toggle focus follows mouse")
 		bindings = add(bindings, "prefix_explore", "Focus/leave sidebar")
 		bindings = add(bindings, "prefix_jump_notif", "Jump to newest message")
 		bindings = add(bindings, "prefix_close_session", "Close session")

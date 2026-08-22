@@ -81,6 +81,32 @@ func (m *OS) GetCPUGraph() string {
 	return fmt.Sprintf("CPU:%s %3.0f%%", graphBuilder.String(), current)
 }
 
+// GetMouseIndicator returns a short ON/OFF readout for tuios's mouse handling
+// (hover, click, drag, scroll, selection), toggled with prefix+M.
+func (m *OS) GetMouseIndicator() string {
+	if config.MouseEnabled {
+		return "Mouse:ON"
+	}
+	return "Mouse:OFF"
+}
+
+// GetFocusFollowsMouseIndicator returns a short ON/OFF readout for
+// focus-follows-mouse, toggled with prefix+f.
+func (m *OS) GetFocusFollowsMouseIndicator() string {
+	if config.FocusFollowsMouse {
+		return "FFM:ON"
+	}
+	return "FFM:OFF"
+}
+
+// GetTilingIndicator returns a short ON/OFF readout for auto-tiling mode.
+func (m *OS) GetTilingIndicator() string {
+	if m.AutoTiling {
+		return "Tile:ON"
+	}
+	return "Tile:OFF"
+}
+
 // GetRAMUsage returns RAM usage as a formatted string.
 // Cached to avoid expensive gopsutil calls on every render.
 func (m *OS) GetRAMUsage() string {

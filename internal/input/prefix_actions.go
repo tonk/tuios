@@ -51,6 +51,7 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 	d.Register("prefix_command_palette", handlePrefixCommandPalette)
 	d.Register("prefix_toggle_sidebar", handlePrefixToggleSidebar)
 	d.Register("prefix_toggle_mouse", handlePrefixToggleMouse)
+	d.Register("prefix_toggle_focus_follows_mouse", handlePrefixToggleFocusFollowsMouse)
 	d.Register("prefix_session_switcher", handlePrefixSessionSwitcher)
 	d.Register("prefix_workspace_switcher", handlePrefixWorkspaceSwitcher)
 	d.Register("prefix_explore", handleToggleFocusSidebar)
@@ -373,6 +374,11 @@ func makePrefixSelectHandler(num int) ActionHandler {
 
 func handlePrefixToggleTiling(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	o.ToggleAutoTiling()
+	if o.AutoTiling {
+		o.ShowNotification("Tiling Mode Enabled [T]", "success", config.NotificationDuration)
+	} else {
+		o.ShowNotification("Tiling Mode Disabled", "info", config.NotificationDuration)
+	}
 	return o, nil
 }
 
@@ -461,6 +467,12 @@ func handlePrefixToggleMouse(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		o.UserConfig.Appearance.MouseEnabled = &v
 	}
 	toggleNotify(o, "Mouse mode", config.MouseEnabled)
+	return o, nil
+}
+
+func handlePrefixToggleFocusFollowsMouse(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.ToggleFocusFollowsMouse()
+	toggleNotify(o, "Focus Follows Mouse", config.FocusFollowsMouse)
 	return o, nil
 }
 

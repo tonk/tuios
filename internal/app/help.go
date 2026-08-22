@@ -423,7 +423,7 @@ func generatePrefixBindings(registry *config.KeybindRegistry) []HelpBinding {
 		"prefix_equalize_splits", "prefix_layout",
 		"prefix_scrollback", "prefix_command_palette", "prefix_session_switcher",
 		"prefix_workspace_switcher",
-		"prefix_toggle_sidebar", "prefix_toggle_mouse", "prefix_explore",
+		"prefix_toggle_sidebar", "prefix_toggle_mouse", "prefix_toggle_focus_follows_mouse", "prefix_explore",
 		"prefix_jump_notif",
 	}
 

@@ -423,6 +423,27 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowRAM = v })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Mouse indicator", "Show a Mouse:ON/OFF readout in the dock",
+				func() bool { return config.ShowMouseIndicator },
+				func(m *OS, v bool) {
+					config.ShowMouseIndicator = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowMouseIndicator = v })
+					m.applyAppearanceLive(false)
+				}),
+			boolItem("Tiling indicator", "Show a Tile:ON/OFF readout in the dock",
+				func() bool { return config.ShowTilingIndicator },
+				func(m *OS, v bool) {
+					config.ShowTilingIndicator = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowTilingIndicator = v })
+					m.applyAppearanceLive(false)
+				}),
+			boolItem("Focus follows mouse indicator", "Show a FFM:ON/OFF readout in the dock",
+				func() bool { return config.ShowFocusFollowsMouseIndicator },
+				func(m *OS, v bool) {
+					config.ShowFocusFollowsMouseIndicator = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowFocusFollowsMouseIndicator = v })
+					m.applyAppearanceLive(false)
+				}),
 			boolItem("Workspace tabs", "Show the clickable workspace strip in the dock",
 				func() bool { return config.DockWorkspaceTabs },
 				func(m *OS, v bool) {
