@@ -591,6 +591,14 @@ var DockWorkspaceTooltip = true
 // beads. The capped look is one key away for anyone who wants it.
 var DockPillCaps = false
 
+// DockPillUnderline underlines the active workspace/window pill's label, on
+// top of whatever bold and fill already mark it. It is the one distinguishing
+// mark that survives ASCII mode and monochrome, where color alone cannot be
+// trusted - default true for that reason. Off is for a theme (or terminal)
+// where the active pill's own fill already reads as unmistakably different
+// from the rest, and the underline is redundant rather than load-bearing.
+var DockPillUnderline = true
+
 // SetTerminalTitle sets the host terminal's window title (OSC 2) to whatever
 // the focused pane has titled itself - the same title a status-bar/taskbar
 // applet would show if that program ran directly with no tuios in between -

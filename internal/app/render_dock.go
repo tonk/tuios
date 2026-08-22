@@ -115,7 +115,7 @@ func workspacePill(label string, active bool, pal overlay.Palette, dr dockRowSty
 	fill := workspacePillBg(active, pal)
 	body := sidebarStyle(fill, workspacePillFg(active, pal))
 	if active {
-		body = body.Bold(true).Underline(true)
+		body = body.Bold(true).Underline(config.DockPillUnderline)
 	}
 	// The caps take the fill's colour as their foreground, which is how a half
 	// circle reads as the rounded end of the pill rather than as a glyph beside
@@ -142,7 +142,7 @@ func workspacePill(label string, active bool, pal overlay.Palette, dr dockRowSty
 // the focused window), but resolved the same way regardless.
 func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal overlay.Palette, dr dockRowStyle) string {
 	fg := workspacePillFg(focused, pal)
-	bold, underline := focused, focused
+	bold, underline := focused, focused && config.DockPillUnderline
 	if highlighted {
 		fg, bold, underline = pal.Success, true, false
 	}

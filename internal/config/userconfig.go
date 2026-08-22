@@ -167,6 +167,7 @@ type AppearanceConfig struct {
 	DockWorkspaceTabs    *bool  `toml:"dock_workspace_tabs"`    // Clickable workspace strip in the dock (default: true)
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
 	DockPillCaps         *bool  `toml:"dock_pill_caps"`         // Powerline caps on the dock's pills (default: false, flat)
+	DockPillUnderline    *bool  `toml:"dock_pill_underline"`    // Underline the active workspace/window pill's label (default: true)
 	SessionColors        *bool  `toml:"session_colors"`         // Give each session its own colour on the rail and the switcher (default: true)
 	SetTerminalTitle     *bool  `toml:"set_terminal_title"`     // Set the host terminal's window title to the focused pane's title, or "tuios" (default: true)
 	DockWindowList       *bool  `toml:"dock_window_list"`       // List every window of the current workspace in the dock, not just minimized ones; a window wanting attention blinks (default: false)
@@ -925,6 +926,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.DockPillCaps != nil {
 		DockPillCaps = *cfg.Appearance.DockPillCaps
+	}
+	if cfg.Appearance.DockPillUnderline != nil {
+		DockPillUnderline = *cfg.Appearance.DockPillUnderline
 	}
 	if cfg.Appearance.SessionColors != nil {
 		SessionColors = *cfg.Appearance.SessionColors

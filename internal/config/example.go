@@ -70,6 +70,7 @@ var exampleTables = []exampleTable{
 			{"dock_workspace_tabs", "true", "Show a clickable workspace strip in the dock."},
 			{"dock_workspace_tooltip", "true", "Pop a truncated workspace name in full on hover."},
 			{"dock_pill_caps", "false", "Draw powerline caps on the dock's pills instead of flat ends."},
+			{"dock_pill_underline", "true", "Underline the active workspace/window pill's label. The one mark that survives ASCII mode and monochrome; turn off if the pill's own fill already makes it obvious."},
 			{"session_colors", "true", "Give each session its own color on the rail and the session switcher."},
 			{"set_terminal_title", "true", `Set the host terminal's window title to "tuios" once at startup (OSC 2).`},
 			{"dock_window_list", "false", "List every window of the current workspace in the dock, not just minimized ones. A window wanting attention (agent needs input/errored/unseen-done, or new output/a bell/a notification while unfocused) blinks until focused."},
