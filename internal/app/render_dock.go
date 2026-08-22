@@ -95,6 +95,52 @@ func (dr dockRowStyle) fill(s string) string {
 	return lipgloss.NewStyle().Background(dr.bg).Render(s)
 }
 
+// sysInfoPart is one already-styled entry in the dock's right-hand info
+// block (a CPU/RAM readout or a mode-indicator glyph). kind is
+// DockIndicatorNone for the plain readouts, which have no tooltip.
+type sysInfoPart struct {
+	text string
+	kind DockIndicatorKind
+}
+
+// joinSysInfoParts joins already-styled sysInfoParts with joiner, without
+// re-styling their contents - each part carries its own color.
+func joinSysInfoParts(parts []sysInfoPart, joiner string) string {
+	texts := make([]string, len(parts))
+	for i, p := range parts {
+		texts[i] = p.text
+	}
+	return strings.Join(texts, joiner)
+}
+
+// indicatorSpan is one mode-indicator glyph's columns, relative to the start
+// of the dock's right-hand info block. Converted to an absolute
+// dockIndicatorHit once the block's own starting column is known.
+type indicatorSpan struct {
+	kind   DockIndicatorKind
+	x0, x1 int
+}
+
+// dockIndicatorGlyph styles one mode-indicator glyph: a high-contrast color
+// while its mode is on, a dull one while it is off - both overridable per
+// theme (dock_indicator_active_fg / dock_indicator_inactive_fg), falling
+// back to pal.Success / pal.FgMute otherwise.
+func (m *OS) dockIndicatorGlyph(dr dockRowStyle, glyph string, active bool) string {
+	fg := dr.pal.FgMute
+	if active {
+		fg = dr.pal.Success
+	}
+	if ov := theme.DockIndicatorFg(active); ov != nil {
+		fg = ov
+	}
+	// A bare glyph is a one-column hover target, which a real mouse's own
+	// jitter bounces off of - the tooltip clears the instant the pointer
+	// drifts a cell over, and hovering "the glyph" reads as a flicker rather
+	// than a label. A cell of padding either side, the same as the dock's
+	// session icons (dockSessionBody), gives the pointer room to sit still.
+	return dr.background(lipgloss.NewStyle().Foreground(fg)).Render(" " + glyph + " ")
+}
+
 // workspacePill renders one workspace pill for the dock strip. Every pill rests
 // on the same Panel step the minimized entries do, with a column of padding
 // either side of its label: the fill is what gives it a shape, and the bare
@@ -388,6 +434,11 @@ func (m *OS) renderDockString() (string, int) {
 	// notifRule is the run of hairline the message burns down over, drawn into
 	// the right-hand end of the separator row below. Empty when nothing is live.
 	var notifRule string
+	// indicatorSpans records where each surviving mode-indicator glyph landed,
+	// relative to the start of rightInfo - populated only in the sysinfo
+	// branch below. The absolute columns aren't known until notifX0 is, so
+	// this is converted to m.dockIndicatorHits once that's computed.
+	var indicatorSpans []indicatorSpan
 	focusedWindow := m.GetFocusedWindow()
 
 	// The message is built against the room the left block and the dock items
@@ -417,33 +468,54 @@ func (m *OS) renderDockString() (string, int) {
 			}
 		}
 	default:
-		var sysInfoParts []string
+		var parts []sysInfoPart
 		if config.ShowCPU {
-			sysInfoParts = append(sysInfoParts, m.GetCPUGraph())
+			parts = append(parts, sysInfoPart{text: sysInfoStyle.Render(m.GetCPUGraph())})
 		}
 		if config.ShowRAM {
-			sysInfoParts = append(sysInfoParts, m.GetRAMUsage())
+			parts = append(parts, sysInfoPart{text: sysInfoStyle.Render(m.GetRAMUsage())})
 		}
 		if config.ShowMouseIndicator {
-			sysInfoParts = append(sysInfoParts, m.GetMouseIndicator())
+			parts = append(parts, sysInfoPart{
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorMouseGlyph(), m.MouseIndicatorActive()),
+				kind: DockIndicatorMouse,
+			})
 		}
 		if config.ShowTilingIndicator {
-			sysInfoParts = append(sysInfoParts, m.GetTilingIndicator())
+			parts = append(parts, sysInfoPart{
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorTilingGlyph(), m.TilingIndicatorActive()),
+				kind: DockIndicatorTiling,
+			})
 		}
 		if config.ShowFocusFollowsMouseIndicator {
-			sysInfoParts = append(sysInfoParts, m.GetFocusFollowsMouseIndicator())
+			parts = append(parts, sysInfoPart{
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorFocusFollowsMouseGlyph(), m.FocusFollowsMouseIndicatorActive()),
+				kind: DockIndicatorFocusFollowsMouse,
+			})
 		}
+		joiner := dr.fill(" ")
 		// The CPU graph is the first thing dropped on a dock too narrow for all
 		// the readouts, then RAM, then the mode indicators - the figures a user
 		// only glances at give way before the readout they turned on to answer
 		// "is this mode actually on".
-		for len(sysInfoParts) > 0 {
-			rightInfo = sysInfoStyle.Render(strings.Join(sysInfoParts, " "))
+		for len(parts) > 0 {
+			rightInfo = joinSysInfoParts(parts, joiner)
 			if lipgloss.Width(rightInfo) <= rightWidth {
 				break
 			}
-			sysInfoParts = sysInfoParts[1:]
+			parts = parts[1:]
 			rightInfo = ""
+		}
+		relX := 0
+		for i, p := range parts {
+			if i > 0 {
+				relX += lipgloss.Width(joiner)
+			}
+			w := lipgloss.Width(p.text)
+			if p.kind != DockIndicatorNone {
+				indicatorSpans = append(indicatorSpans, indicatorSpan{kind: p.kind, x0: relX, x1: relX + w})
+			}
+			relX += w
 		}
 	}
 	if w := lipgloss.Width(rightInfo); w > rightWidth {
@@ -495,6 +567,20 @@ func (m *OS) renderDockString() (string, int) {
 			X0: itemsX + s.x0, X1: itemsX + s.x1, Y: itemY, WindowIndex: s.windowIndex,
 		})
 	}
+	// The indicator glyphs' screen columns, mirroring dockItemHits above: the
+	// right-hand block is right-aligned within rightWidth starting at notifX0,
+	// so its actual first column is the tail end of that field rather than
+	// notifX0 itself.
+	m.dockIndicatorHits = m.dockIndicatorHits[:0]
+	if len(indicatorSpans) > 0 {
+		base := notifX0 + rightWidth - lipgloss.Width(rightInfo)
+		for _, s := range indicatorSpans {
+			m.dockIndicatorHits = append(m.dockIndicatorHits, dockIndicatorHit{
+				X0: base + s.x0, X1: base + s.x1, Y: itemY, Kind: s.kind,
+			})
+		}
+	}
+
 	m.dockOverflowHit = dockOverflowHit{}
 	if overflowX1 > overflowX0 {
 		m.dockOverflowHit = dockOverflowHit{

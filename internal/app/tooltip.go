@@ -58,6 +58,10 @@ const (
 	// tooltipDockWorkspace is a workspace pill on the dock strip whose name did
 	// not fit the twelve cells the pill has.
 	tooltipDockWorkspace
+	// tooltipDockIndicator is one of the dock's mode-indicator glyphs (mouse
+	// mode, tiling, focus-follows-mouse), which say their state in color and
+	// nothing else.
+	tooltipDockIndicator
 )
 
 // tooltipState is the live hover. Runtime only, gesture-scoped like the marquee
@@ -164,6 +168,8 @@ func (m *OS) renderTooltip() *lipgloss.Layer {
 		return m.renderDockSessionTooltip()
 	case tooltipDockWorkspace:
 		return m.renderDockWorkspaceTooltip()
+	case tooltipDockIndicator:
+		return m.renderDockIndicatorTooltip()
 	}
 	return nil
 }

@@ -81,30 +81,40 @@ func (m *OS) GetCPUGraph() string {
 	return fmt.Sprintf("CPU:%s %3.0f%%", graphBuilder.String(), current)
 }
 
-// GetMouseIndicator returns a short ON/OFF readout for tuios's mouse handling
-// (hover, click, drag, scroll, selection), toggled with prefix+M.
+// MouseIndicatorActive reports whether tuios's mouse handling (hover, click,
+// drag, scroll, selection) is on, toggled with prefix+M.
+func (m *OS) MouseIndicatorActive() bool { return config.MouseEnabled }
+
+// TilingIndicatorActive reports whether auto-tiling is on.
+func (m *OS) TilingIndicatorActive() bool { return m.AutoTiling }
+
+// FocusFollowsMouseIndicatorActive reports whether focus-follows-mouse is on,
+// toggled with prefix+f.
+func (m *OS) FocusFollowsMouseIndicatorActive() bool { return config.FocusFollowsMouse }
+
+// GetMouseIndicator returns the mouse-mode indicator's tooltip text.
 func (m *OS) GetMouseIndicator() string {
 	if config.MouseEnabled {
-		return "Mouse:ON"
+		return "Mouse mode: ON"
 	}
-	return "Mouse:OFF"
+	return "Mouse mode: OFF"
 }
 
-// GetFocusFollowsMouseIndicator returns a short ON/OFF readout for
-// focus-follows-mouse, toggled with prefix+f.
+// GetFocusFollowsMouseIndicator returns the focus-follows-mouse indicator's
+// tooltip text.
 func (m *OS) GetFocusFollowsMouseIndicator() string {
 	if config.FocusFollowsMouse {
-		return "FFM:ON"
+		return "Focus follows mouse: ON"
 	}
-	return "FFM:OFF"
+	return "Focus follows mouse: OFF"
 }
 
-// GetTilingIndicator returns a short ON/OFF readout for auto-tiling mode.
+// GetTilingIndicator returns the tiling-mode indicator's tooltip text.
 func (m *OS) GetTilingIndicator() string {
 	if m.AutoTiling {
-		return "Tile:ON"
+		return "Tiling: ON"
 	}
-	return "Tile:OFF"
+	return "Tiling: OFF"
 }
 
 // GetRAMUsage returns RAM usage as a formatted string.

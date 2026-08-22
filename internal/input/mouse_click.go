@@ -95,6 +95,18 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			o.OpenSessionClose()
 			return o, nil
 		}
+		// The mode-indicator glyphs (mouse mode, tiling, focus-follows-mouse)
+		// toggle their mode on click, through the exact same handlers the
+		// keybinds use - one source of truth for the toggle and its
+		// notification, whichever input triggered it.
+		switch o.DockIndicatorAt(X, Y) {
+		case app.DockIndicatorMouse:
+			return handlePrefixToggleMouse(tea.KeyPressMsg{}, o)
+		case app.DockIndicatorTiling:
+			return handleToggleTiling(tea.KeyPressMsg{}, o)
+		case app.DockIndicatorFocusFollowsMouse:
+			return handlePrefixToggleFocusFollowsMouse(tea.KeyPressMsg{}, o)
+		}
 		// The message block owns its own columns at the bar's right-hand end,
 		// ahead of the dock items: its body jumps to the pane the message came
 		// from, its right-hand end dismisses.

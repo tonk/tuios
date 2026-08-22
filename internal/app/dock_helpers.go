@@ -80,6 +80,23 @@ type dockItemHit struct {
 	X0, X1, Y, WindowIndex int
 }
 
+// DockIndicatorKind identifies one of the dock's mode-indicator glyphs
+// (mouse mode, tiling, focus-follows-mouse), for hover/tooltip lookups.
+type DockIndicatorKind int
+
+const (
+	DockIndicatorNone DockIndicatorKind = iota
+	DockIndicatorMouse
+	DockIndicatorTiling
+	DockIndicatorFocusFollowsMouse
+)
+
+// dockIndicatorHit is where one mode-indicator glyph was drawn last frame.
+type dockIndicatorHit struct {
+	X0, X1, Y int
+	Kind      DockIndicatorKind
+}
+
 // dockOverflowHit is where the entries' overflow marker was drawn, and whether
 // there was one. The marker stands for the panes the bar had no room for, and
 // with no rectangle of its own it was the only object on the dock that could be
@@ -408,6 +425,17 @@ func (m *OS) DockWorkspacePillAt(x, y int) int {
 	return 0
 }
 
+// DockIndicatorAt returns the mode-indicator glyph covering (x, y), or
+// DockIndicatorNone.
+func (m *OS) DockIndicatorAt(x, y int) DockIndicatorKind {
+	for _, h := range m.dockIndicatorHits {
+		if y == h.Y && x >= h.X0 && x < h.X1 {
+			return h.Kind
+		}
+	}
+	return DockIndicatorNone
+}
+
 func (m *OS) DockWorkspaceAt(x, y int) int {
 	for _, h := range m.dockWorkspaceHits {
 		if y == h.Y && x >= h.X0 && x < h.X1 {
@@ -732,13 +760,13 @@ func (m *OS) calculateDockRightWidth() int {
 		parts = append(parts, m.GetRAMUsage())
 	}
 	if config.ShowMouseIndicator {
-		parts = append(parts, m.GetMouseIndicator())
+		parts = append(parts, " "+config.GetDockIndicatorMouseGlyph()+" ")
 	}
 	if config.ShowTilingIndicator {
-		parts = append(parts, m.GetTilingIndicator())
+		parts = append(parts, " "+config.GetDockIndicatorTilingGlyph()+" ")
 	}
 	if config.ShowFocusFollowsMouseIndicator {
-		parts = append(parts, m.GetFocusFollowsMouseIndicator())
+		parts = append(parts, " "+config.GetDockIndicatorFocusFollowsMouseGlyph()+" ")
 	}
 	if len(parts) == 0 {
 		return 0

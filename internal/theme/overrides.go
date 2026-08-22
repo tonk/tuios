@@ -33,6 +33,13 @@ type UIOverrides struct {
 	// FgMute.
 	DockTrailFg color.Color
 
+	// DockIndicatorActiveFg and DockIndicatorInactiveFg are the ink for the
+	// dock's mode-indicator glyphs (mouse mode, tiling, focus-follows-mouse):
+	// a high-contrast color while the mode is on, a dull one while it is off.
+	// Falls back to pal.Success / pal.FgMute when unset.
+	DockIndicatorActiveFg   color.Color
+	DockIndicatorInactiveFg color.Color
+
 	// The workspace-tab pills in the dock strip (and dock_window_list's
 	// window pills, which share the same rendering). Bg is the pill's own
 	// fill, distinct per active/inactive state; Fg is the label ink.
@@ -137,6 +144,20 @@ func WorkspacePillBg(active bool) color.Color {
 	return ov.WorkspacePillInactiveBg
 }
 
+// DockIndicatorFg returns the active theme's dock_indicator_active_fg or
+// dock_indicator_inactive_fg override for the given state, or nil if unset -
+// the caller's own derived default (pal.Success / pal.FgMute) then applies.
+func DockIndicatorFg(active bool) color.Color {
+	ov := overridesForCurrent()
+	if ov == nil {
+		return nil
+	}
+	if active {
+		return ov.DockIndicatorActiveFg
+	}
+	return ov.DockIndicatorInactiveFg
+}
+
 // WorkspacePillFg is WorkspacePillBg for workspace_pill_active_fg /
 // workspace_pill_inactive_fg.
 func WorkspacePillFg(active bool) color.Color {
@@ -165,6 +186,9 @@ type uiOverridesRaw struct {
 	DockHighlight string `json:"dock_highlight" toml:"dock_highlight"`
 	DockBg        string `json:"dock_bg"        toml:"dock_bg"`
 	DockTrailFg   string `json:"dock_trail_fg"  toml:"dock_trail_fg"`
+
+	DockIndicatorActiveFg   string `json:"dock_indicator_active_fg"   toml:"dock_indicator_active_fg"`
+	DockIndicatorInactiveFg string `json:"dock_indicator_inactive_fg" toml:"dock_indicator_inactive_fg"`
 
 	WorkspacePillActiveBg   string `json:"workspace_pill_active_bg"   toml:"workspace_pill_active_bg"`
 	WorkspacePillActiveFg   string `json:"workspace_pill_active_fg"   toml:"workspace_pill_active_fg"`
@@ -229,6 +253,9 @@ func (r *uiOverridesRaw) toUIOverrides() *UIOverrides {
 		DockHighlight: hex(r.DockHighlight),
 		DockBg:        hex(r.DockBg),
 		DockTrailFg:   hex(r.DockTrailFg),
+
+		DockIndicatorActiveFg:   hex(r.DockIndicatorActiveFg),
+		DockIndicatorInactiveFg: hex(r.DockIndicatorInactiveFg),
 
 		WorkspacePillActiveBg:   hex(r.WorkspacePillActiveBg),
 		WorkspacePillActiveFg:   hex(r.WorkspacePillActiveFg),

@@ -106,6 +106,11 @@ func handleMouseMotion(msg tea.MouseMotionMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// each call clears only its own surface's hover.
 	o.DockWorkspaceHoverAt(mouse.X, mouse.Y)
 
+	// The mode-indicator glyphs (mouse mode, tiling, focus-follows-mouse) are
+	// timed off the same arriving motion, for the words their color alone
+	// cannot say.
+	o.DockIndicatorHoverAt(mouse.X, mouse.Y)
+
 	// Ctrl-drag: an armed grab commits to a move once the pointer passes the
 	// drag threshold, then rides the same path as a title-bar drag (the block
 	// below moves the now-focused window). Ctrl let go before the grab commits

@@ -8,6 +8,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/lrstanley/go-nf/glyphs/fa"
+	"github.com/lrstanley/go-nf/glyphs/md"
 	"github.com/lrstanley/go-nf/glyphs/ple"
 )
 
@@ -249,6 +250,16 @@ var (
 	// everything in it (Nerd Font: nf-fa-power_off).
 	DockIconCloseSession string
 
+	// DockIndicatorMouseGlyph is the dock's mouse-mode indicator (Nerd Font: nf-md-mouse).
+	DockIndicatorMouseGlyph string
+
+	// DockIndicatorTilingGlyph is the dock's tiling-mode indicator (Nerd Font: nf-md-view_quilt).
+	DockIndicatorTilingGlyph string
+
+	// DockIndicatorFocusFollowsMouseGlyph is the dock's focus-follows-mouse
+	// indicator (Nerd Font: nf-md-crosshairs_gps).
+	DockIndicatorFocusFollowsMouseGlyph string
+
 	// DockSeparator is the separator between dock sections
 	DockSeparator = "  " // Two spaces for breathing room
 
@@ -275,6 +286,9 @@ func init() {
 	DockIconWorkspaceCount = fa.ThLarge.String()
 	DockIconLeaveRunning = fa.SignOut.String()
 	DockIconCloseSession = fa.PowerOff.String()
+	DockIndicatorMouseGlyph = md.Mouse.String()
+	DockIndicatorTilingGlyph = md.ViewQuilt.String()
+	DockIndicatorFocusFollowsMouseGlyph = md.CrosshairsGps.String()
 	WindowPillLeft = ple.LeftHalfCircleThick.String()
 	WindowPillRight = ple.RightHalfCircleThick.String()
 	NotificationGlyphError = fa.TimesCircle.String()
@@ -324,6 +338,16 @@ const (
 	// DockIconCloseSessionASCII is the ASCII fallback for the close-session
 	// control, which is also the letter prefix-X ends a session with.
 	DockIconCloseSessionASCII = "X"
+
+	// DockIndicatorMouseGlyphASCII is the ASCII fallback for the mouse-mode indicator.
+	DockIndicatorMouseGlyphASCII = "M"
+
+	// DockIndicatorTilingGlyphASCII is the ASCII fallback for the tiling-mode indicator.
+	DockIndicatorTilingGlyphASCII = "#"
+
+	// DockIndicatorFocusFollowsMouseGlyphASCII is the ASCII fallback for the
+	// focus-follows-mouse indicator.
+	DockIndicatorFocusFollowsMouseGlyphASCII = "+"
 
 	// DockSeparatorASCII is the ASCII fallback separator
 	DockSeparatorASCII = " | "
@@ -931,6 +955,31 @@ func GetDockIconCloseSession() string {
 		return DockIconCloseSessionASCII
 	}
 	return DockIconCloseSession
+}
+
+// GetDockIndicatorMouseGlyph returns the mouse-mode indicator glyph.
+func GetDockIndicatorMouseGlyph() string {
+	if UseASCIIOnly {
+		return DockIndicatorMouseGlyphASCII
+	}
+	return DockIndicatorMouseGlyph
+}
+
+// GetDockIndicatorTilingGlyph returns the tiling-mode indicator glyph.
+func GetDockIndicatorTilingGlyph() string {
+	if UseASCIIOnly {
+		return DockIndicatorTilingGlyphASCII
+	}
+	return DockIndicatorTilingGlyph
+}
+
+// GetDockIndicatorFocusFollowsMouseGlyph returns the focus-follows-mouse
+// indicator glyph.
+func GetDockIndicatorFocusFollowsMouseGlyph() string {
+	if UseASCIIOnly {
+		return DockIndicatorFocusFollowsMouseGlyphASCII
+	}
+	return DockIndicatorFocusFollowsMouseGlyph
 }
 
 // GetDockSeparator returns the appropriate separator based on UseASCIIOnly

@@ -122,3 +122,62 @@ func (m *OS) DockWorkspaceHoverAt(x, y int) bool {
 	m.dockWorkspaceTooltipTrack(ws)
 	return ws > 0
 }
+
+// dockIndicatorTooltipTrack arms the label for whichever mode-indicator glyph
+// the pointer landed on. The words are resolved at draw time (see
+// renderDockIndicatorTooltip), not copied in here, so a toggle pressed while
+// the pointer sits still updates the label instead of freezing it stale.
+func (m *OS) dockIndicatorTooltipTrack(kind DockIndicatorKind) {
+	if kind == DockIndicatorNone {
+		if m.Tooltip.Source == tooltipDockIndicator {
+			m.tooltipClear()
+		}
+		return
+	}
+	m.tooltipTrack(tooltipDockIndicator, int(kind))
+}
+
+// renderDockIndicatorTooltip says what the hovered glyph means in words: the
+// mode's name and whether it is on or off, resolved fresh so a toggle pressed
+// mid-hover is reflected instead of frozen at hover-start.
+func (m *OS) renderDockIndicatorTooltip() *lipgloss.Layer {
+	if !m.tooltipVisible(tooltipDockIndicator) {
+		return nil
+	}
+	m.Tooltip.Shown = true
+
+	for _, h := range m.dockIndicatorHits {
+		if int(h.Kind) != m.Tooltip.Key {
+			continue
+		}
+		var text string
+		switch h.Kind {
+		case DockIndicatorMouse:
+			text = m.GetMouseIndicator()
+		case DockIndicatorTiling:
+			text = m.GetTilingIndicator()
+		case DockIndicatorFocusFollowsMouse:
+			text = m.GetFocusFollowsMouseIndicator()
+		default:
+			return nil
+		}
+		renderW := m.GetRenderWidth()
+		label := tooltipLabel(text, renderW, theme.UI())
+		y := h.Y - 1
+		if config.DockbarPosition == "top" {
+			y = h.Y + 1
+		}
+		return tooltipLayer(label, h.X0, y, renderW, "dock-indicator-tooltip")
+	}
+	return nil
+}
+
+// DockIndicatorHoverAt arms the tooltip for whichever mode-indicator glyph
+// covers (x, y), clearing it when the pointer is on none. It reports whether
+// the pointer is on a glyph; the motion is not consumed either way, mirroring
+// DockWorkspaceHoverAt.
+func (m *OS) DockIndicatorHoverAt(x, y int) bool {
+	kind := m.DockIndicatorAt(x, y)
+	m.dockIndicatorTooltipTrack(kind)
+	return kind != DockIndicatorNone
+}
