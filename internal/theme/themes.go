@@ -72,3 +72,30 @@ func CurrentThemeID() string {
 	}
 	return t.ID
 }
+
+// ReloadCustomThemes re-scans the themes directory and re-registers every
+// theme file found, picking up edits made since EnsureRegistry's one-time
+// load (or the last call to this) without a restart - unlike that one-time
+// load, this can run again at any point in the process's life.
+//
+// tint.Register overwrites an existing ID unconditionally, and tint.Current
+// looks its ID up in the registry fresh on every call rather than caching a
+// *Tint, so if the active theme's file is among the ones reloaded, the new
+// colors (and [ui] overrides, via LoadCustomThemeFile's own overridesByID
+// bookkeeping) take effect immediately - no need to re-select it.
+//
+// A theme file that has been deleted since the last load stays registered
+// (and any [ui] overrides it set stay in overridesByID) until the process
+// restarts; nothing here removes a registration or an override, only adds or
+// replaces one. Returns the reloaded theme IDs.
+func ReloadCustomThemes() ([]string, error) {
+	// Guarantees a registry exists to register into - a no-op once the
+	// process has already ensured one, which every path that could reach
+	// this already has (theme.Initialize, the settings page, the picker).
+	EnsureRegistry()
+	themesDir, err := GetThemesDir()
+	if err != nil {
+		return nil, err
+	}
+	return LoadCustomThemes(themesDir)
+}

@@ -59,9 +59,11 @@ func agentStateIndicator(state string) string {
 	}
 }
 
-var (
-	baseButtonStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#000000"))
-)
+// baseButtonStyle is the window-button ink, built fresh each call rather than
+// cached so a theme's button_fg override (or a reload) takes effect.
+func baseButtonStyle() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(theme.ButtonFg())
+}
 
 // titleBadgeText renders the text segment of a window title badge, coloring a
 // leading agent-state glyph with the state's palette color while keeping the
@@ -70,7 +72,7 @@ var (
 // stays the state carrier (agentStateIndicator); the color is reinforcement,
 // exactly as in the sidebar and the palette rows.
 func titleBadgeText(windowName, agentState string, badgeBg color.Color) string {
-	nameStyle := baseButtonStyle.Background(badgeBg)
+	nameStyle := baseButtonStyle().Background(badgeBg)
 	glyph := agentStateIndicator(agentState)
 	if glyph == "" || !strings.HasPrefix(windowName, glyph) {
 		return nameStyle.Render(" " + windowName + " ")
@@ -209,7 +211,7 @@ func addToBorder(content string, color color.Color, window *terminal.Window, pos
 		buttons = ""
 		buttonsWidth = 0
 	} else {
-		buttonStyle := baseButtonStyle.Background(color)
+		buttonStyle := baseButtonStyle().Background(color)
 		cross := buttonStyle.Render(config.GetWindowButtonClose())
 		dash := buttonStyle.Render("  - ")
 

@@ -35,12 +35,13 @@ func TestHelpDebugKeysAreRealKeys(t *testing.T) {
 		t.Fatal("help has no Debug category; the debug chords are undiscoverable")
 	}
 
-	// The real chords are leader, Shift+D, then one of l/c/k/a.
+	// The real chords are leader, Shift+D, then one of l/c/k/a/r.
 	want := map[string]bool{
 		config.LeaderKey + ", D, l": true,
 		config.LeaderKey + ", D, c": true,
 		config.LeaderKey + ", D, k": true,
 		config.LeaderKey + ", D, a": true,
+		config.LeaderKey + ", D, r": true,
 	}
 	for _, b := range debug {
 		for _, key := range b.Keys {

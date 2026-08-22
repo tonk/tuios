@@ -222,8 +222,7 @@ func handleNewWindow(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 }
 
 func handleCloseWindow(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
-	if len(o.Windows) > 0 && o.FocusedWindow >= 0 {
-		w := o.Windows[o.FocusedWindow]
+	if w := o.GetFocusedWindow(); w != nil {
 		o.FireHook(hooks.AfterCloseWindow, w.ID, w.Title())
 		o.DeleteWindow(o.FocusedWindow)
 	}

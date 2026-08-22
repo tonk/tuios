@@ -11,28 +11,88 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/theme"
 )
 
-// workspacePillFg is the ink one pill state is drawn in, over the Panel step
-// every pill rests on.
+// workspacePillBg is the fill one pill state rests on: workspace_pill_active_bg
+// or workspace_pill_inactive_bg when a theme's [ui] table sets one, and the
+// same neutral Panel step every pill has always rested on otherwise.
+func workspacePillBg(active bool, pal overlay.Palette) color.Color {
+	if bg := theme.WorkspacePillBg(active); bg != nil {
+		return bg
+	}
+	return pal.Panel
+}
+
+// workspacePillFg is the ink one pill state is drawn in, over workspacePillBg's
+// fill: workspace_pill_active_fg/workspace_pill_inactive_fg when set, and the
+// theme-derived default otherwise.
 //
-// Both states go through theme.Readable, so the strip is legible by
+// The derived defaults go through theme.Readable, so the strip is legible by
 // measurement rather than by whichever theme it was last looked at under. At
 // rest that is FgDim: FgMute is the token for separators and disabled things
 // and it put a workspace you can switch to at 2.19:1, present but not readable.
 // Active is the accent, which follows the terminal theme and so cannot be
-// trusted on its own; Charple alone measures 2.76:1 on Panel.
+// trusted on its own; Charple alone measures 2.76:1 on Panel. An explicit
+// override is trusted as the user's own final choice and skips that check,
+// the same as every other override in this package.
 func workspacePillFg(active bool, pal overlay.Palette) color.Color {
-	if active {
-		return theme.Readable(pal.Accent, pal.Panel)
+	bg := workspacePillBg(active, pal)
+	if fg := theme.WorkspacePillFg(active); fg != nil {
+		return fg
 	}
-	return theme.Readable(pal.FgDim, pal.Panel)
+	if active {
+		return theme.Readable(pal.Accent, bg)
+	}
+	return theme.Readable(pal.FgDim, bg)
 }
 
 // dockStripArrowFg is the ink the overflow arrows are drawn in. They wear no
-// fill, so they are read against the bare canvas the bar sits on, where FgMute
-// measured 2.60:1. They are controls, not separators, and an overflow arrow
-// nobody can see is a strip that looks like it ends.
-func dockStripArrowFg(pal overlay.Palette) color.Color {
-	return theme.Readable(pal.FgDim, pal.Canvas)
+// fill of their own, so they are read against whatever the row's background
+// actually is: dr.contrastBg, which is the row's dock_bg override when a
+// theme sets one, and pal.Canvas (today's assumption about the bare canvas
+// the bar sits on) otherwise. They are controls, not separators, and an
+// overflow arrow nobody can see is a strip that looks like it ends.
+func dockStripArrowFg(dr dockRowStyle) color.Color {
+	return theme.Readable(dr.pal.FgDim, dr.contrastBg)
+}
+
+// dockRowStyle carries this frame's dock-row background decision, computed once
+// per render and threaded through every function that draws a bare span
+// (spacers, joiners, pill end-caps) or picks a foreground against the row's
+// ground. has is false, and background/fill are no-ops, unless the active
+// theme sets dock_bg - the dock paints no background at all by default, so
+// nothing changes for a theme that doesn't opt in.
+type dockRowStyle struct {
+	pal        overlay.Palette
+	bg         color.Color
+	has        bool
+	contrastBg color.Color
+}
+
+// currentDockRow resolves this frame's dockRowStyle from the active theme.
+func currentDockRow(pal overlay.Palette) dockRowStyle {
+	bg, has := theme.DockRowBackground()
+	contrast := pal.Canvas
+	if has {
+		contrast = bg
+	}
+	return dockRowStyle{pal: pal, bg: bg, has: has, contrastBg: contrast}
+}
+
+// background applies dr's background to st, or returns st untouched when no
+// dock_bg override is set.
+func (dr dockRowStyle) background(st lipgloss.Style) lipgloss.Style {
+	if !dr.has {
+		return st
+	}
+	return st.Background(dr.bg)
+}
+
+// fill paints a bare span (a spacer or joiner with no style of its own) with
+// dr's background, or returns it untouched when no override is set.
+func (dr dockRowStyle) fill(s string) string {
+	if !dr.has {
+		return s
+	}
+	return lipgloss.NewStyle().Background(dr.bg).Render(s)
 }
 
 // workspacePill renders one workspace pill for the dock strip. Every pill rests
@@ -51,21 +111,24 @@ func dockStripArrowFg(pal overlay.Palette) color.Color {
 // The label is passed in rather than derived: the tab that carries it also
 // carries the width the hit rectangle was cut to, and the two must be the same
 // string.
-func workspacePill(label string, active bool, pal overlay.Palette) string {
-	body := sidebarStyle(pal.Panel, workspacePillFg(active, pal))
+func workspacePill(label string, active bool, pal overlay.Palette, dr dockRowStyle) string {
+	fill := workspacePillBg(active, pal)
+	body := sidebarStyle(fill, workspacePillFg(active, pal))
 	if active {
 		body = body.Bold(true).Underline(true)
 	}
 	// The caps take the fill's colour as their foreground, which is how a half
 	// circle reads as the rounded end of the pill rather than as a glyph beside
 	// it. ASCII has none, and styling nothing still costs the frame the escape
-	// sequences around it.
+	// sequences around it. Their own cell has no fill of its own, so it takes
+	// dr's background like every other bare span - otherwise a dock_bg theme
+	// would leave a hole exactly the shape of the cap.
 	lc, rc := config.GetDockWorkspaceCapLeft(), config.GetDockWorkspaceCapRight()
 	pill := body.Render(" " + label + " ")
 	if lc == "" && rc == "" {
 		return pill
 	}
-	caps := lipgloss.NewStyle().Foreground(pal.Panel)
+	caps := dr.background(lipgloss.NewStyle().Foreground(fill))
 	return caps.Render(lc) + pill + caps.Render(rc)
 }
 
@@ -77,19 +140,20 @@ func workspacePill(label string, active bool, pal overlay.Palette) string {
 // flash outranks focus, which outranks a blinking request for attention -
 // unattainable together in practice (dockWindowNeedsAttention already refuses
 // the focused window), but resolved the same way regardless.
-func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal overlay.Palette) string {
+func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal overlay.Palette, dr dockRowStyle) string {
 	fg := workspacePillFg(focused, pal)
 	bold, underline := focused, focused
 	if highlighted {
 		fg, bold, underline = pal.Success, true, false
 	}
 
-	body := sidebarStyle(pal.Panel, fg).Bold(bold).Underline(underline)
+	fill := workspacePillBg(focused, pal)
+	body := sidebarStyle(fill, fg).Bold(bold).Underline(underline)
 	// An inverse slab is the loudest mark the grammar has (see workspacePill),
 	// spent here on the one state that means "look at this": the blink swaps
 	// the pill's own fill and ink rather than picking a colour of its own, so
 	// it reads under any theme with nothing new to keep in sync with one.
-	capColor := pal.Panel
+	capColor := fill
 	if needsAttention {
 		body = body.Reverse(true)
 		capColor = fg
@@ -100,7 +164,7 @@ func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal
 	if lc == "" && rc == "" {
 		return pill
 	}
-	caps := lipgloss.NewStyle().Foreground(capColor)
+	caps := dr.background(lipgloss.NewStyle().Foreground(capColor))
 	return caps.Render(lc) + pill + caps.Render(rc)
 }
 
@@ -112,19 +176,19 @@ func dockWindowPill(label string, focused, highlighted, needsAttention bool, pal
 // gutter, then the "+". The gutters exist only while the strip scrolls, and
 // hold their columns whether or not there is anything that way, so an arrow
 // appearing does not shift the pill under the pointer.
-func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int) string {
+func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int, dr dockRowStyle) string {
 	m.dockWorkspaceHits = m.dockWorkspaceHits[:0]
 	m.dockWorkspaceArrowHits = m.dockWorkspaceArrowHits[:0]
 	if len(s.Pills) == 0 && s.Add == nil {
 		return ""
 	}
 
-	pal := theme.UI()
+	pal := dr.pal
 	y := m.GetDockbarContentYPosition()
-	arrow := lipgloss.NewStyle().Foreground(dockStripArrowFg(pal))
+	arrow := dr.background(lipgloss.NewStyle().Foreground(dockStripArrowFg(dr)))
 
 	var b strings.Builder
-	b.WriteString(" ")
+	b.WriteString(dr.fill(" "))
 	x := startX + 1
 
 	gutter := func(glyph string, live bool, delta int) {
@@ -132,12 +196,12 @@ func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int) string {
 			return
 		}
 		if live {
-			b.WriteString(arrow.Render(glyph) + " ")
+			b.WriteString(arrow.Render(glyph) + dr.fill(" "))
 			m.dockWorkspaceArrowHits = append(m.dockWorkspaceArrowHits, dockWorkspaceArrowHit{
 				X0: x, X1: x + dockWorkspaceArrowWidth, Y: y, Delta: delta,
 			})
 		} else {
-			b.WriteString(strings.Repeat(" ", dockWorkspaceArrowWidth))
+			b.WriteString(dr.fill(strings.Repeat(" ", dockWorkspaceArrowWidth)))
 		}
 		x += dockWorkspaceArrowWidth
 	}
@@ -147,10 +211,10 @@ func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int) string {
 	drawn := 0
 	for i, t := range s.Pills {
 		if i > 0 {
-			b.WriteString(strings.Repeat(" ", dockWorkspacePillGap))
+			b.WriteString(dr.fill(strings.Repeat(" ", dockWorkspacePillGap)))
 			x, drawn = x+dockWorkspacePillGap, drawn+dockWorkspacePillGap
 		}
-		b.WriteString(workspacePill(t.Label, t.Active, pal))
+		b.WriteString(workspacePill(t.Label, t.Active, pal, dr))
 		m.dockWorkspaceHits = append(m.dockWorkspaceHits, dockWorkspaceHit{
 			X0: x, X1: x + t.Width, Y: y, Workspace: t.Workspace,
 		})
@@ -159,7 +223,7 @@ func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int) string {
 	// A scrolling strip holds its viewport open, so the "+" and the readout
 	// behind it stay put as the pills move under them.
 	if s.Scrolls && drawn < s.Inner {
-		b.WriteString(strings.Repeat(" ", s.Inner-drawn))
+		b.WriteString(dr.fill(strings.Repeat(" ", s.Inner-drawn)))
 		x += s.Inner - drawn
 	}
 
@@ -167,10 +231,10 @@ func (m *OS) renderDockWorkspaceStrip(s dockWorkspaceStrip, startX int) string {
 
 	if s.Add != nil {
 		if len(s.Pills) > 0 {
-			b.WriteString(strings.Repeat(" ", dockWorkspacePillGap))
+			b.WriteString(dr.fill(strings.Repeat(" ", dockWorkspacePillGap)))
 			x += dockWorkspacePillGap
 		}
-		b.WriteString(workspacePill(s.Add.Label, false, pal))
+		b.WriteString(workspacePill(s.Add.Label, false, pal, dr))
 		m.dockWorkspaceHits = append(m.dockWorkspaceHits, dockWorkspaceHit{
 			X0: x, X1: x + s.Add.Width, Y: y, Workspace: 0,
 		})
@@ -188,10 +252,11 @@ func (m *OS) renderDock() *lipgloss.Layer {
 func (m *OS) renderDockString() (string, int) {
 	layout := m.CalculateDockLayout()
 	pal := theme.UI()
+	dr := currentDockRow(pal)
 
-	sysInfoStyle := lipgloss.NewStyle().
+	sysInfoStyle := dr.background(lipgloss.NewStyle().
 		Foreground(pal.FgMute).
-		MarginRight(2)
+		MarginRight(2))
 
 	// The mode label arrives without its caps, so the pill is assembled here
 	// rather than found again by searching the string for the cap glyphs. It is
@@ -202,11 +267,15 @@ func (m *OS) renderDockString() (string, int) {
 	fill := lipgloss.NewStyle().Background(modeColor).Foreground(theme.ContrastText(modeColor)).Bold(true)
 	styledModeText := fill.Render(layout.ModeLabel)
 	if lc, rc := config.GetDockModeCapLeft(), config.GetDockModeCapRight(); lc != "" && rc != "" {
-		caps := lipgloss.NewStyle().Foreground(modeColor)
+		caps := dr.background(lipgloss.NewStyle().Foreground(modeColor))
 		styledModeText = caps.Render(lc) + fill.Render(layout.ModeLabel) + caps.Render(rc)
 	}
 
-	styledTrailText := lipgloss.NewStyle().Foreground(pal.FgMute).Render(layout.TrailText)
+	trailFg := pal.FgMute
+	if fg := theme.DockTrailFg(); fg != nil {
+		trailFg = fg
+	}
+	styledTrailText := dr.background(lipgloss.NewStyle().Foreground(trailFg)).Render(layout.TrailText)
 
 	var dockItemsStr strings.Builder
 	itemNumber := 1
@@ -232,7 +301,7 @@ func (m *OS) renderDockString() (string, int) {
 			// filled circle pills.
 			needsAttention := m.dockWindowNeedsAttention(windowIndex) && dockBlinkOn()
 			focused := windowIndex == m.FocusedWindow && !window.Minimizing
-			chunk = dockWindowPill(dockItem.Label, focused, isHighlighted, needsAttention, pal)
+			chunk = dockWindowPill(dockItem.Label, focused, isHighlighted, needsAttention, pal, dr)
 		} else {
 			// A minimized entry rests on the same Panel step the rest of the
 			// chrome uses; only the two states worth a saturated fill get one.
@@ -251,7 +320,7 @@ func (m *OS) renderDockString() (string, int) {
 			// Flat by default: the caps repeated on every minimized window turned
 			// the row into beads. getDockItems pads the label, so the fill alone
 			// still reads as a cell.
-			caps := lipgloss.NewStyle().Foreground(bgColor)
+			caps := dr.background(lipgloss.NewStyle().Foreground(bgColor))
 			nameLabel := lipgloss.NewStyle().
 				Background(bgColor).
 				Foreground(fgColor).
@@ -262,7 +331,7 @@ func (m *OS) renderDockString() (string, int) {
 		}
 
 		if itemNumber > 1 {
-			dockItemsStr.WriteString(" ")
+			dockItemsStr.WriteString(dr.fill(" "))
 			relX++
 		}
 		dockItemsStr.WriteString(chunk)
@@ -281,9 +350,9 @@ func (m *OS) renderDockString() (string, int) {
 	if layout.TruncatedCount > 0 {
 		marker := " ..."
 		// Drawn in the same ink as the strip's overflow arrows: it wears no fill
-		// and, now that it opens the aggregate view, it is a control rather than
-		// a separator. FgMute measured 2.60:1 against the bare canvas.
-		dockItemsStr.WriteString(lipgloss.NewStyle().Foreground(dockStripArrowFg(pal)).Render(marker))
+		// of its own and, now that it opens the aggregate view, it is a control
+		// rather than a separator. FgMute measured 2.60:1 against the bare canvas.
+		dockItemsStr.WriteString(dr.background(lipgloss.NewStyle().Foreground(dockStripArrowFg(dr))).Render(marker))
 		overflowX0, overflowX1 = relX, relX+lipgloss.Width(marker)
 		relX = overflowX1
 	}
@@ -291,7 +360,7 @@ func (m *OS) renderDockString() (string, int) {
 	// The strip sits between the mode pill and the stats, and records where each
 	// tab landed as it goes: both dock paths render through here, so the hit
 	// rects are the drawn geometry rather than a second guess at it.
-	styledTabs := m.renderDockWorkspaceStrip(layout.WorkspaceStrip, lipgloss.Width(styledModeText))
+	styledTabs := m.renderDockWorkspaceStrip(layout.WorkspaceStrip, lipgloss.Width(styledModeText), dr)
 
 	leftInfo := lipgloss.JoinHorizontal(lipgloss.Top,
 		styledModeText,
@@ -326,7 +395,7 @@ func (m *OS) renderDockString() (string, int) {
 	// correction afterwards. Correcting it afterwards is what the generic
 	// truncation below would do, and the first thing that would cut is the
 	// closing cap: the block would lose the shape that makes it part of the bar.
-	notif, hasNotif := m.renderNotificationBlock(barWidth, max(barWidth-actualLeftWidth-centerWidth, 0))
+	notif, hasNotif := m.renderNotificationBlock(barWidth, max(barWidth-actualLeftWidth-centerWidth, 0), dr)
 
 	inCopyMode := focusedWindow.CopyModeVisible()
 	switch {
@@ -423,14 +492,18 @@ func (m *OS) renderDockString() (string, int) {
 		}
 	}
 
-	paddedRightInfo := lipgloss.NewStyle().Width(rightWidth).Align(lipgloss.Right).Render(rightInfo)
+	// Padding this style adds (rightInfo is right-aligned, so any padding
+	// lands before rightInfo's own already-rendered content) is the only part
+	// of this Render call dr.background actually reaches; rightInfo's own
+	// styling, once rendered, carries its own colours to the end.
+	paddedRightInfo := dr.background(lipgloss.NewStyle().Width(rightWidth).Align(lipgloss.Right)).Render(rightInfo)
 
 	dockBar := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		leftInfo,
-		lipgloss.NewStyle().Width(leftSpacer).Render(""),
+		dr.background(lipgloss.NewStyle().Width(leftSpacer)).Render(""),
 		lipgloss.NewStyle().Render(dockItemsStr.String()),
-		lipgloss.NewStyle().Width(rightSpacer).Render(""),
+		dr.background(lipgloss.NewStyle().Width(rightSpacer)).Render(""),
 		paddedRightInfo,
 	)
 

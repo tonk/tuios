@@ -130,8 +130,15 @@ func TerminalBg() color.Color {
 	return t.Bg
 }
 
-// TerminalCursor returns the color for the terminal cursor.
+// TerminalCursor returns the color for the terminal cursor. This is the
+// default the VT emulator falls back to (SetThemeColors -> SetDefaultCursorColor);
+// a guest that has sent its own cursor-color escape sequence (OSC 12) still
+// wins over it, exactly as it would with no theme at all - only the fallback
+// itself is theme-driven, and now override-driven too.
 func TerminalCursor() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.TerminalCursorFg != nil {
+		return ov.TerminalCursorFg
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#00ff00")
@@ -143,6 +150,9 @@ func TerminalCursor() color.Color {
 func BorderUnfocused() color.Color {
 	if borderUnfocusedOverride != nil {
 		return borderUnfocusedOverride
+	}
+	if ov := overridesForCurrent(); ov != nil && ov.BorderUnfocused != nil {
+		return ov.BorderUnfocused
 	}
 	t := Current()
 	if t == nil {
@@ -158,6 +168,9 @@ func BorderFocusedWindow() color.Color {
 	if borderFocusedOverride != nil {
 		return borderFocusedOverride
 	}
+	if ov := overridesForCurrent(); ov != nil && ov.BorderFocusedWindow != nil {
+		return ov.BorderFocusedWindow
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#AFFFFF")
@@ -171,6 +184,9 @@ func BorderFocusedTerminal() color.Color {
 	if borderFocusedOverride != nil {
 		return borderFocusedOverride
 	}
+	if ov := overridesForCurrent(); ov != nil && ov.BorderFocusedTerminal != nil {
+		return ov.BorderFocusedTerminal
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#AAFFAA")
@@ -179,8 +195,21 @@ func BorderFocusedTerminal() color.Color {
 	return t.BrightGreen
 }
 
+// BorderMultifocused returns the color for a multifocused window's border
+// (one of several panes selected together for a broadcast action), distinct
+// from the single focused window's border.
+func BorderMultifocused() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.BorderMultifocused != nil {
+		return ov.BorderMultifocused
+	}
+	return lipgloss.Color("3")
+}
+
 // DockColorWindow returns the dock indicator color for window management mode.
 func DockColorWindow() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.DockWindow != nil {
+		return ov.DockWindow
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#5c5cff")
@@ -190,6 +219,9 @@ func DockColorWindow() color.Color {
 
 // DockColorTerminal returns the dock indicator color for terminal mode.
 func DockColorTerminal() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.DockTerminal != nil {
+		return ov.DockTerminal
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#7aa2f7") // Soft blue
@@ -199,6 +231,9 @@ func DockColorTerminal() color.Color {
 
 // DockColorCopy returns the dock indicator color for copy mode.
 func DockColorCopy() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.DockCopy != nil {
+		return ov.DockCopy
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#e0af68") // Soft amber
@@ -208,38 +243,82 @@ func DockColorCopy() color.Color {
 
 // CopyModeCursor returns background and foreground colors for the copy mode cursor.
 func CopyModeCursor() (bg color.Color, fg color.Color) {
+	ov := overridesForCurrent()
 	t := Current()
 	if t == nil {
-		return lipgloss.Color("#00ffff"), lipgloss.Color("#000000")
+		bg, fg = lipgloss.Color("#00ffff"), lipgloss.Color("#000000")
+	} else {
+		bg, fg = t.BrightCyan, t.Black
 	}
-	return t.BrightCyan, t.Black
+	if ov != nil {
+		if ov.CopyCursorBg != nil {
+			bg = ov.CopyCursorBg
+		}
+		if ov.CopyCursorFg != nil {
+			fg = ov.CopyCursorFg
+		}
+	}
+	return bg, fg
 }
 
 // CopyModeVisualSelection returns colors for visually selected text in copy mode.
 func CopyModeVisualSelection() (bg color.Color, fg color.Color) {
+	ov := overridesForCurrent()
 	t := Current()
 	if t == nil {
-		return lipgloss.Color("#cd00cd"), lipgloss.Color("#ffffff")
+		bg, fg = lipgloss.Color("#cd00cd"), lipgloss.Color("#ffffff")
+	} else {
+		bg, fg = t.Purple, t.BrightWhite
 	}
-	return t.Purple, t.BrightWhite
+	if ov != nil {
+		if ov.CopyVisualSelectionBg != nil {
+			bg = ov.CopyVisualSelectionBg
+		}
+		if ov.CopyVisualSelectionFg != nil {
+			fg = ov.CopyVisualSelectionFg
+		}
+	}
+	return bg, fg
 }
 
 // CopyModeSearchCurrent returns colors for the current search match in copy mode.
 func CopyModeSearchCurrent() (bg color.Color, fg color.Color) {
+	ov := overridesForCurrent()
 	t := Current()
 	if t == nil {
-		return lipgloss.Color("#ff00ff"), lipgloss.Color("#000000")
+		bg, fg = lipgloss.Color("#ff00ff"), lipgloss.Color("#000000")
+	} else {
+		bg, fg = t.BrightPurple, t.Black
 	}
-	return t.BrightPurple, t.Black
+	if ov != nil {
+		if ov.CopySearchCurrentBg != nil {
+			bg = ov.CopySearchCurrentBg
+		}
+		if ov.CopySearchCurrentFg != nil {
+			fg = ov.CopySearchCurrentFg
+		}
+	}
+	return bg, fg
 }
 
 // CopyModeSearchOther returns colors for other search matches in copy mode.
 func CopyModeSearchOther() (bg color.Color, fg color.Color) {
+	ov := overridesForCurrent()
 	t := Current()
 	if t == nil {
-		return lipgloss.Color("#ffff00"), lipgloss.Color("#000000")
+		bg, fg = lipgloss.Color("#ffff00"), lipgloss.Color("#000000")
+	} else {
+		bg, fg = t.Yellow, t.Black
 	}
-	return t.Yellow, t.Black
+	if ov != nil {
+		if ov.CopySearchOtherBg != nil {
+			bg = ov.CopySearchOtherBg
+		}
+		if ov.CopySearchOtherFg != nil {
+			fg = ov.CopySearchOtherFg
+		}
+	}
+	return bg, fg
 }
 
 // CopyModeTextSelection returns background and foreground colors for text selection in copy mode.
@@ -252,26 +331,51 @@ func CopyModeSelectionCursor() (bg color.Color, fg color.Color) {
 	return lipgloss.Color("208"), lipgloss.Color("0")
 }
 
-// CopyModeSearchBar returns colors for the search bar in copy mode.
+// CopyModeSearchBar returns the copy_search_bar_bg/fg override pair, or
+// (nil, nil) if the active theme sets neither. Unlike every other CopyMode*
+// accessor, this one has no theme-derived default to fall back to: the
+// search input box (internal/app/render_overlays.go) styles itself like
+// every other input dialog (text on the chrome's own Surface tone) rather
+// than as a colored highlight, and a caller here should only repaint that
+// when a theme actually asks for it.
 func CopyModeSearchBar() (bg color.Color, fg color.Color) {
-	t := Current()
-	if t == nil {
-		return lipgloss.Color("#ffff00"), lipgloss.Color("#000000")
+	ov := overridesForCurrent()
+	if ov != nil {
+		if ov.CopySearchBarBg != nil {
+			bg = ov.CopySearchBarBg
+		}
+		if ov.CopySearchBarFg != nil {
+			fg = ov.CopySearchBarFg
+		}
 	}
-	return t.Yellow, t.Black
+	return bg, fg
 }
 
 // TerminalCursorColors returns foreground and background colors for the terminal cursor rendering.
 func TerminalCursorColors() (fg color.Color, bg color.Color) {
+	ov := overridesForCurrent()
 	t := Current()
 	if t == nil {
-		return lipgloss.Color("#00ff00"), lipgloss.Color("#000000")
+		fg, bg = lipgloss.Color("#00ff00"), lipgloss.Color("#000000")
+	} else {
+		fg, bg = t.Cursor, t.Black
 	}
-	return t.Cursor, t.Black
+	if ov != nil {
+		if ov.TerminalCursorFg != nil {
+			fg = ov.TerminalCursorFg
+		}
+		if ov.TerminalCursorBg != nil {
+			bg = ov.TerminalCursorBg
+		}
+	}
+	return fg, bg
 }
 
 // ButtonFg returns the foreground color for buttons.
 func ButtonFg() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.ButtonFg != nil {
+		return ov.ButtonFg
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#000000")
@@ -306,6 +410,9 @@ func LogViewerBg() color.Color {
 // sliver of cap on a dark bar, and #0000ee blue on #1a1a2e was a smudge. A
 // theme, when one is active, still wins outright.
 func NotificationError() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationError != nil {
+		return ov.NotificationError
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#dc2626")
@@ -315,6 +422,9 @@ func NotificationError() color.Color {
 
 // NotificationWarning returns the color for warning notifications.
 func NotificationWarning() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationWarning != nil {
+		return ov.NotificationWarning
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#d97706")
@@ -324,6 +434,9 @@ func NotificationWarning() color.Color {
 
 // NotificationSuccess returns the color for success notifications.
 func NotificationSuccess() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationSuccess != nil {
+		return ov.NotificationSuccess
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#16a34a")
@@ -333,6 +446,9 @@ func NotificationSuccess() color.Color {
 
 // NotificationInfo returns the color for info notifications.
 func NotificationInfo() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationInfo != nil {
+		return ov.NotificationInfo
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#2563eb")
@@ -348,6 +464,9 @@ func NotificationInfo() color.Color {
 // as the copy-mode help line that shares the row. Black would read as a hole
 // punched in the bar.
 func NotificationBg() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationBg != nil {
+		return ov.NotificationBg
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#1a1a2e")
@@ -357,6 +476,9 @@ func NotificationBg() color.Color {
 
 // NotificationFg returns the foreground color for notification message text.
 func NotificationFg() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.NotificationFg != nil {
+		return ov.NotificationFg
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#e5e5e5")
@@ -400,6 +522,9 @@ func DockFg() color.Color {
 
 // DockHighlight returns the highlight color for the dock.
 func DockHighlight() color.Color {
+	if ov := overridesForCurrent(); ov != nil && ov.DockHighlight != nil {
+		return ov.DockHighlight
+	}
 	t := Current()
 	if t == nil {
 		return lipgloss.Color("#00ff00")

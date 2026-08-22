@@ -271,6 +271,30 @@ it is read by tuios unless you copy lines into your real config file.`,
 
 	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd, configExampleCmd)
 
+	themeCmd := &cobra.Command{
+		Use:   "theme",
+		Short: "Manage TUIOS custom themes",
+		Long:  `Manage TUIOS custom theme files under ~/.config/tuios/themes/`,
+	}
+
+	var themeExampleWrite bool
+	themeExampleCmd := &cobra.Command{
+		Use:   "example",
+		Short: "Print a fully commented reference theme",
+		Long: `Print every theme field TUIOS understands, commented out, at the default it
+falls back to when omitted, with a description of what it does - including
+the full set of optional [ui] per-element overrides.
+
+It is a reference, not a theme: nothing in it is read by tuios unless you
+give it a real id and save it under ~/.config/tuios/themes/ as a .toml file.`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return printExampleTheme(themeExampleWrite)
+		},
+	}
+	themeExampleCmd.Flags().BoolVar(&themeExampleWrite, "write", false, "Write to <themes dir>/example.toml instead of printing to stdout")
+
+	themeCmd.AddCommand(themeExampleCmd)
+
 	keybindsCmd := &cobra.Command{
 		Use:     "keybinds",
 		Aliases: []string{"keys", "kb"},
@@ -1343,7 +1367,7 @@ Name a verb to describe only that verb.`,
 	// flags under twenty appearance ones in its help.
 	registerInterfaceFlags(rootCmd, attachCmd, newCmd, sshCmd, tapePlayCmd)
 
-	rootCmd.AddCommand(sshCmd, configCmd, keybindsCmd, tapeCmd, layoutCmd)
+	rootCmd.AddCommand(sshCmd, configCmd, themeCmd, keybindsCmd, tapeCmd, layoutCmd)
 	rootCmd.AddCommand(attachCmd, newCmd, lsCmd, killSessionCmd, resurrectCmd)
 	rootCmd.AddCommand(startDaemonCmd, daemonCmd, killDaemonCmd)
 	rootCmd.AddCommand(sendKeysCmd, runCommandCmd, setConfigCmd, getConfigCmd, logsCmd, capturePaneCmd)

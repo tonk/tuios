@@ -468,11 +468,12 @@ func DefaultConfig() *UserConfig {
 				"workspace_prefix_cancel":   {"esc"},
 			},
 			DebugPrefix: map[string][]string{
-				"debug_prefix_logs":       {"l"},
-				"debug_prefix_cache":      {"c"},
-				"debug_prefix_animations": {"a"},
-				"debug_prefix_showkeys":   {"k"},
-				"debug_prefix_cancel":     {"esc"},
+				"debug_prefix_logs":         {"l"},
+				"debug_prefix_cache":        {"c"},
+				"debug_prefix_animations":   {"a"},
+				"debug_prefix_showkeys":     {"k"},
+				"debug_prefix_reload_theme": {"r"},
+				"debug_prefix_cancel":       {"esc"},
 			},
 			TapePrefix: map[string][]string{
 				"tape_prefix_manager": {"m"},
@@ -1070,6 +1071,17 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// ZoomMaxWidth (0 = fullscreen)
 	if cfg.Appearance.ZoomMaxWidth > 0 {
 		ZoomMaxWidth = cfg.Appearance.ZoomMaxWidth
+	}
+
+	// Custom theme files (~/.config/tuios/themes/*.json, *.toml) are re-scanned
+	// here too, not just at process startup: this is the one function every
+	// reload path already calls (see the comment on ApplyNotificationConfig
+	// below), so "reload the config" already means "and pick up edits to a
+	// theme file" without a second command to remember. Before the Initialize
+	// call below, so a rename/edit to the currently active theme is live in
+	// the very same pass.
+	if _, err := theme.ReloadCustomThemes(); err != nil {
+		log.Printf("Warning: failed to reload custom themes: %v", err)
 	}
 
 	// Theme. An empty name means "no theme, use the terminal's own colors",

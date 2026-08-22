@@ -221,7 +221,7 @@ const notifChromeWidth = 8
 // dock reserves, what the rule is drawn to, and what the block actually
 // measures. The old renderer clamped the message with MaxWidth after the fact,
 // which cut whatever happened to be last, and what was last was the closing cap.
-func (m *OS) renderNotificationBlock(renderWidth, avail int) (notifBlock, bool) {
+func (m *OS) renderNotificationBlock(renderWidth, avail int, dr dockRowStyle) (notifBlock, bool) {
 	s, ok := m.notifStatus()
 	if !ok {
 		return notifBlock{}, false
@@ -238,8 +238,10 @@ func (m *OS) renderNotificationBlock(renderWidth, avail int) (notifBlock, bool) 
 
 	// The closing cap is the dock's usual trick, inverted: its foreground is
 	// the colour of the segment it closes and its background is whatever the
-	// segment sits on, which for the dock's right-hand end is the bar itself.
-	tail := lipgloss.NewStyle().Foreground(theme.NotificationBg()).
+	// segment sits on - the bar itself, which is dr's background when a theme
+	// sets dock_bg, and otherwise the real terminal's own colour showing
+	// through unpainted, exactly as before.
+	tail := dr.background(lipgloss.NewStyle().Foreground(theme.NotificationBg())).
 		Render(config.GetDockPillRightChar())
 
 	budget := notifBudget(renderWidth)

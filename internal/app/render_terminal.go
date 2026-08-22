@@ -8,31 +8,32 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/Gaurav-Gosain/tuios/internal/pool"
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/Gaurav-Gosain/tuios/internal/theme"
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
-// Highlight styles used by the terminal render loop are invariant, so they are
-// built once instead of per matching cell per frame.
-var (
-	copyModeCursorStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#00D7FF")).
-				Foreground(lipgloss.Color("#000000")).
-				Bold(true)
+// Highlight styles used by the terminal render loop, built fresh each call
+// rather than cached: they read the active theme (and its [ui] overrides),
+// which a reload or a theme switch can change mid-session.
+func copyModeCursorStyle() lipgloss.Style {
+	bg, fg := theme.CopyModeCursor()
+	return lipgloss.NewStyle().Background(bg).Foreground(fg).Bold(true)
+}
 
-	visualSelectionStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#5F5FAF")).
-				Foreground(lipgloss.Color("#FFFFFF")).
-				Bold(true)
+func visualSelectionStyle() lipgloss.Style {
+	bg, fg := theme.CopyModeVisualSelection()
+	return lipgloss.NewStyle().Background(bg).Foreground(fg).Bold(true)
+}
 
-	currentMatchStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#FF00FF")).
-				Foreground(lipgloss.Color("#000000")).
-				Bold(true)
+func currentMatchStyle() lipgloss.Style {
+	bg, fg := theme.CopyModeSearchCurrent()
+	return lipgloss.NewStyle().Background(bg).Foreground(fg).Bold(true)
+}
 
-	searchMatchStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#FF8700")).
-				Foreground(lipgloss.Color("#000000"))
-)
+func searchMatchStyle() lipgloss.Style {
+	bg, fg := theme.CopyModeSearchOther()
+	return lipgloss.NewStyle().Background(bg).Foreground(fg)
+}
 
 // isBlankRender reports whether a rendered frame carries no visible text, so
 // styling and cursor positioning alone do not count as content. It walks bytes
@@ -474,7 +475,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 				flushBatch()
 
-				builder.WriteString(renderStyledText(copyModeCursorStyle, char))
+				builder.WriteString(renderStyledText(copyModeCursorStyle(), char))
 
 				prevCell = nil
 				prevIsCursor = false
@@ -510,7 +511,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 			if inVisualMode && visualSelection != nil && visualSelection.Get(y, x) && x <= lineEndX {
 				flushBatch()
 
-				builder.WriteString(renderStyledText(visualSelectionStyle, char))
+				builder.WriteString(renderStyledText(visualSelectionStyle(), char))
 				prevCell = cell
 				prevIsCursor = false
 				cellWidth := 1
@@ -525,7 +526,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				if currentMatchHighlight != nil && currentMatchHighlight.Get(y, x) {
 					flushBatch()
 
-					builder.WriteString(renderStyledText(currentMatchStyle, char))
+					builder.WriteString(renderStyledText(currentMatchStyle(), char))
 					prevCell = cell
 					prevIsCursor = false
 					cellWidth := 1
@@ -539,7 +540,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				if searchHighlights != nil && searchHighlights.Get(y, x) {
 					flushBatch()
 
-					builder.WriteString(renderStyledText(searchMatchStyle, char))
+					builder.WriteString(renderStyledText(searchMatchStyle(), char))
 					prevCell = cell
 					prevIsCursor = false
 					cellWidth := 1

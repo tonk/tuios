@@ -30,18 +30,19 @@ func (m *OS) buildDockSessionStrip() (string, []dockSessionCell) {
 	}
 
 	pal := theme.UI()
+	dr := currentDockRow(pal)
 	cells := make([]dockSessionCell, 0, 2)
 	if m.CanLeaveRunning() {
-		cells = append(cells, m.dockSessionCell(DockSessionLeave, pal))
+		cells = append(cells, m.dockSessionCell(DockSessionLeave, pal, dr))
 	}
-	cells = append(cells, m.dockSessionCell(DockSessionClose, pal))
+	cells = append(cells, m.dockSessionCell(DockSessionClose, pal, dr))
 
 	var b strings.Builder
-	b.WriteString(" ")
+	b.WriteString(dr.fill(" "))
 	for _, c := range cells {
 		b.WriteString(c.Text)
 	}
-	b.WriteString(" ")
+	b.WriteString(dr.fill(" "))
 	return b.String(), cells
 }
 
@@ -60,13 +61,16 @@ func (m *OS) dockSessionStripWidth() int {
 // closing is quieter until the pointer arrives and then goes destructive.
 // Neither wears a fill, which is still spent entirely on the mode pill.
 //
-// Every state goes through theme.Readable against the bare canvas the bar sits
-// on. The recessed one has to be recessed and still legible, and it was neither
-// once the word beside it went: FgMute measured 2.60:1, which was a hint next to
-// a label and is the whole control without one. Warn and AccentBright follow the
+// Every state goes through theme.Readable against dr.contrastBg: pal.Canvas,
+// today's assumption about the bare canvas the bar sits on, or a theme's
+// dock_bg override when one is set - whichever it measures against is what
+// will actually be behind it once dr.background below paints the cell. The
+// recessed one has to be recessed and still legible, and it was neither once
+// the word beside it went: FgMute measured 2.60:1, which was a hint next to a
+// label and is the whole control without one. Warn and AccentBright follow the
 // terminal theme, so they are measured for the same reason the workspace pills'
 // accent is.
-func (m *OS) dockSessionCell(a DockSessionAction, pal overlay.Palette) dockSessionCell {
+func (m *OS) dockSessionCell(a DockSessionAction, pal overlay.Palette, dr dockRowStyle) dockSessionCell {
 	// A column of padding either side, so the target is a button and not a
 	// glyph, and so the two controls do not touch.
 	body := " " + dockSessionIcon(a) + " "
@@ -75,14 +79,15 @@ func (m *OS) dockSessionCell(a DockSessionAction, pal overlay.Palette) dockSessi
 	hovered := m.dockSessionHover == a
 	switch {
 	case a == DockSessionLeave && hovered:
-		st = st.Foreground(theme.Readable(pal.AccentBright, pal.Canvas)).Bold(true)
+		st = st.Foreground(theme.Readable(pal.AccentBright, dr.contrastBg)).Bold(true)
 	case a == DockSessionLeave:
 		st = st.Foreground(pal.Fg).Bold(true)
 	case hovered:
-		st = st.Foreground(theme.Readable(pal.Warn, pal.Canvas)).Bold(true)
+		st = st.Foreground(theme.Readable(pal.Warn, dr.contrastBg)).Bold(true)
 	default:
-		st = st.Foreground(theme.Readable(pal.FgMute, pal.Canvas))
+		st = st.Foreground(theme.Readable(pal.FgMute, dr.contrastBg))
 	}
+	st = dr.background(st)
 
 	return dockSessionCell{Text: st.Render(body), Width: lipgloss.Width(body), Action: a}
 }

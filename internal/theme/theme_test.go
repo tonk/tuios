@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	tint "github.com/lrstanley/bubbletint/v2"
 )
 
 // TestInitialize_Empty tests initialization with empty theme name
@@ -205,7 +206,6 @@ func TestCopyModeColors(t *testing.T) {
 		{"CopyModeSearchOther", CopyModeSearchOther},
 		{"CopyModeTextSelection", CopyModeTextSelection},
 		{"CopyModeSelectionCursor", CopyModeSelectionCursor},
-		{"CopyModeSearchBar", CopyModeSearchBar},
 		{"TerminalCursorColors", TerminalCursorColors},
 	}
 
@@ -219,6 +219,44 @@ func TestCopyModeColors(t *testing.T) {
 				t.Errorf("%s returned nil foreground", tt.name)
 			}
 		})
+	}
+}
+
+// TestCopyModeSearchBarHasNoDerivedDefault checks CopyModeSearchBar's
+// deliberately different contract from every other CopyMode* accessor above:
+// nil until a theme's [ui] table actually sets copy_search_bar_bg/fg, since
+// the search input box has its own chrome-consistent look with nothing to
+// derive a highlight color from.
+func TestCopyModeSearchBarHasNoDerivedDefault(t *testing.T) {
+	_ = Initialize("")
+	if bg, fg := CopyModeSearchBar(); bg != nil || fg != nil {
+		t.Errorf("CopyModeSearchBar() = (%v, %v) with no override set, want (nil, nil)", bg, fg)
+	}
+
+	// A minimal tint with only an ID (no fillDefaults-populated colors) would
+	// leave later tests that call Initialize with an unknown name - which
+	// documented-ly leaves the registry on its *current* tint - looking up
+	// nil color fields once this test's own cleanup below only disables
+	// theming rather than restoring "current". Building it through
+	// LoadCustomThemeFile, the same as every real custom theme, avoids that.
+	th := &tint.Tint{ID: "zz-search-bar-test"}
+	fillDefaults(th)
+	overridesByID[th.ID] = &UIOverrides{
+		CopySearchBarBg: lipgloss.Color("#010203"),
+		CopySearchBarFg: lipgloss.Color("#040506"),
+	}
+	t.Cleanup(func() { delete(overridesByID, th.ID) })
+
+	tint.Register(th)
+	t.Cleanup(func() { _ = Initialize("") })
+	_ = Initialize(th.ID)
+
+	bg, fg := CopyModeSearchBar()
+	if got := ColorToString(bg); got != "#010203" {
+		t.Errorf("CopyModeSearchBar() bg = %s, want #010203", got)
+	}
+	if got := ColorToString(fg); got != "#040506" {
+		t.Errorf("CopyModeSearchBar() fg = %s, want #040506", got)
 	}
 }
 

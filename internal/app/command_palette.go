@@ -503,6 +503,11 @@ func GetCommandPaletteItems() []CommandPaletteItem {
 				// Runs on the Bubble Tea goroutine, so applying the appearance
 				// globals here is single-threaded and takes effect immediately.
 				config.ApplyAppearanceConfig(newCfg)
+				// Same reason applyTheme (settings.go) does this: a pane's own
+				// guest content and its emulator's default cursor color are
+				// baked in at SetThemeColors time and need pushing again, not
+				// just a repaint.
+				m.UpdateAllWindowThemes()
 				m.ShowNotification("Config reloaded", "success", 0)
 				return m, nil
 			},

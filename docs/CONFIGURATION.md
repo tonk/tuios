@@ -237,6 +237,9 @@ Debug and development tools submenu (Ctrl+B + D).
 **Available actions:**
 - `debug_prefix_logs` - Toggle log viewer (Ctrl+B D l)
 - `debug_prefix_cache` - Toggle cache statistics (Ctrl+B D c)
+- `debug_prefix_animations` - Toggle UI animations (Ctrl+B D a)
+- `debug_prefix_showkeys` - Toggle the showkeys overlay (Ctrl+B D k)
+- `debug_prefix_reload_theme` - Reload custom theme files from `~/.config/tuios/themes/` without restarting (Ctrl+B D r). Editing `config.toml` already does this too - `ApplyAppearanceConfig` re-scans the themes directory on every config reload, live or manual - this is for when only a theme file itself changed, since nothing watches that directory the way `config.toml` is watched.
 - `debug_prefix_cancel` - Cancel debug prefix mode (Esc)
 
 ## Appearance Configuration

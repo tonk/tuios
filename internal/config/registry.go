@@ -435,11 +435,12 @@ var ActionDescriptions = map[string]string{
 	"stop_recording":      "Stop tape recording",
 
 	// Debug Prefix
-	"debug_prefix_logs":       "Toggle log viewer",
-	"debug_prefix_cache":      "Toggle cache statistics",
-	"debug_prefix_animations": "Toggle animations",
-	"debug_prefix_showkeys":   "Toggle showkeys overlay",
-	"debug_prefix_cancel":     "Cancel debug prefix",
+	"debug_prefix_logs":         "Toggle log viewer",
+	"debug_prefix_cache":        "Toggle cache statistics",
+	"debug_prefix_animations":   "Toggle animations",
+	"debug_prefix_showkeys":     "Toggle showkeys overlay",
+	"debug_prefix_reload_theme": "Reload custom theme files",
+	"debug_prefix_cancel":       "Cancel debug prefix",
 
 	// Terminal Mode (direct keybinds, no prefix required)
 	"terminal_next_window":      "Next window (terminal mode)",

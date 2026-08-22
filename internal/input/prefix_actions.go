@@ -1,6 +1,7 @@
 package input
 
 import (
+	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -8,6 +9,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/hooks"
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/Gaurav-Gosain/tuios/internal/theme"
 )
 
 // The prefix chords used to be two hand-written switch statements over literal
@@ -98,6 +100,7 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 	d.Register("debug_prefix_cache", handleDebugCache)
 	d.Register("debug_prefix_showkeys", handleDebugShowkeys)
 	d.Register("debug_prefix_animations", handleDebugAnimations)
+	d.Register("debug_prefix_reload_theme", handleDebugReloadTheme)
 	d.Register("debug_prefix_cancel", handlePrefixCancel)
 
 	// Tape prefix (leader, T, ...)
@@ -589,6 +592,30 @@ func handleDebugShowkeys(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 func handleDebugAnimations(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	config.AnimationsEnabled = !config.AnimationsEnabled
 	toggleNotify(o, "Animations", config.AnimationsEnabled)
+	return o, nil
+}
+
+// handleDebugReloadTheme re-scans ~/.config/tuios/themes/ and re-registers
+// whatever it finds, picking up edits to a theme file (colors, or its [ui]
+// overrides) without a restart. Unlike editing config.toml itself, nothing
+// watches that directory for changes, so this is the key-combo answer to
+// "I just edited my theme file"; a config.toml save already does this too
+// (ApplyAppearanceConfig calls the same theme.ReloadCustomThemes), since that
+// reload runs whether or not the theme is what changed.
+func handleDebugReloadTheme(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	loaded, err := theme.ReloadCustomThemes()
+	if err != nil {
+		o.ShowNotification("Reload theme failed: "+err.Error(), "error", 0)
+		return o, nil
+	}
+	// Chrome (dock, borders, overlays) reads theme.* fresh every frame, so
+	// MarkAllDirty alone repaints it. A pane's own guest content and its
+	// emulator's default cursor color are baked in at SetThemeColors time,
+	// though, and need every window told to re-fetch them - the same step a
+	// theme change from the settings page already takes.
+	o.UpdateAllWindowThemes()
+	o.MarkAllDirty()
+	o.ShowNotification(fmt.Sprintf("Reloaded %d custom theme(s)", len(loaded)), "success", config.NotificationDuration)
 	return o, nil
 }
 

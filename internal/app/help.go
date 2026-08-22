@@ -91,11 +91,11 @@ func GetHelpCategories(registry *config.KeybindRegistry) []HelpCategory {
 		},
 		{
 			Name:     "Debug",
-			Bindings: generateDebugBindings(),
+			Bindings: generateDebugBindings(registry),
 		},
 		{
 			Name:     "Tape",
-			Bindings: generateTapeBindings(),
+			Bindings: generateTapeBindings(registry),
 		},
 		{
 			Name:     "Prefix",
@@ -348,40 +348,61 @@ func generateCopyModeBindings() []HelpBinding {
 	}
 }
 
-// generateDebugBindings generates debug keybindings
-func generateDebugBindings() []HelpBinding {
-	return []HelpBinding{
-		{Keys: []string{config.LeaderKey + ", D, l"}, Description: "Toggle log viewer", Category: "Debug"},
-		{Keys: []string{config.LeaderKey + ", D, c"}, Description: "Toggle cache stats", Category: "Debug"},
-		{Keys: []string{config.LeaderKey + ", D, k"}, Description: "Toggle showkeys", Category: "Debug"},
-		{Keys: []string{config.LeaderKey + ", D, a"}, Description: "Toggle animations", Category: "Debug"},
+// subPrefixChord spells out a full leader-then-submenu-then-leaf chord from
+// the registry's own keys, e.g. "alt+a, D, r" - never a hardcoded submenu
+// letter, since prefix_debug/prefix_tape/etc are as rebindable as any other
+// action. Returns "" if either half is unbound, rather than a chord that
+// presses nothing.
+func subPrefixChord(registry *config.KeybindRegistry, submenuAction, leafAction string) string {
+	submenuKeys := registry.GetKeys(submenuAction)
+	leafKeys := registry.GetKeys(leafAction)
+	if len(submenuKeys) == 0 || len(leafKeys) == 0 {
+		return ""
 	}
+	return config.LeaderKey + ", " + submenuKeys[0] + ", " + leafKeys[0]
 }
 
-// generateTapeBindings generates tape scripting bindings
-func generateTapeBindings() []HelpBinding {
-	bindings := []HelpBinding{}
+// generateDebugBindings generates debug keybindings, reading both the debug
+// submenu's own key (prefix_debug) and each leaf action's key from registry
+// rather than assuming the shipped default of leader, D, <letter>.
+func generateDebugBindings(registry *config.KeybindRegistry) []HelpBinding {
+	leaves := []struct{ action, desc string }{
+		{"debug_prefix_logs", "Toggle log viewer"},
+		{"debug_prefix_cache", "Toggle cache stats"},
+		{"debug_prefix_showkeys", "Toggle showkeys"},
+		{"debug_prefix_animations", "Toggle animations"},
+		{"debug_prefix_reload_theme", "Reload custom theme files"},
+	}
+	var bindings []HelpBinding
+	for _, l := range leaves {
+		if chord := subPrefixChord(registry, "prefix_debug", l.action); chord != "" {
+			bindings = append(bindings, HelpBinding{Keys: []string{chord}, Description: l.desc, Category: "Debug"})
+		}
+	}
+	return bindings
+}
 
-	// Add tape commands with prefix notation
-	bindings = append(bindings, HelpBinding{
-		Action:      "tape_manager",
-		Keys:        []string{config.LeaderKey + ", T, m"},
-		Description: "Open tape manager",
-		Category:    "Tape Scripting",
-	})
-	bindings = append(bindings, HelpBinding{
-		Action:      "tape_record",
-		Keys:        []string{config.LeaderKey + ", T, r"},
-		Description: "Start recording",
-		Category:    "Tape Scripting",
-	})
-	bindings = append(bindings, HelpBinding{
-		Action:      "tape_stop",
-		Keys:        []string{config.LeaderKey + ", T, s"},
-		Description: "Stop recording",
-		Category:    "Tape Scripting",
-	})
-
+// generateTapeBindings generates tape scripting bindings, reading both the
+// tape submenu's own key (prefix_tape) and each leaf action's key from
+// registry rather than assuming the shipped default of leader, T, <letter>.
+func generateTapeBindings(registry *config.KeybindRegistry) []HelpBinding {
+	leaves := []struct{ action, display, desc string }{
+		{"tape_prefix_manager", "tape_manager", "Open tape manager"},
+		{"tape_prefix_review", "tape_review", "Review project tape"},
+		{"tape_prefix_record", "tape_record", "Start recording"},
+		{"tape_prefix_stop", "tape_stop", "Stop recording"},
+	}
+	var bindings []HelpBinding
+	for _, l := range leaves {
+		if chord := subPrefixChord(registry, "prefix_tape", l.action); chord != "" {
+			bindings = append(bindings, HelpBinding{
+				Action:      l.display,
+				Keys:        []string{chord},
+				Description: l.desc,
+				Category:    "Tape Scripting",
+			})
+		}
+	}
 	return bindings
 }
 

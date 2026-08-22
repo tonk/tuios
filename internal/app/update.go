@@ -1454,6 +1454,13 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// Bubble Tea goroutine, so the render loop never reads the globals mid-write.
 		if msg.Config != nil {
 			config.ApplyAppearanceConfig(msg.Config)
+			// Chrome (dock, borders, overlays) reads theme.* fresh every frame,
+			// so MarkAllDirty alone is enough for that. A pane's own guest
+			// content and its emulator's default cursor color are baked in at
+			// SetThemeColors time, though, and stay stale until every window
+			// is told to re-fetch them - the same step a theme change from the
+			// settings page already takes (see settings.go's applyTheme).
+			m.UpdateAllWindowThemes()
 			m.MarkAllDirty()
 		}
 		return m, nil

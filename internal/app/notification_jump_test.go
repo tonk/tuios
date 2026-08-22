@@ -160,7 +160,7 @@ func TestNotificationKeyboardTwinWalksTheQueue(t *testing.T) {
 func TestTargetedNotificationIsUnderlined(t *testing.T) {
 	m := jumpTestOS(t)
 	m.ShowNotification("Copied to clipboard", "info", config.NotificationDuration)
-	plain, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0)
+	plain, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0, dockRowStyle{})
 	if !ok {
 		t.Fatal("no block for the untargeted message")
 	}
@@ -171,7 +171,7 @@ func TestTargetedNotificationIsUnderlined(t *testing.T) {
 	m.Notifications = nil
 	m.ShowNotificationFrom("yonder needs input", "warning", config.NotificationDuration,
 		NotifTarget{SessionID: "main", WindowID: "yonder"})
-	linked, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0)
+	linked, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0, dockRowStyle{})
 	if !ok {
 		t.Fatal("no block for the targeted message")
 	}

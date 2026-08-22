@@ -205,7 +205,7 @@ func TestBothSessionActionsAreStillNamedInWords(t *testing.T) {
 	words := map[bool][]string{true: {"Detach session", "Close session"}, false: {"Close session"}}
 	for daemon, wants := range words {
 		var sheet strings.Builder
-		for _, b := range config.GetPrefixKeybindings("", daemon) {
+		for _, b := range config.GetPrefixKeybindings("", nil, daemon) {
 			sheet.WriteString(b.Description + "\n")
 		}
 		for _, want := range wants {

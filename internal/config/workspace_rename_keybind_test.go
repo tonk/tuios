@@ -49,7 +49,7 @@ func TestOlderConfigStillResolvesTheWorkspaceRenameKey(t *testing.T) {
 // pops up has a row for it, and it is described for the help menu.
 func TestWorkspaceRenameIsDocumented(t *testing.T) {
 	var found bool
-	for _, b := range GetPrefixKeybindings("workspace") {
+	for _, b := range GetPrefixKeybindings("workspace", nil) {
 		if b.Description == "Rename workspace" {
 			found = true
 		}

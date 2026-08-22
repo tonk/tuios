@@ -684,7 +684,7 @@ func dockItemsWidth(items []DockItem) int {
 // way to the minimized entries when the bar is too narrow for both. A message
 // does not: it holds the block for the few seconds it is up.
 func (m *OS) dockRightWidth() (width int, yields bool) {
-	if block, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0); ok {
+	if block, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0, dockRowStyle{}); ok {
 		return block.Width, false
 	}
 	return m.calculateDockRightWidth(), true
@@ -702,7 +702,7 @@ func (m *OS) calculateDockRightWidth() int {
 	// silently dropped. The help line used to hold the block unconditionally, so
 	// the message was not crowded out, it was never rendered at all: a copy of
 	// something that failed, which is when a message matters most, went nowhere.
-	if block, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0); ok {
+	if block, ok := m.renderNotificationBlock(m.GetRenderWidth(), 0, dockRowStyle{}); ok {
 		return block.Width
 	}
 

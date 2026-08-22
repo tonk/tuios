@@ -117,8 +117,10 @@ func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {
 				borderColorObj = theme.BorderFocusedWindow()
 			}
 		} else if isMultifocused {
-			// Multifocused windows get a distinct border color (yellow/orange)
-			borderColorObj = lipgloss.Color("3")
+			// Multifocused windows get a distinct border color (yellow/orange
+			// by default), so a broadcast selection reads apart from the single
+			// focused window.
+			borderColorObj = theme.BorderMultifocused()
 		} else {
 			borderColorObj = theme.BorderUnfocused()
 		}

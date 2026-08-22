@@ -218,7 +218,7 @@ func TestActiveWorkspacePillReadsAsActive(t *testing.T) {
 	dock, _ := m.renderDockString()
 
 	pal := theme.UI()
-	active := workspacePill("review", true, pal)
+	active := workspacePill("review", true, pal, dockRowStyle{})
 	if !strings.Contains(dock, active) {
 		t.Errorf("the dock does not draw workspace 2's pill as the active one: %q", active)
 	}
@@ -226,7 +226,7 @@ func TestActiveWorkspacePillReadsAsActive(t *testing.T) {
 		t.Error("the active pill lost the underline, which is the whole of its emphasis")
 	}
 	// The resting pills carry the fill but not the emphasis.
-	resting := workspacePill("1", false, pal)
+	resting := workspacePill("1", false, pal, dockRowStyle{})
 	if !strings.Contains(dock, resting) {
 		t.Errorf("the dock does not draw workspace 1's pill at rest: %q", resting)
 	}
@@ -274,7 +274,7 @@ func TestWorkspaceStripDrawsTheWidthItPlanned(t *testing.T) {
 		t.Run(strconv.Itoa(w), func(t *testing.T) {
 			m := pillOS(t, w, names, 1, 2, 3, 4, 5)
 			layout := m.CalculateDockLayout()
-			drawn := m.renderDockWorkspaceStrip(layout.WorkspaceStrip, 0)
+			drawn := m.renderDockWorkspaceStrip(layout.WorkspaceStrip, 0, currentDockRow(theme.UI()))
 			if got := lipgloss.Width(drawn); got != layout.WorkspaceStrip.Width {
 				t.Errorf("the strip draws %d cells but claimed %d: %q", got, layout.WorkspaceStrip.Width, drawn)
 			}

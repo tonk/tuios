@@ -467,10 +467,10 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 
 		if m.WorkspacePrefixActive {
 			title = "Workspace"
-			bindings = config.GetPrefixKeybindings("workspace")
+			bindings = config.GetPrefixKeybindings("workspace", m.KeybindRegistry)
 		} else if m.MinimizePrefixActive {
 			title = "Minimize"
-			bindings = config.GetPrefixKeybindings("minimize")
+			bindings = config.GetPrefixKeybindings("minimize", m.KeybindRegistry)
 			minimizedCount := 0
 			for _, win := range m.Windows {
 				if win.Minimized && win.Workspace == m.CurrentWorkspace {
@@ -478,26 +478,26 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 				}
 			}
 			for i := range bindings {
-				if bindings[i].Key == "1-9" {
+				if bindings[i].Description == "Restore window" {
 					bindings[i].Description = fmt.Sprintf("Restore window (%d minimized)", minimizedCount)
 					break
 				}
 			}
 		} else if m.TilingPrefixActive {
 			title = "Window"
-			bindings = config.GetPrefixKeybindings("window")
+			bindings = config.GetPrefixKeybindings("window", m.KeybindRegistry)
 		} else if m.DebugPrefixActive {
 			title = "Debug"
-			bindings = config.GetPrefixKeybindings("debug")
+			bindings = config.GetPrefixKeybindings("debug", m.KeybindRegistry)
 		} else if m.TapePrefixActive {
 			title = "Tape"
-			bindings = config.GetPrefixKeybindings("tape")
+			bindings = config.GetPrefixKeybindings("tape", m.KeybindRegistry)
 		} else if m.LayoutPrefixActive {
 			title = "Layout"
-			bindings = config.GetPrefixKeybindings("layout")
+			bindings = config.GetPrefixKeybindings("layout", m.KeybindRegistry)
 		} else {
 			title = "Prefix"
-			bindings = config.GetPrefixKeybindings("", m.IsDaemonSession)
+			bindings = config.GetPrefixKeybindings("", m.KeybindRegistry, m.IsDaemonSession)
 		}
 
 		// The overlay spends four rows on a blank pad above and below, the title
@@ -631,11 +631,19 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		// The rename dialog's canon: text on Surface, a reverse-video cell for
 		// the cursor rather than a block glyph drawn in the foreground colour,
 		// and the match count in the accent because it is the answer the search
-		// is for.
+		// is for. bg/fg are theme.CopyModeSearchBar()'s override pair when a
+		// theme's [ui] table sets one, and pal.Surface/pal.Fg (today's fixed
+		// look) otherwise.
 		pal := theme.UI()
-		bg := pal.Surface
-		body := overlay.Style(bg).Foreground(pal.Fg).Render("/"+searchQuery) +
-			overlay.Cursor(" ", bg, pal.Fg)
+		bg, fg := theme.CopyModeSearchBar()
+		if bg == nil {
+			bg = pal.Surface
+		}
+		if fg == nil {
+			fg = pal.Fg
+		}
+		body := overlay.Style(bg).Foreground(fg).Render("/"+searchQuery) +
+			overlay.Cursor(" ", bg, fg)
 		switch {
 		case matchCount > 0:
 			body += overlay.Style(bg).Foreground(pal.AccentBright).Bold(true).

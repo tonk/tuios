@@ -756,9 +756,14 @@ func (m *OS) DeleteWindow(i int) *OS {
 // GetFocusedWindow returns the currently focused window.
 func (m *OS) GetFocusedWindow() *terminal.Window {
 	if len(m.Windows) > 0 && m.FocusedWindow >= 0 && m.FocusedWindow < len(m.Windows) {
-		// Only return the focused window if it's in the current workspace
-		if m.Windows[m.FocusedWindow].Workspace == m.CurrentWorkspace {
-			return m.Windows[m.FocusedWindow]
+		w := m.Windows[m.FocusedWindow]
+		// Only return the focused window if it's visible: in the current
+		// workspace and not minimized. A state sync from another client can
+		// minimize or move the window this client has focused without
+		// updating FocusedWindow, and a hidden window silently swallowing
+		// keystrokes and cursor rendering is worse than falling back to nil.
+		if w.Workspace == m.CurrentWorkspace && !w.Minimized {
+			return w
 		}
 	}
 	return nil

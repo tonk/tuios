@@ -23,7 +23,7 @@ func TestWorkspaceStripInkClearsTheContrastFloor(t *testing.T) {
 	}{
 		{"a pill at rest", workspacePillFg(false, pal), pal.Panel, 2.19},
 		{"the current pill", workspacePillFg(true, pal), pal.Panel, 2.76},
-		{"an overflow arrow", dockStripArrowFg(pal), pal.Canvas, 2.60},
+		{"an overflow arrow", dockStripArrowFg(dockRowStyle{pal: pal, contrastBg: pal.Canvas}), pal.Canvas, 2.60},
 	} {
 		if got := theme.ContrastRatio(tc.fg, tc.bg); got < theme.ContrastFloor {
 			t.Errorf("%s measures %.2f:1 against its ground, under the %.1f:1 floor (was %.2f:1)",

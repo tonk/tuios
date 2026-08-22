@@ -70,7 +70,7 @@ func TestWhichKeyTablesMatchTheKeymap(t *testing.T) {
 			section := table.section(cfg)
 
 			listed := map[string]bool{}
-			for _, row := range GetPrefixKeybindings(table.name) {
+			for _, row := range GetPrefixKeybindings(table.name, nil) {
 				for _, k := range whichKeyRowKeys(row.Key) {
 					listed[k] = true
 				}
@@ -97,7 +97,7 @@ func TestWhichKeyTablesMatchTheKeymap(t *testing.T) {
 				}
 			}
 
-			for _, row := range GetPrefixKeybindings(table.name) {
+			for _, row := range GetPrefixKeybindings(table.name, nil) {
 				for _, k := range whichKeyRowKeys(row.Key) {
 					if bound[k] == "" {
 						t.Errorf("the %s which-key panel offers %q (%q), which that prefix does not bind",
@@ -119,7 +119,7 @@ func TestWhichKeyLeaderCoversTheDaemonRows(t *testing.T) {
 			bound[normalizeWhichKey(k)] = true
 		}
 	}
-	for _, row := range GetPrefixKeybindings("", true) {
+	for _, row := range GetPrefixKeybindings("", nil, true) {
 		for _, k := range whichKeyRowKeys(row.Key) {
 			if !bound[k] {
 				t.Errorf("the daemon leader panel offers %q (%q), which the leader does not bind",

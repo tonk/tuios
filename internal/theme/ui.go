@@ -140,6 +140,30 @@ func UI() overlay.Palette {
 		p.Warning = t.Yellow
 	}
 
+	if ov := overridesForCurrent(); ov != nil {
+		if ov.Accent != nil {
+			p.Accent = ov.Accent
+		}
+		if ov.AccentBright != nil {
+			p.AccentBright = ov.AccentBright
+		}
+		if ov.Selected != nil {
+			p.Selected = ov.Selected
+		}
+		if ov.Warn != nil {
+			p.Warn = ov.Warn
+		}
+		if ov.Success != nil {
+			p.Success = ov.Success
+		}
+		if ov.Info != nil {
+			p.Info = ov.Info
+		}
+		if ov.Warning != nil {
+			p.Warning = ov.Warning
+		}
+	}
+
 	// Pick the pill foreground for contrast against whichever accent is active.
 	p.PillFg = ContrastText(p.Accent)
 

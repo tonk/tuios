@@ -9,8 +9,8 @@ import (
 // or nil to hide the cursor. This enables native cursor shape support
 // (block/bar/underline) from vi-mode and other applications.
 func (m *OS) getRealCursor() *tea.Cursor {
-	// Only show real cursor in terminal mode with valid focused window
-	if m.Mode != TerminalMode || m.FocusedWindow < 0 || m.FocusedWindow >= len(m.Windows) {
+	// Only show real cursor in terminal mode.
+	if m.Mode != TerminalMode {
 		return nil
 	}
 
@@ -27,7 +27,10 @@ func (m *OS) getRealCursor() *tea.Cursor {
 		return nil
 	}
 
-	window := m.Windows[m.FocusedWindow]
+	// Go through the same accessor the input path uses, so the rendered
+	// cursor and the window actually receiving keystrokes can never point at
+	// different windows (e.g. one hidden by a state sync from another client).
+	window := m.GetFocusedWindow()
 	if window == nil || window.Terminal == nil {
 		return nil
 	}

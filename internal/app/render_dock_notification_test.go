@@ -47,7 +47,7 @@ func TestNotificationBlockStaysInsideItsBudget(t *testing.T) {
 				m := notifTestOS(t, width)
 				m.ShowNotification(message, sev, config.NotificationDuration)
 
-				block, ok := m.renderNotificationBlock(width, 0)
+				block, ok := m.renderNotificationBlock(width, 0, dockRowStyle{})
 				if !ok {
 					t.Fatalf("width %d, %s: no block for a live message", width, sev)
 				}
@@ -80,7 +80,7 @@ func TestNotificationRuleMatchesTheBlockSpan(t *testing.T) {
 			m := notifTestOS(t, width)
 			m.ShowNotification("Layout applied: development", sev, config.NotificationDuration)
 
-			block, ok := m.renderNotificationBlock(width, 0)
+			block, ok := m.renderNotificationBlock(width, 0, dockRowStyle{})
 			if !ok {
 				t.Fatalf("width %d, %s: no block for a live message", width, sev)
 			}
@@ -103,12 +103,12 @@ func TestNotificationBurnsDownAndStickyDoesNot(t *testing.T) {
 	m := notifTestOS(t, width)
 	m.ShowNotification("Building project session", "info", 10*time.Second)
 
-	fresh, _ := m.renderNotificationBlock(width, 0)
+	fresh, _ := m.renderNotificationBlock(width, 0, dockRowStyle{})
 	freshStatus, _ := m.notifStatus()
 	freshLit := notifLitSpan(freshStatus.frac, fresh.Width)
 
 	m.Notifications[0].StartTime = time.Now().Add(-8 * time.Second)
-	aged, _ := m.renderNotificationBlock(width, 0)
+	aged, _ := m.renderNotificationBlock(width, 0, dockRowStyle{})
 	agedStatus, _ := m.notifStatus()
 	agedLit := notifLitSpan(agedStatus.frac, aged.Width)
 
@@ -129,14 +129,14 @@ func TestNotificationBurnsDownAndStickyDoesNot(t *testing.T) {
 		t.Fatal("an error should be sticky by default")
 	}
 
-	before, _ := s.renderNotificationBlock(width, 0)
+	before, _ := s.renderNotificationBlock(width, 0, dockRowStyle{})
 	beforeStatus, _ := s.notifStatus()
 	if got := notifLitSpan(beforeStatus.frac, before.Width); got != before.Width {
 		t.Errorf("a sticky error should light the whole span: %d of %d", got, before.Width)
 	}
 
 	s.Notifications[0].StartTime = time.Now().Add(-time.Hour)
-	after, _ := s.renderNotificationBlock(width, 0)
+	after, _ := s.renderNotificationBlock(width, 0, dockRowStyle{})
 	afterStatus, _ := s.notifStatus()
 	if got := notifLitSpan(afterStatus.frac, after.Width); got != after.Width {
 		t.Errorf("a sticky error's rule moved after an hour: %d of %d lit", got, after.Width)
@@ -312,7 +312,7 @@ func TestNotificationTruncationCutsTheMessageNotTheSeverity(t *testing.T) {
 			m := notifTestOS(t, width)
 			m.ShowNotification(long, sev, config.NotificationDuration)
 
-			block, ok := m.renderNotificationBlock(width, 0)
+			block, ok := m.renderNotificationBlock(width, 0, dockRowStyle{})
 			if !ok {
 				t.Fatalf("width %d, %s: no block for a live message", width, sev)
 			}
@@ -366,7 +366,7 @@ func TestQueuedErrorIsStillIndicatedWhenBuried(t *testing.T) {
 	m.ShowNotification("Failed to save layout: permission denied", "error", config.NotificationDuration)
 	m.ShowNotification("Window created (2 total)", "info", config.NotificationDuration)
 
-	block, ok := m.renderNotificationBlock(width, 0)
+	block, ok := m.renderNotificationBlock(width, 0, dockRowStyle{})
 	if !ok {
 		t.Fatal("no block for a live message")
 	}
@@ -390,7 +390,7 @@ func TestQueuedErrorIsStillIndicatedWhenBuried(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		m.ShowNotification("Client joined", "info", config.NotificationDuration)
 	}
-	block, _ = m.renderNotificationBlock(width, 0)
+	block, _ = m.renderNotificationBlock(width, 0, dockRowStyle{})
 	plain = stripANSIForTrace(block.Text)
 	if !strings.Contains(plain, "+5") {
 		t.Errorf("a queue of six should report five behind the newest: %q", plain)
