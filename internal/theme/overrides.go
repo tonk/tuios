@@ -40,6 +40,18 @@ type UIOverrides struct {
 	DockIndicatorActiveFg   color.Color
 	DockIndicatorInactiveFg color.Color
 
+	// The three fields below let one specific mode-indicator glyph take a
+	// color of its own, taking precedence over the generic
+	// DockIndicatorActiveFg/InactiveFg pair above when set. Falls back to
+	// that generic pair (and from there to pal.Success / pal.FgMute) when
+	// unset.
+	DockIndicatorMouseActiveFg               color.Color
+	DockIndicatorMouseInactiveFg             color.Color
+	DockIndicatorTilingActiveFg              color.Color
+	DockIndicatorTilingInactiveFg            color.Color
+	DockIndicatorFocusFollowsMouseActiveFg   color.Color
+	DockIndicatorFocusFollowsMouseInactiveFg color.Color
+
 	// The workspace-tab pills in the dock strip (and dock_window_list's
 	// window pills, which share the same rendering). Bg is the pill's own
 	// fill, distinct per active/inactive state; Fg is the label ink.
@@ -158,6 +170,64 @@ func DockIndicatorFg(active bool) color.Color {
 	return ov.DockIndicatorInactiveFg
 }
 
+// DockIndicatorMouseFg is DockIndicatorFg for the mouse-mode glyph
+// specifically: dock_indicator_mouse_active_fg /
+// dock_indicator_mouse_inactive_fg, falling back to the generic
+// DockIndicatorFg when unset.
+func DockIndicatorMouseFg(active bool) color.Color {
+	ov := overridesForCurrent()
+	if ov == nil {
+		return DockIndicatorFg(active)
+	}
+	c := ov.DockIndicatorMouseInactiveFg
+	if active {
+		c = ov.DockIndicatorMouseActiveFg
+	}
+	if c == nil {
+		return DockIndicatorFg(active)
+	}
+	return c
+}
+
+// DockIndicatorTilingFg is DockIndicatorFg for the tiling-mode glyph
+// specifically: dock_indicator_tiling_active_fg /
+// dock_indicator_tiling_inactive_fg, falling back to the generic
+// DockIndicatorFg when unset.
+func DockIndicatorTilingFg(active bool) color.Color {
+	ov := overridesForCurrent()
+	if ov == nil {
+		return DockIndicatorFg(active)
+	}
+	c := ov.DockIndicatorTilingInactiveFg
+	if active {
+		c = ov.DockIndicatorTilingActiveFg
+	}
+	if c == nil {
+		return DockIndicatorFg(active)
+	}
+	return c
+}
+
+// DockIndicatorFocusFollowsMouseFg is DockIndicatorFg for the
+// focus-follows-mouse glyph specifically:
+// dock_indicator_focus_follows_mouse_active_fg /
+// dock_indicator_focus_follows_mouse_inactive_fg, falling back to the generic
+// DockIndicatorFg when unset.
+func DockIndicatorFocusFollowsMouseFg(active bool) color.Color {
+	ov := overridesForCurrent()
+	if ov == nil {
+		return DockIndicatorFg(active)
+	}
+	c := ov.DockIndicatorFocusFollowsMouseInactiveFg
+	if active {
+		c = ov.DockIndicatorFocusFollowsMouseActiveFg
+	}
+	if c == nil {
+		return DockIndicatorFg(active)
+	}
+	return c
+}
+
 // WorkspacePillFg is WorkspacePillBg for workspace_pill_active_fg /
 // workspace_pill_inactive_fg.
 func WorkspacePillFg(active bool) color.Color {
@@ -189,6 +259,13 @@ type uiOverridesRaw struct {
 
 	DockIndicatorActiveFg   string `json:"dock_indicator_active_fg"   toml:"dock_indicator_active_fg"`
 	DockIndicatorInactiveFg string `json:"dock_indicator_inactive_fg" toml:"dock_indicator_inactive_fg"`
+
+	DockIndicatorMouseActiveFg               string `json:"dock_indicator_mouse_active_fg"                 toml:"dock_indicator_mouse_active_fg"`
+	DockIndicatorMouseInactiveFg             string `json:"dock_indicator_mouse_inactive_fg"               toml:"dock_indicator_mouse_inactive_fg"`
+	DockIndicatorTilingActiveFg              string `json:"dock_indicator_tiling_active_fg"                toml:"dock_indicator_tiling_active_fg"`
+	DockIndicatorTilingInactiveFg            string `json:"dock_indicator_tiling_inactive_fg"              toml:"dock_indicator_tiling_inactive_fg"`
+	DockIndicatorFocusFollowsMouseActiveFg   string `json:"dock_indicator_focus_follows_mouse_active_fg"   toml:"dock_indicator_focus_follows_mouse_active_fg"`
+	DockIndicatorFocusFollowsMouseInactiveFg string `json:"dock_indicator_focus_follows_mouse_inactive_fg" toml:"dock_indicator_focus_follows_mouse_inactive_fg"`
 
 	WorkspacePillActiveBg   string `json:"workspace_pill_active_bg"   toml:"workspace_pill_active_bg"`
 	WorkspacePillActiveFg   string `json:"workspace_pill_active_fg"   toml:"workspace_pill_active_fg"`
@@ -256,6 +333,13 @@ func (r *uiOverridesRaw) toUIOverrides() *UIOverrides {
 
 		DockIndicatorActiveFg:   hex(r.DockIndicatorActiveFg),
 		DockIndicatorInactiveFg: hex(r.DockIndicatorInactiveFg),
+
+		DockIndicatorMouseActiveFg:               hex(r.DockIndicatorMouseActiveFg),
+		DockIndicatorMouseInactiveFg:             hex(r.DockIndicatorMouseInactiveFg),
+		DockIndicatorTilingActiveFg:              hex(r.DockIndicatorTilingActiveFg),
+		DockIndicatorTilingInactiveFg:            hex(r.DockIndicatorTilingInactiveFg),
+		DockIndicatorFocusFollowsMouseActiveFg:   hex(r.DockIndicatorFocusFollowsMouseActiveFg),
+		DockIndicatorFocusFollowsMouseInactiveFg: hex(r.DockIndicatorFocusFollowsMouseInactiveFg),
 
 		WorkspacePillActiveBg:   hex(r.WorkspacePillActiveBg),
 		WorkspacePillActiveFg:   hex(r.WorkspacePillActiveFg),

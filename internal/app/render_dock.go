@@ -122,15 +122,29 @@ type indicatorSpan struct {
 }
 
 // dockIndicatorGlyph styles one mode-indicator glyph: a high-contrast color
-// while its mode is on, a dull one while it is off - both overridable per
-// theme (dock_indicator_active_fg / dock_indicator_inactive_fg), falling
-// back to pal.Success / pal.FgMute otherwise.
-func (m *OS) dockIndicatorGlyph(dr dockRowStyle, glyph string, active bool) string {
+// while its mode is on, a dull one while it is off - overridable per theme
+// and per indicator (dock_indicator_mouse_active_fg,
+// dock_indicator_tiling_active_fg, dock_indicator_focus_follows_mouse_active_fg,
+// and their _inactive_fg twins), falling back to the generic
+// dock_indicator_active_fg / dock_indicator_inactive_fg, and from there to
+// pal.Success / pal.FgMute.
+func (m *OS) dockIndicatorGlyph(dr dockRowStyle, glyph string, active bool, kind DockIndicatorKind) string {
 	fg := dr.pal.FgMute
 	if active {
 		fg = dr.pal.Success
 	}
-	if ov := theme.DockIndicatorFg(active); ov != nil {
+	var ov color.Color
+	switch kind {
+	case DockIndicatorMouse:
+		ov = theme.DockIndicatorMouseFg(active)
+	case DockIndicatorTiling:
+		ov = theme.DockIndicatorTilingFg(active)
+	case DockIndicatorFocusFollowsMouse:
+		ov = theme.DockIndicatorFocusFollowsMouseFg(active)
+	default:
+		ov = theme.DockIndicatorFg(active)
+	}
+	if ov != nil {
 		fg = ov
 	}
 	// A bare glyph is a one-column hover target, which a real mouse's own
@@ -477,19 +491,19 @@ func (m *OS) renderDockString() (string, int) {
 		}
 		if config.ShowMouseIndicator {
 			parts = append(parts, sysInfoPart{
-				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorMouseGlyph(), m.MouseIndicatorActive()),
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorMouseGlyph(), m.MouseIndicatorActive(), DockIndicatorMouse),
 				kind: DockIndicatorMouse,
 			})
 		}
 		if config.ShowTilingIndicator {
 			parts = append(parts, sysInfoPart{
-				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorTilingGlyph(), m.TilingIndicatorActive()),
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorTilingGlyph(), m.TilingIndicatorActive(), DockIndicatorTiling),
 				kind: DockIndicatorTiling,
 			})
 		}
 		if config.ShowFocusFollowsMouseIndicator {
 			parts = append(parts, sysInfoPart{
-				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorFocusFollowsMouseGlyph(), m.FocusFollowsMouseIndicatorActive()),
+				text: m.dockIndicatorGlyph(dr, config.GetDockIndicatorFocusFollowsMouseGlyph(), m.FocusFollowsMouseIndicatorActive(), DockIndicatorFocusFollowsMouse),
 				kind: DockIndicatorFocusFollowsMouse,
 			})
 		}

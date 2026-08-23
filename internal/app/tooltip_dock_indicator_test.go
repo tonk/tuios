@@ -101,8 +101,8 @@ func TestDockIndicatorGlyphsDoNotOverlap(t *testing.T) {
 func TestDockIndicatorGlyphColorReflectsState(t *testing.T) {
 	m := dockIndicatorOS(t)
 	dr := currentDockRow(theme.UI())
-	activeGlyph := m.dockIndicatorGlyph(dr, "X", true)
-	inactiveGlyph := m.dockIndicatorGlyph(dr, "X", false)
+	activeGlyph := m.dockIndicatorGlyph(dr, "X", true, DockIndicatorMouse)
+	inactiveGlyph := m.dockIndicatorGlyph(dr, "X", false, DockIndicatorMouse)
 	if activeGlyph == inactiveGlyph {
 		t.Fatal("active and inactive glyphs rendered identically")
 	}

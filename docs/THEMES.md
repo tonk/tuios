@@ -188,6 +188,12 @@ dock_bg                 = "#11111b"  # the dock/statusbar row's own background -
 dock_trail_fg           = "#a6adc8"  # the "<workspace>:<windows>" readout and its badges; instead of the derived FgMute
 dock_indicator_active_fg   = "#a6e3a1"  # mode-indicator glyphs (mouse/tiling/focus-follows-mouse) while their mode is on; instead of the derived Success
 dock_indicator_inactive_fg = "#585b70"  # the same glyphs while their mode is off; instead of the derived FgMute
+dock_indicator_mouse_active_fg                 = "#a6e3a1"  # the mouse-mode glyph specifically, while it's on; instead of dock_indicator_active_fg
+dock_indicator_mouse_inactive_fg               = "#585b70"  # the mouse-mode glyph, while it's off; instead of dock_indicator_inactive_fg
+dock_indicator_tiling_active_fg                = "#a6e3a1"  # the tiling glyph specifically, while it's on; instead of dock_indicator_active_fg
+dock_indicator_tiling_inactive_fg              = "#585b70"  # the tiling glyph, while it's off; instead of dock_indicator_inactive_fg
+dock_indicator_focus_follows_mouse_active_fg   = "#a6e3a1"  # the focus-follows-mouse glyph specifically, while it's on; instead of dock_indicator_active_fg
+dock_indicator_focus_follows_mouse_inactive_fg = "#585b70"  # the focus-follows-mouse glyph, while it's off; instead of dock_indicator_inactive_fg
 workspace_pill_active_bg   = "#89b4fa"  # the current-workspace tab's fill; instead of the neutral chrome Panel step
 workspace_pill_active_fg   = "#11111b"  # its label ink; instead of the derived accent
 workspace_pill_inactive_bg = "#11111b"  # every other tab's fill; instead of the same neutral Panel step
@@ -219,6 +225,12 @@ success       = "#a6e3a1"
 info          = "#89b4fa"
 warning       = "#f9e2af"
 ```
+
+The six `dock_indicator_<mouse|tiling|focus_follows_mouse>_<active|inactive>_fg`
+keys each retint one specific mode-indicator glyph and take precedence over
+the generic `dock_indicator_active_fg`/`dock_indicator_inactive_fg` pair for
+that glyph when both are set; a glyph with no specific key of its own still
+falls back to the generic pair, and from there to the derived Success/FgMute.
 
 Only custom (file-based) themes can carry a `ui`/`[ui]` section - a built-in
 theme comes from the vendored color-scheme library as plain color data, with
