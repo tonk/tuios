@@ -712,6 +712,44 @@ var HideClock = false
 // Set via --show-clock flag or appearance.show_clock config
 var ShowClock = false
 
+// ClockFormat is the Go reference-time layout used to render the clock
+// overlay (e.g. "15:04" for HH:MM, "15:04:05" for HH:MM:SS, "03:04 PM" for a
+// 12-hour clock). Set via appearance.clock_format config.
+var ClockFormat = "15:04"
+
+// ClockPosition controls where the clock badge sits along its row: "left",
+// "center" or "right". Set via appearance.clock_position config.
+var ClockPosition = "left"
+
+// ClockPill draws the clock badge with the dock's rounded pill caps instead
+// of square ends. Set via appearance.clock_pill config.
+var ClockPill = false
+
+// ClockFgColor and ClockBgColor override the clock badge's text and
+// background colors as hex literals (e.g. "#89b4fa"). Empty means use the
+// active theme's dim-text-on-panel default. Set via appearance.clock_fg_color
+// / appearance.clock_bg_color config.
+var (
+	ClockFgColor = ""
+	ClockBgColor = ""
+)
+
+// ClockFgColorHex returns ClockFgColor when it is a valid hex literal.
+func ClockFgColorHex() (string, bool) {
+	if hexColorPattern.MatchString(ClockFgColor) {
+		return ClockFgColor, true
+	}
+	return "", false
+}
+
+// ClockBgColorHex returns ClockBgColor when it is a valid hex literal.
+func ClockBgColorHex() (string, bool) {
+	if hexColorPattern.MatchString(ClockBgColor) {
+		return ClockBgColor, true
+	}
+	return "", false
+}
+
 // ShowCPU controls whether the CPU graph is shown in the dock (default: hidden).
 // Set via --show-cpu flag or appearance.show_cpu config
 var ShowCPU = false
@@ -815,6 +853,31 @@ var LeaderKey = "ctrl+b"
 // 0 means fullscreen (no max width cap). When set (e.g., 120), the zoomed
 // window is centered horizontally and capped at this width.
 var ZoomMaxWidth = 0
+
+// GetClockPillCapLeft returns the clock badge's left pill cap. The clock
+// keeps its own accessor, gated on ClockPill rather than DockPillCaps: the two
+// toggles shape unrelated rows and a reader turning one on should not also
+// reshape the other.
+func GetClockPillCapLeft() string {
+	if !ClockPill {
+		return ""
+	}
+	if UseASCIIOnly {
+		return DockPillLeftCharASCII
+	}
+	return DockPillLeftChar
+}
+
+// GetClockPillCapRight returns the clock badge's right pill cap.
+func GetClockPillCapRight() string {
+	if !ClockPill {
+		return ""
+	}
+	if UseASCIIOnly {
+		return DockPillRightCharASCII
+	}
+	return DockPillRightChar
+}
 
 // GetSidebarPillLeftChar returns the rail's left pill cap. The rail keeps its
 // own accessor so the dock's flat/capped setting cannot reshape its rows.

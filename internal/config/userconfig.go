@@ -151,6 +151,11 @@ type AppearanceConfig struct {
 	WindowTitlePosition            string  `toml:"window_title_position"`              // Window title position: bottom, top, hidden (default: bottom). Shows CustomName if set, else terminal title.
 	HideClock                      bool    `toml:"hide_clock"`                         // Hide the clock overlay (deprecated, use show_clock)
 	ShowClock                      bool    `toml:"show_clock"`                         // Show the clock overlay (default: false)
+	ClockFormat                    string  `toml:"clock_format"`                       // Go reference-time layout for the clock overlay (default: "15:04", i.e. HH:MM)
+	ClockPosition                  string  `toml:"clock_position"`                     // Clock badge position: left, center, right (default: left)
+	ClockPill                      bool    `toml:"clock_pill"`                         // Draw the clock with rounded pill caps like the dock's pills (default: false)
+	ClockFgColor                   string  `toml:"clock_fg_color"`                     // Hex color for the clock badge text (e.g., "#89b4fa"). Empty uses the theme's color.
+	ClockBgColor                   string  `toml:"clock_bg_color"`                     // Hex color for the clock badge background (e.g., "#1e1e2e"). Empty uses the theme's color.
 	ShowCPU                        bool    `toml:"show_cpu"`                           // Show CPU graph in dock (default: false)
 	ShowRAM                        bool    `toml:"show_ram"`                           // Show RAM usage in dock (default: false)
 	ShowMouseIndicator             bool    `toml:"show_mouse_indicator"`               // Show a mouse-mode ON/OFF readout in the dock (default: false)
@@ -317,6 +322,8 @@ func DefaultConfig() *UserConfig {
 			ScrollLines:       3,
 			DockbarPosition:   "bottom",
 			PreferredShell:    "",
+			ClockFormat:       "15:04",
+			ClockPosition:     "left",
 			ClickToType:       ClickToTypeSingle,
 			Scrollbar:         ScrollbarConfig{Style: ScrollbarStyleThin, Tint: ScrollbarTintBorder},
 			Sidebar: SidebarConfig{
@@ -822,6 +829,14 @@ func fillMissingAppearance(cfg, defaultCfg *UserConfig) {
 		cfg.Appearance.DockbarPosition = defaultCfg.Appearance.DockbarPosition
 	}
 
+	if cfg.Appearance.ClockFormat == "" {
+		cfg.Appearance.ClockFormat = defaultCfg.Appearance.ClockFormat
+	}
+
+	if cfg.Appearance.ClockPosition == "" {
+		cfg.Appearance.ClockPosition = defaultCfg.Appearance.ClockPosition
+	}
+
 	if cfg.Appearance.Sidebar.Position == "" {
 		cfg.Appearance.Sidebar.Position = defaultCfg.Appearance.Sidebar.Position
 	}
@@ -885,6 +900,22 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	if cfg.Appearance.DockbarPosition != "" {
 		DockbarPosition = cfg.Appearance.DockbarPosition
 	}
+
+	// ClockFormat defaults to "15:04" (HH:MM).
+	if cfg.Appearance.ClockFormat != "" {
+		ClockFormat = cfg.Appearance.ClockFormat
+	}
+
+	// ClockPosition defaults to left.
+	if cfg.Appearance.ClockPosition != "" {
+		ClockPosition = cfg.Appearance.ClockPosition
+	}
+
+	// Clock colors have no "unset" sentinel distinct from empty: empty already
+	// means "use the theme default", so they are assigned unconditionally like
+	// the border color overrides.
+	ClockFgColor = cfg.Appearance.ClockFgColor
+	ClockBgColor = cfg.Appearance.ClockBgColor
 
 	// Sidebar. Also runs for a config that never went through LoadUserConfig (the
 	// settings page builds one in memory), so an old flat key reaches the globals
@@ -963,6 +994,7 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	HideWindowButtons = cfg.Appearance.HideWindowButtons
 	HideScrollbar = cfg.Appearance.HideScrollbar
 	ShowClock = cfg.Appearance.ShowClock
+	ClockPill = cfg.Appearance.ClockPill
 	ShowCPU = cfg.Appearance.ShowCPU
 	ShowRAM = cfg.Appearance.ShowRAM
 	ShowMouseIndicator = cfg.Appearance.ShowMouseIndicator

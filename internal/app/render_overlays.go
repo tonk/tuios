@@ -26,7 +26,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 
 	// Show clock/status unless hidden (but always show if recording or prefix active)
 	if (config.ShowClock && !config.HideClock) || isRecording || m.PrefixActive {
-		currentTime := time.Now().Format("15:04:05")
+		currentTime := time.Now().Format(config.ClockFormat)
 		var statusText string
 
 		if isRecording {
@@ -39,24 +39,43 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 
 		// The badge rests on the same Panel step the rest of the chrome does and
 		// only lights up for a state the user is holding: the prefix is a mode
-		// waiting for a key, and recording is the one that writes to disk.
+		// waiting for a key, and recording is the one that writes to disk. A
+		// configured fg/bg only replaces that resting look - recording/prefix
+		// still win, since those are transient signals, not decor.
 		pal := theme.UI()
+		clockFg := pal.FgDim
+		clockBg := pal.Panel
+		if hex, ok := config.ClockFgColorHex(); ok {
+			clockFg = lipgloss.Color(hex)
+		}
+		if hex, ok := config.ClockBgColorHex(); ok {
+			clockBg = lipgloss.Color(hex)
+		}
+		switch {
+		case isRecording:
+			clockBg, clockFg = pal.Warn, theme.ContrastText(pal.Warn)
+		case m.PrefixActive:
+			clockBg, clockFg = pal.Warning, theme.ContrastText(pal.Warning)
+		}
+
 		timeStyle := lipgloss.NewStyle().
-			Foreground(pal.FgDim).
-			Background(pal.Panel).
+			Foreground(clockFg).
+			Background(clockBg).
 			Bold(true).
 			Padding(0, 1)
 
-		switch {
-		case isRecording:
-			timeStyle = timeStyle.Background(pal.Warn).Foreground(theme.ContrastText(pal.Warn))
-		case m.PrefixActive:
-			timeStyle = timeStyle.Background(pal.Warning).Foreground(theme.ContrastText(pal.Warning))
-		}
-
 		renderedTime := timeStyle.Render(statusText)
 
-		timeX := 1
+		// The pill caps borrow the same half-circle glyphs the dock's pills use,
+		// coloured as the badge's own fill so they read as its rounded ends
+		// rather than as separate glyphs. Their own cell carries no background:
+		// this layer floats over the canvas, so there is nothing to fill it with.
+		if lc, rc := config.GetClockPillCapLeft(), config.GetClockPillCapRight(); lc != "" || rc != "" {
+			capStyle := lipgloss.NewStyle().Foreground(clockBg)
+			renderedTime = capStyle.Render(lc) + renderedTime + capStyle.Render(rc)
+		}
+
+		timeX := m.GetTimeXPosition(lipgloss.Width(renderedTime))
 		timeLayer := lipgloss.NewLayer(renderedTime).
 			X(timeX).
 			Y(m.GetTimeYPosition()).

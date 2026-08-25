@@ -204,6 +204,7 @@ var (
 	whichKeyPosOptions     = []string{"bottom-right", "bottom-left", "top-right", "top-left", "center"}
 	fpsOptions             = []string{"30", "60", "90", "120", "144", "unlimited"}
 	sidebarPositionOptions = []string{"left", "right", "hidden"}
+	clockPositionOptions   = []string{"left", "center", "right"}
 	scrollbarStyleOptions  = config.ScrollbarStyles
 	clickToTypeOptions     = config.ClickToTypeModes
 )
@@ -407,6 +408,48 @@ func (m *OS) settingsCategories() []settingsCategory {
 				func(m *OS, v bool) {
 					config.ShowClock = v
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowClock = v })
+					m.applyAppearanceLive(false)
+				}),
+			stringItem("Clock format", "Time layout for the clock overlay (Go reference-time format)", "15:04:05", "(HH:MM)",
+				func(m *OS) string { return config.ClockFormat },
+				func(m *OS, v string) {
+					if v == "" {
+						v = "15:04"
+					}
+					config.ClockFormat = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ClockFormat = v })
+					m.applyAppearanceLive(false)
+				}),
+			boolItem("Clock pill", "Draw the clock with rounded pill caps like the dock's pills",
+				func() bool { return config.ClockPill },
+				func(m *OS, v bool) {
+					config.ClockPill = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ClockPill = v })
+					m.applyAppearanceLive(false)
+				}),
+			enumItem("Clock position", "Where the clock badge sits along its row", clockPositionOptions,
+				func() string { return config.ClockPosition },
+				func(m *OS, v string) {
+					config.ClockPosition = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ClockPosition = v })
+					m.applyAppearanceLive(false)
+				}),
+			stringItem("Clock text color", "Hex color for the clock badge text", "#89b4fa", "(theme)",
+				func(m *OS) string {
+					return m.appearanceString(func(a *config.AppearanceConfig) string { return a.ClockFgColor })
+				},
+				func(m *OS, v string) {
+					config.ClockFgColor = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ClockFgColor = v })
+					m.applyAppearanceLive(false)
+				}),
+			stringItem("Clock background color", "Hex color for the clock badge background", "#1e1e2e", "(theme)",
+				func(m *OS) string {
+					return m.appearanceString(func(a *config.AppearanceConfig) string { return a.ClockBgColor })
+				},
+				func(m *OS, v string) {
+					config.ClockBgColor = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ClockBgColor = v })
 					m.applyAppearanceLive(false)
 				}),
 			boolItem("CPU meter", "Show CPU usage in the dock",

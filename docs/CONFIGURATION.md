@@ -476,6 +476,54 @@ Controls whether the clock is shown in the status area.
 
 **CLI override:** `--show-clock`
 
+### clock_format
+
+The time layout used to render the clock, as a Go reference-time format string.
+
+**Valid values:** any Go time layout, e.g.:
+- `"15:04"` - HH:MM, 24-hour (default)
+- `"15:04:05"` - HH:MM:SS, 24-hour
+- `"03:04 PM"` - 12-hour with AM/PM
+
+**Default:** `"15:04"`
+
+**Note:** Also settable from the in-app settings page (Dock, "Clock format").
+
+### clock_position
+
+Where the clock badge sits along its row.
+
+**Valid values:**
+- `"left"` - pinned near the left edge (default)
+- `"center"` - centered along the row
+- `"right"` - pinned near the right edge
+
+**Default:** `"left"`
+
+**Note:** Also settable from the in-app settings page (Dock, "Clock position").
+
+### clock_pill
+
+Draws the clock badge with the dock's rounded pill caps instead of square ends.
+
+**Valid values:**
+- `false` - square ends (default)
+- `true` - rounded pill caps, matching the dock's pill style
+
+**Default:** `false`
+
+**Note:** Falls back to no caps in ASCII mode (`--ascii`/no Nerd Font), same as the dock's pills. Also settable from the in-app settings page (Dock, "Clock pill").
+
+### clock_fg_color / clock_bg_color
+
+Hex colors overriding the clock badge's text and background. Either can be set independently; an empty string uses the active theme's dim-text-on-panel default.
+
+**Valid values:** a 6-digit hex literal, e.g. `"#89b4fa"`, or `""` for the theme default.
+
+**Default:** `""` (theme default) for both
+
+**Note:** Recording and prefix-mode states still override these with their own warning colors. Also settable from the in-app settings page (Dock, "Clock text color" / "Clock background color").
+
 ### show_cpu
 
 Controls whether CPU usage is shown in the status area.

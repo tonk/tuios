@@ -351,6 +351,19 @@ func (m *OS) GetTimeYPosition() int {
 	return 0
 }
 
+// GetTimeXPosition returns the X position of the time display for a badge of
+// the given rendered width, based on the configured clock position.
+func (m *OS) GetTimeXPosition(badgeWidth int) int {
+	switch config.ClockPosition {
+	case "center":
+		return max((m.GetRenderWidth()-badgeWidth)/2, 0)
+	case "right":
+		return max(m.GetRenderWidth()-badgeWidth-1, 0)
+	default:
+		return 1
+	}
+}
+
 // GetUsableHeight returns the usable height excluding the dock. Auto-hide
 // mode keeps the reservation so tiled windows have a stable layout  - the dock
 // only hides when a specific window (zoom/float) explicitly expands into its

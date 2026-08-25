@@ -278,8 +278,23 @@ func validateAppearanceEnums(cfg *UserConfig, result *ValidationResult) {
 		[]string{"bottom-right", "bottom-left", "top-right", "top-left", "center"})
 	checkEnum("window_title_position", cfg.Appearance.WindowTitlePosition,
 		[]string{"bottom", "top", "hidden"})
+	checkEnum("clock_position", cfg.Appearance.ClockPosition,
+		[]string{"left", "center", "right"})
 	validateTitleFormat(cfg.Appearance.WindowTitleFormat, result)
 	validateScrollbar(cfg, result)
+
+	checkHexColor := func(key, value string) {
+		if value == "" || hexColorPattern.MatchString(value) {
+			return
+		}
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field:   "appearance",
+			Key:     key,
+			Message: fmt.Sprintf("'%s' is not a valid hex color (e.g. \"#89b4fa\"); falling back to the theme default", value),
+		})
+	}
+	checkHexColor("clock_fg_color", cfg.Appearance.ClockFgColor)
+	checkHexColor("clock_bg_color", cfg.Appearance.ClockBgColor)
 }
 
 // hexColorPattern matches the one colour literal the config accepts.
