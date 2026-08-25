@@ -714,8 +714,28 @@ var ShowClock = false
 
 // ClockFormat is the Go reference-time layout used to render the clock
 // overlay (e.g. "15:04" for HH:MM, "15:04:05" for HH:MM:SS, "03:04 PM" for a
-// 12-hour clock). Set via appearance.clock_format config.
+// 12-hour clock). It may also contain the literal placeholder "{week}",
+// expanded by FormatClock to the zero-padded ISO-8601 week number - Go's
+// reference-time layout has no token of its own for that.
+// Set via appearance.clock_format config.
 var ClockFormat = "15:04"
+
+// FormatClock renders now using ClockFormat. The layout is passed to
+// time.Format as-is first, since "{week}" matches none of Go's reference-time
+// tokens and comes through unchanged; only then is it replaced with the ISO
+// week number, so a user layout can place it anywhere among the time fields.
+func FormatClock(now time.Time) string {
+	text := now.Format(ClockFormat)
+	if strings.Contains(text, "{week}") {
+		_, week := now.ISOWeek()
+		weekStr := strconv.Itoa(week)
+		if week < 10 {
+			weekStr = "0" + weekStr
+		}
+		text = strings.ReplaceAll(text, "{week}", weekStr)
+	}
+	return text
+}
 
 // ClockPosition controls where the clock badge sits along its row: "left",
 // "center" or "right". Set via appearance.clock_position config.

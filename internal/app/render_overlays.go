@@ -26,7 +26,7 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 
 	// Show clock/status unless hidden (but always show if recording or prefix active)
 	if (config.ShowClock && !config.HideClock) || isRecording || m.PrefixActive {
-		currentTime := time.Now().Format(config.ClockFormat)
+		currentTime := config.FormatClock(time.Now())
 		var statusText string
 
 		if isRecording {

@@ -487,6 +487,8 @@ The time layout used to render the clock, as a Go reference-time format string.
 
 **Default:** `"15:04"`
 
+**Placeholder:** the literal text `{week}` anywhere in the format is replaced with the zero-padded ISO-8601 week number (`01`-`53`), since Go's time layout has no token for it, e.g. `"2006-01-02 15:04 W{week}"` renders as `2026-08-25 14:32 W35`.
+
 **Note:** Also settable from the in-app settings page (Dock, "Clock format").
 
 ### clock_position

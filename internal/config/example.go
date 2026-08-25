@@ -55,7 +55,7 @@ var exampleTables = []exampleTable{
 			{"window_title_position", `"bottom"`, "Window title position: bottom, top, hidden."},
 			{"hide_clock", "false", "Deprecated, use show_clock instead."},
 			{"show_clock", "false", "Show the clock overlay."},
-			{"clock_format", `"15:04"`, `Go reference-time layout for the clock overlay, e.g. "15:04" (HH:MM) or "15:04:05" (HH:MM:SS).`},
+			{"clock_format", `"15:04"`, `Go reference-time layout for the clock overlay, e.g. "15:04" (HH:MM) or "15:04:05" (HH:MM:SS). May also contain "{week}" for the zero-padded ISO week number, e.g. "2006-01-02 15:04 W{week}".`},
 			{"clock_position", `"left"`, "Where the clock badge sits along its row: left, center, right."},
 			{"clock_pill", "false", "Draw the clock with rounded pill caps like the dock's pills."},
 			{"clock_fg_color", `""`, `Hex color for the clock badge text, e.g. "#89b4fa". Empty uses the theme's color.`},
