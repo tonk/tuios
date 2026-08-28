@@ -297,6 +297,14 @@ func GenerateExampleConfig() string {
 		writeAlignedComments(&b, assignments, comments)
 	}
 
+	b.WriteString("\n[env]\n")
+	writeWrappedComment(&b, "Extra environment variables exported into every shell tuios spawns, "+
+		"local windows and daemon-backed sessions alike, on top of what tuios "+
+		"itself already inherited.")
+	b.WriteString("#\n")
+	b.WriteString("# EDITOR = \"nvim\"\n")
+	b.WriteString("# MY_VAR = \"some value\"\n")
+
 	b.WriteString("\n[hooks]\n")
 	writeWrappedComment(&b, "Run a shell command on a session event. A value can be a single command "+
 		"string or an array of commands run in order. Every command receives the "+

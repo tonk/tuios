@@ -606,6 +606,7 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 		// check for it the same way it would check TMUX or KITTY_WINDOW_ID.
 		"TUIOS_ENV=1",
 	)
+	cmd.Env = append(cmd.Env, configuredEnvVars()...)
 
 	// Create PTY with initial size
 	// xpty requires dimensions at creation time

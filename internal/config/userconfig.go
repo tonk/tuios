@@ -25,6 +25,13 @@ type UserConfig struct {
 	Tape          TapeConfig          `toml:"tape"`
 	Hooks         HooksConfig         `toml:"hooks"`
 	Debug         DebugConfig         `toml:"debug"`
+	// Env holds extra environment variables to export into every shell tuios
+	// spawns (local windows and daemon-backed sessions alike), on top of
+	// whatever tuios itself already inherited. A TOML table is used instead of
+	// a repeated key or a "KEY=VALUE" array because TOML has no notion of a
+	// duplicate key, and a table keeps each variable typo-checkable (an
+	// accidental "=" inside a hand-built string can't happen).
+	Env map[string]string `toml:"env"`
 }
 
 // NotificationsConfig holds how long a dock message stays up.

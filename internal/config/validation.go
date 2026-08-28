@@ -105,6 +105,10 @@ func ValidateConfig(cfg *UserConfig) *ValidationResult {
 	// message back under the accessibility floor)
 	validateNotificationsConfig(cfg, result)
 
+	// Validate the env section (warn on a key that can't be exported as a
+	// POSIX environment variable)
+	validateEnvConfig(cfg, result)
+
 	// Check for keybinding conflicts (same key bound to multiple actions)
 	conflicts := findConflicts(cfg, normalizer)
 	for key, actions := range conflicts {
@@ -239,6 +243,34 @@ func validateNotificationsConfig(cfg *UserConfig, result *ValidationResult) {
 			Field:   "notifications.agent",
 			Key:     "settle_seconds",
 			Message: "a negative wait is not a thing; falling back to the default",
+		})
+	}
+}
+
+// envKeyPattern matches a name that every shell and exec.Cmd.Env agree is a
+// well-formed environment variable: it excludes '=' (which would corrupt the
+// "KEY=VALUE" pairs env vars are transmitted as) and whitespace/control
+// characters, which POSIX shells can't reference at all.
+var envKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// validateEnvConfig warns when a [env] key isn't a well-formed environment
+// variable name. It is still exported as written - some tools deliberately
+// use non-POSIX names - but a stray space or "=" in a key is almost always a
+// typo, so it's worth flagging.
+func validateEnvConfig(cfg *UserConfig, result *ValidationResult) {
+	keys := make([]string, 0, len(cfg.Env))
+	for key := range cfg.Env {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if envKeyPattern.MatchString(key) {
+			continue
+		}
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field:   "env",
+			Key:     key,
+			Message: fmt.Sprintf("%q is not a standard environment variable name (letters, digits, underscore, not starting with a digit); it is still exported as written", key),
 		})
 	}
 }

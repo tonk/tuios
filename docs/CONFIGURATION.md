@@ -12,6 +12,7 @@ TUIOS supports user-configurable keybindings through a TOML configuration file, 
 - [Startup Settings](#startup-settings)
 - [Daemon Settings](#daemon-settings)
 - [Hooks](#hooks)
+- [Environment Variables](#environment-variables)
 - [Key Syntax](#key-syntax)
 - [Platform-Specific Configuration](#platform-specific-configuration)
 - [Best Practices](#best-practices)
@@ -1039,6 +1040,26 @@ after-new-window = "notify-send 'TUIOS' 'new window'"
 
 See [HOOKS.md](HOOKS.md) for the event list, the environment variables passed to
 each command, and the execution model.
+
+## Environment Variables
+
+The `[env]` table exports extra environment variables into every shell tuios
+spawns - local windows and daemon-backed sessions alike - on top of whatever
+tuios itself already inherited from its own environment:
+
+```toml
+[env]
+EDITOR = "nvim"
+MY_VAR = "some value"
+```
+
+Add one line per variable; there's no limit to how many you can set. Each is
+appended after tuios's own inherited environment and its own `TERM`/`TUIOS_*`
+variables, so an `[env]` entry can override an inherited variable (e.g. a
+different `EDITOR` than your login shell's) but cannot override the `TUIOS_*`
+identity variables tuios sets itself. A key that isn't a valid variable name
+(letters, digits, underscore, not starting with a digit) still gets exported
+as written, with a config warning.
 
 ## Project Tapes
 

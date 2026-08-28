@@ -1248,6 +1248,22 @@ func preferredShellFromConfig() string {
 	return shell
 }
 
+// envVarsFromConfig returns the daemon's own [env] table from config.toml as
+// "KEY=VALUE" pairs. Read fresh (not cached) on each call, mirroring
+// preferredShellFromConfig above, so an edit takes effect on the next new
+// window without restarting the daemon.
+func envVarsFromConfig() []string {
+	cfg, err := config.LoadUserConfig()
+	if err != nil || len(cfg.Env) == 0 {
+		return nil
+	}
+	vars := make([]string, 0, len(cfg.Env))
+	for key, value := range cfg.Env {
+		vars = append(vars, key+"="+value)
+	}
+	return vars
+}
+
 func (s *Session) buildEnv(windowID string, restored bool) []string {
 	env := os.Environ()
 
@@ -1285,6 +1301,7 @@ func (s *Session) buildEnv(windowID string, restored bool) []string {
 	if restored {
 		env = append(env, "TUIOS_RESTORED=1")
 	}
+	env = append(env, envVarsFromConfig()...)
 
 	return env
 }

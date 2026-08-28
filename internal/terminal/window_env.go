@@ -99,6 +99,22 @@ func detectShell() string {
 	return "/bin/sh"
 }
 
+// configuredEnvVars returns the user's [env] table from config.toml as
+// "KEY=VALUE" pairs, ready to append to a spawned shell's environment. Read
+// fresh (not cached) on each call, matching detectShell above, so a config
+// change takes effect on the next new window without restarting tuios.
+func configuredEnvVars() []string {
+	cfg, err := config.LoadUserConfig()
+	if err != nil || len(cfg.Env) == 0 {
+		return nil
+	}
+	vars := make([]string, 0, len(cfg.Env))
+	for key, value := range cfg.Env {
+		vars = append(vars, key+"="+value)
+	}
+	return vars
+}
+
 // getTerminalEnv returns TERM and COLORTERM values for the current environment.
 // For local sessions, this is cached after first detection.
 // The environment is detected from os.Environ() which includes SSH forwarded vars.
