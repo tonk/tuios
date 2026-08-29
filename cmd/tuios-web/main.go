@@ -249,7 +249,19 @@ func runWebServer() error {
 	_ = os.Setenv("COLORTERM", "truecolor")
 	_ = os.Setenv("TERM_PROGRAM", "tuios-web")
 
-	// Apply global config options (CLI flags only, no user config at server level)
+	// Loaded once here (rather than left to each session) because the
+	// appearance globals and the touch key bar are both server-wide.
+	userConfig, err := config.LoadUserConfig()
+	if err != nil {
+		userConfig = config.DefaultConfig()
+	}
+
+	// Appearance globals are the baseline; CLI flags win. This must run before
+	// ApplyOverrides. Without it, config.toml's [appearance] section (clock,
+	// sidebar, dock, scrollbar, cursor blink, leader key, etc.) never reaches
+	// the globals the render loop reads, no matter what is in the file.
+	config.ApplyAppearanceConfig(userConfig)
+
 	config.ApplyOverrides(config.Overrides{
 		ASCIIOnly:         asciiOnly,
 		BorderStyle:       borderStyle,
@@ -258,7 +270,7 @@ func runWebServer() error {
 		ScrollbackLines:   scrollbackLines,
 		NoAnimations:      noAnimations,
 		ThemeName:         themeName,
-	}, nil)
+	}, userConfig)
 
 	// Create sip server
 	sipConfig := sip.DefaultConfig()
@@ -271,12 +283,8 @@ func runWebServer() error {
 	sipConfig.TLSKey = tlsKey
 	sipConfig.AllowInsecureNoTLS = webInsecure
 
-	// The touch key bar is server-wide while the keys it carries are user
-	// settings, so the config is read once here instead of per session.
-	userConfig, err := config.LoadUserConfig()
-	if err != nil {
-		userConfig = config.DefaultConfig()
-	}
+	// The touch key bar's keys are user settings, read from the same config
+	// loaded above.
 	leader := config.LeaderKey
 	if userConfig.Keybindings.LeaderKey != "" {
 		leader = userConfig.Keybindings.LeaderKey
