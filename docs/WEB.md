@@ -77,7 +77,7 @@ tuios-web --theme dracula --show-keys
 - **Full TUIOS Experience**: All TUIOS features work in the browser
 - **WebGL Rendering**: GPU-accelerated terminal rendering for smooth 60fps
 - **Dual Protocol Support**: WebTransport (QUIC) with WebSocket fallback
-- **Bundled Nerd Fonts**: No client-side font installation required
+- **Bundled Nerd Fonts**: No client-side font installation required; JetBrains Mono by default, or `--font-family saucecodepro` for SauceCodePro Nerd Font Mono
 - **Settings Panel**: Configure transport, renderer, and font size
 - **Mouse Support**: Full mouse interaction with cell-based optimization
 - **Auto-Reconnect**: Automatic reconnection with exponential backoff
@@ -153,8 +153,8 @@ tuios-web --theme dracula --show-keys
 | `--insecure` | `false` | Serve a non-loopback host unencrypted |
 | `--touch` | `auto` | Whether a client is driven by a finger: `auto`, `on`, `off` |
 | `--config` | | Path to a config.toml file to use instead of the default (`~/.config/tuios/config.toml`) |
-| `--font-family` | | CSS font-family for the browser terminal (default: the bundled JetBrains Mono Nerd Font) |
-| `--font-path` | | Path to a custom font file (`.ttf`, `.otf`, `.woff`, `.woff2`) to serve and register as `--font-family` |
+| `--font-family` | | CSS font-family for the browser terminal, or a bundled font name (`saucecodepro`). Default: the bundled JetBrains Mono Nerd Font |
+| `--font-path` | | Path to a custom font file (`.ttf`, `.otf`, `.woff`, `.woff2`) to serve and register as `--font-family`; overrides a bundled name |
 | `--default-session` | | Default session name for all connections |
 | `--ephemeral` | `false` | Disable daemon mode (sessions don't persist) |
 

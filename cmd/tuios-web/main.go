@@ -158,7 +158,7 @@ Client features:
 	registerCertFlags(rootCmd)
 	rootCmd.Flags().StringVar(&webTouch, "touch", "auto", "Whether a client is driven by a finger, which widens the gestures aimed at a single cell: auto, on, off")
 	rootCmd.Flags().StringVar(&webConfigPath, "config", "", "Path to a config.toml file to use instead of the default (~/.config/tuios/config.toml)")
-	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal (default: the bundled JetBrains Mono Nerd Font)")
+	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal, or a bundled font name (saucecodepro). Default: the bundled JetBrains Mono Nerd Font")
 	rootCmd.Flags().StringVar(&webFontPath, "font-path", "", "Path to a custom font file (.ttf, .otf, .woff, .woff2) to serve and register as --font-family")
 
 	// Daemon mode flags
@@ -303,13 +303,17 @@ func runWebServer() error {
 	sipConfig.TLSCert = tlsCert
 	sipConfig.TLSKey = tlsKey
 	sipConfig.AllowInsecureNoTLS = webInsecure
-	sipConfig.FontFamily = webFontFamily
 	if webFontPath != "" {
 		if _, err := os.Stat(webFontPath); err != nil {
 			return fmt.Errorf("--font-path %s: %w", webFontPath, err)
 		}
-		sipConfig.FontPath = webFontPath
 	}
+	fontFamily, fontPath, err := resolveFontConfig(webFontFamily, webFontPath)
+	if err != nil {
+		return err
+	}
+	sipConfig.FontFamily = fontFamily
+	sipConfig.FontPath = fontPath
 
 	// The touch key bar's keys are user settings, read from the same config
 	// loaded above.
