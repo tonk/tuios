@@ -45,6 +45,7 @@ var (
 	webAutoTLS        bool
 	webInsecure       bool
 	webTouch          string
+	webConfigPath     string
 	// TUIOS forwarded flags
 	debugMode         bool
 	asciiOnly         bool
@@ -65,6 +66,15 @@ var webServerConfig struct {
 	defaultSession string
 	ephemeral      bool
 	version        string
+}
+
+// loadWebUserConfig loads the user config from webConfigPath when --config was
+// given, otherwise from the default XDG location.
+func loadWebUserConfig() (*config.UserConfig, error) {
+	if webConfigPath != "" {
+		return config.ReloadConfig(webConfigPath)
+	}
+	return config.LoadUserConfig()
 }
 
 func main() {
@@ -145,6 +155,7 @@ Client features:
 	rootCmd.Flags().BoolVar(&webInsecure, "insecure", false, "Serve a non-loopback host over plain HTTP, sending every keystroke unencrypted (trusted networks only)")
 	registerCertFlags(rootCmd)
 	rootCmd.Flags().StringVar(&webTouch, "touch", "auto", "Whether a client is driven by a finger, which widens the gestures aimed at a single cell: auto, on, off")
+	rootCmd.Flags().StringVar(&webConfigPath, "config", "", "Path to a config.toml file to use instead of the default (~/.config/tuios/config.toml)")
 
 	// Daemon mode flags
 	rootCmd.Flags().StringVar(&defaultSession, "default-session", "", "Default session name for all connections (creates shared session)")
@@ -250,9 +261,15 @@ func runWebServer() error {
 	_ = os.Setenv("TERM_PROGRAM", "tuios-web")
 
 	// Loaded once here (rather than left to each session) because the
-	// appearance globals and the touch key bar are both server-wide.
-	userConfig, err := config.LoadUserConfig()
+	// appearance globals and the touch key bar are both server-wide. A bad
+	// default-location config just falls back to defaults (as native tuios
+	// does), but an explicit --config path failing to load is a hard error:
+	// silently falling back would hide a typo the user would never see.
+	userConfig, err := loadWebUserConfig()
 	if err != nil {
+		if webConfigPath != "" {
+			return fmt.Errorf("--config %s: %w", webConfigPath, err)
+		}
 		userConfig = config.DefaultConfig()
 	}
 
@@ -495,7 +512,7 @@ func shortID(id string) string {
 // createEphemeralTUIOSInstance creates a standalone TUIOS instance (old behavior)
 func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption) {
 	// Load user configuration
-	userConfig, err := config.LoadUserConfig()
+	userConfig, err := loadWebUserConfig()
 	if err != nil {
 		userConfig = config.DefaultConfig()
 	}
@@ -579,7 +596,7 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 	client.StartReadLoop()
 
 	// Load user configuration
-	userConfig, err := config.LoadUserConfig()
+	userConfig, err := loadWebUserConfig()
 	if err != nil {
 		log.Printf("Warning: Failed to load config for web session, using defaults: %v", err)
 		userConfig = config.DefaultConfig()

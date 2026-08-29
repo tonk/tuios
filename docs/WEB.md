@@ -152,6 +152,7 @@ tuios-web --theme dracula --show-keys
 | `--cert-days` | `0` | Days an `--auto-tls` certificate is valid for (0 = 365) |
 | `--insecure` | `false` | Serve a non-loopback host unencrypted |
 | `--touch` | `auto` | Whether a client is driven by a finger: `auto`, `on`, `off` |
+| `--config` | | Path to a config.toml file to use instead of the default (`~/.config/tuios/config.toml`) |
 | `--default-session` | | Default session name for all connections |
 | `--ephemeral` | `false` | Disable daemon mode (sessions don't persist) |
 
