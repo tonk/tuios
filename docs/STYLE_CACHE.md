@@ -110,18 +110,15 @@ Press **`r`** while viewing cache statistics to reset all counters. Useful for:
 
 ### Adjusting Cache Size
 
-Edit `/Users/gaurav/Developer/tuios/internal/app/stylecache.go`:
+Edit `internal/app/stylecache.go`:
 
 ```go
 // Global style cache instance
 var globalStyleCache = NewStyleCache(1024) // Change to 2048, 4096, etc.
 ```
 
-Or programmatically:
-
-```go
-app.SetGlobalStyleCacheSize(2048)
-```
+There is no programmatic way to change the size at runtime; it is fixed at
+startup by this constant.
 
 ### Choosing Cache Size
 
@@ -140,12 +137,10 @@ app.SetGlobalStyleCacheSize(2048)
 
 ### Disabling Cache (Not Recommended)
 
-If you suspect the cache is causing issues:
-
-1. Set cache size to 0: `SetGlobalStyleCacheSize(0)`
-2. Directly call `buildCellStyle()` instead of `buildCellStyleCached()`
-
-This reverts to creating new styles every frame (original behavior).
+If you suspect the cache is causing issues, edit `render_terminal.go` to call
+`buildCellStyle()`/`buildOptimizedCellStyle()` directly instead of their
+`...CachedANSI` counterparts. This reverts to creating new styles every frame
+(original behavior).
 
 ## Implementation Details
 
