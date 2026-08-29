@@ -264,18 +264,6 @@ func LogMessage(direction string, msg *Message, codec Codec) {
 	}
 }
 
-// LogMessageDecoded logs a decoded message payload for debugging.
-func LogMessageDecoded(direction string, msg *Message, codec Codec) {
-	level := GetDebugLevel()
-	if level < DebugTrace {
-		return
-	}
-
-	typeName := MessageTypeName(msg.Type)
-	decoded := DebugPayload(msg, codec)
-	ProtocolLog(DebugTrace, "[%s] %s: %s", direction, typeName, decoded)
-}
-
 // MessageTypeName returns a human-readable name for a message type.
 func MessageTypeName(t MessageType) string {
 	names := map[MessageType]string{
@@ -323,108 +311,6 @@ func MessageTypeName(t MessageType) string {
 		return name
 	}
 	return fmt.Sprintf("Unknown(%d)", t)
-}
-
-// DebugPayload decodes and formats a payload for debugging.
-func DebugPayload(msg *Message, codec Codec) string {
-	if len(msg.Payload) == 0 {
-		return "<empty>"
-	}
-
-	switch msg.Type {
-	case MsgHello:
-		var p HelloPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Hello{Version:%q, Term:%q, %dx%d, Codec:%q}",
-				p.Version, p.Term, p.Width, p.Height, p.PreferredCodec)
-		}
-	case MsgWelcome:
-		var p WelcomePayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Welcome{Version:%q, Sessions:%v, Codec:%q}",
-				p.Version, p.SessionNames, p.Codec)
-		}
-	case MsgAttach:
-		var p AttachPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Attach{Session:%q, Create:%v, %dx%d}",
-				p.SessionName, p.CreateNew, p.Width, p.Height)
-		}
-	case MsgAttached:
-		var p AttachedPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Attached{Session:%q, ID:%s, %dx%d, Windows:%d}",
-				p.SessionName, truncateID(p.SessionID), p.Width, p.Height, p.WindowCount)
-		}
-	case MsgNew:
-		var p NewPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("New{Session:%q, %dx%d}", p.SessionName, p.Width, p.Height)
-		}
-	case MsgKill:
-		var p KillPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Kill{Session:%q}", p.SessionName)
-		}
-	case MsgResize:
-		var p ResizePayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Resize{%dx%d}", p.Width, p.Height)
-		}
-	case MsgError:
-		var p ErrorPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("Error{Code:%d, Msg:%q}", p.Code, p.Message)
-		}
-	case MsgCreatePTY:
-		var p CreatePTYPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("CreatePTY{Title:%q, %dx%d}", p.Title, p.Width, p.Height)
-		}
-	case MsgPTYCreated:
-		var p PTYCreatedPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("PTYCreated{ID:%s, Title:%q}", truncateID(p.ID), p.Title)
-		}
-	case MsgClosePTY:
-		var p ClosePTYPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("ClosePTY{ID:%s}", truncateID(p.PTYID))
-		}
-	case MsgSubscribePTY:
-		var p SubscribePTYPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("SubscribePTY{ID:%s}", truncateID(p.PTYID))
-		}
-	case MsgUnsubscribePTY:
-		var p UnsubscribePTYPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("UnsubscribePTY{ID:%s}", truncateID(p.PTYID))
-		}
-	case MsgInput, MsgPTYOutput:
-		// Binary data - just show size
-		return fmt.Sprintf("<%d bytes>", len(msg.Payload))
-	case MsgSessionList:
-		var p SessionListPayload
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("SessionList{Count:%d}", len(p.Sessions))
-		}
-	case MsgStateData:
-		var p SessionState
-		if err := codec.Decode(msg.Payload, &p); err == nil {
-			return fmt.Sprintf("StateData{Name:%q, Windows:%d}", p.Name, len(p.Windows))
-		}
-	}
-
-	return fmt.Sprintf("<%d bytes>", len(msg.Payload))
-}
-
-// truncateID shortens a UUID for display.
-func truncateID(id string) string {
-	if len(id) > 8 {
-		return id[:8]
-	}
-	return id
 }
 
 // GetLogEntries returns the last n log entries.

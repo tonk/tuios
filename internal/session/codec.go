@@ -30,16 +30,6 @@ func (c CodecType) String() string {
 	}
 }
 
-// ParseCodecType parses a string into a CodecType.
-func ParseCodecType(s string) CodecType {
-	switch s {
-	case "json", "JSON":
-		return CodecJSON
-	default:
-		return CodecGob
-	}
-}
-
 // Codec defines the interface for message payload encoding/decoding.
 type Codec interface {
 	// Encode serializes a value to bytes.

@@ -383,26 +383,6 @@ func ButtonFg() color.Color {
 	return t.Black
 }
 
-// WelcomeTitle returns the color for welcome screen titles.
-func WelcomeTitle() color.Color {
-	return lipgloss.Color("14") // Bright cyan
-}
-
-// WelcomeSubtitle returns the color for welcome screen subtitles.
-func WelcomeSubtitle() color.Color {
-	return lipgloss.Color("11") // Bright yellow
-}
-
-// WelcomeText returns the color for welcome screen text.
-func WelcomeText() color.Color {
-	return lipgloss.Color("7") // White
-}
-
-// LogViewerBg returns the background color for the log viewer.
-func LogViewerBg() color.Color {
-	return lipgloss.Color("#1a1a2a")
-}
-
 // NotificationError returns the color for error notifications.
 //
 // The no-theme fallbacks for the four severities are ink colors, not the raw
@@ -545,46 +525,6 @@ func DockAccent() color.Color {
 // DockSeparator returns the separator color for the dock.
 func DockSeparator() color.Color {
 	return lipgloss.Color("#303040")
-}
-
-// HelpKeyBadge returns the color for key badges in help menu.
-func HelpKeyBadge() color.Color {
-	return lipgloss.Color("5") // Purple/magenta
-}
-
-// HelpGray returns the gray color for help menu elements.
-func HelpGray() color.Color {
-	return lipgloss.Color("8")
-}
-
-// HelpBorder returns the border color for help menu.
-func HelpBorder() color.Color {
-	return lipgloss.Color("14")
-}
-
-// HelpTabActive returns the color for active tabs in help menu.
-func HelpTabActive() color.Color {
-	return lipgloss.Color("12")
-}
-
-// CLITableHeader returns the color for CLI table headers.
-func CLITableHeader() color.Color {
-	return lipgloss.Color("12")
-}
-
-// CLITableBorder returns the color for CLI table borders.
-func CLITableBorder() color.Color {
-	return lipgloss.Color("14")
-}
-
-// CLITableKey returns the color for CLI table keys.
-func CLITableKey() color.Color {
-	return lipgloss.Color("11")
-}
-
-// CLITableDim returns the dimmed color for CLI table elements.
-func CLITableDim() color.Color {
-	return lipgloss.Color("8")
 }
 
 // ColorToString converts a color.Color to a hex string

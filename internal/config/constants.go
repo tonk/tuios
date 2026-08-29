@@ -899,23 +899,6 @@ func GetClockPillCapRight() string {
 	return DockPillRightChar
 }
 
-// GetSidebarPillLeftChar returns the rail's left pill cap. The rail keeps its
-// own accessor so the dock's flat/capped setting cannot reshape its rows.
-func GetSidebarPillLeftChar() string {
-	if UseASCIIOnly {
-		return DockPillLeftCharASCII
-	}
-	return DockPillLeftChar
-}
-
-// GetSidebarPillRightChar returns the rail's right pill cap.
-func GetSidebarPillRightChar() string {
-	if UseASCIIOnly {
-		return DockPillRightCharASCII
-	}
-	return DockPillRightChar
-}
-
 // GetDockPillLeftChar returns the pill's left cap, empty when pills are flat.
 func GetDockPillLeftChar() string {
 	if !DockPillCaps {
@@ -1324,18 +1307,6 @@ func GetWindowBorderLeft() string {
 // GetWindowBorderRight returns the appropriate right border character
 func GetWindowBorderRight() string {
 	return GetBorderForStyle().Right
-}
-
-// GetWindowBorderHorizontal returns the appropriate horizontal border character
-// Deprecated: Use GetWindowBorderTop() or GetWindowBorderBottom() for half-block borders
-func GetWindowBorderHorizontal() string {
-	return GetWindowBorderTop()
-}
-
-// GetWindowBorderVertical returns the appropriate vertical border character
-// Deprecated: Use GetWindowBorderLeft() or GetWindowBorderRight() for half-block borders
-func GetWindowBorderVertical() string {
-	return GetWindowBorderLeft()
 }
 
 // GetWindowButtonClose returns the appropriate close button character

@@ -7,23 +7,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// The bordered dialogs (logs, cache stats, tape manager, tape review) predate
-// the panel grammar and size themselves from their own content. The helpers
-// here fit them to the screen the same way overlay_fit.go fits the panels.
-
-// dialogChrome is what a bordered dialog spends on its own frame: a border cell
-// and two padding cells on each side.
-const dialogChrome = 6
-
-// dialogWidth returns the total width to draw a centered bordered dialog at,
-// given the width it would prefer. Never wider than the screen.
-func (m *OS) dialogWidth(preferred int) int {
-	rw := m.GetRenderWidth()
-	if rw <= 0 {
-		return preferred // size not known yet; the caller's preference stands
-	}
-	return max(min(preferred, rw), dialogChrome+2)
-}
+// Tape review still spends its own scrolling viewport budget through
+// dialogRows below; every other bordered dialog (logs, cache stats, tape
+// manager) has since moved onto the panel grammar (panelWidth/panelBody in
+// overlay_fit.go) for both width and row fitting.
 
 // dialogRows returns how many scrolling content rows a centered dialog can show
 // given the rows it spends on everything else.
@@ -33,16 +20,6 @@ func (m *OS) dialogRows(preferred, chrome int) int {
 		return preferred
 	}
 	return max(min(preferred, rh-chrome), minPanelRows)
-}
-
-// dialogContentRows is the tallest a content-sized dialog's body may be before
-// the box around it would reach past the top or bottom of the screen.
-func (m *OS) dialogContentRows() int {
-	rh := m.GetRenderHeight()
-	if rh <= 0 {
-		return 1 << 20 // size not known yet; do not drop anything
-	}
-	return max(rh-4, 1) // border and padding, top and bottom
 }
 
 // squeezeLines shortens a dialog body to rows lines. The blank spacer lines go

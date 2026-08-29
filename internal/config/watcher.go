@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -40,7 +41,13 @@ func NewWatcher(configPath string, callback ConfigReloadCallback) (*Watcher, err
 		stopCh:   make(chan struct{}),
 	}
 
-	if err := w.Add(configPath); err != nil {
+	// Watch the parent directory rather than the file itself. Many editors
+	// (vim with backupcopy=no, VS Code, etc.) save by writing a temp file and
+	// renaming it over the target, which replaces the inode; a watch on the
+	// file directly is silently invalidated (fsnotify.Remove/Rename) and never
+	// fires again on subsequent saves. Watching the directory and filtering by
+	// filename survives that rename.
+	if err := w.Add(filepath.Dir(configPath)); err != nil {
 		_ = w.Close()
 		return nil, err
 	}
@@ -51,13 +58,17 @@ func NewWatcher(configPath string, callback ConfigReloadCallback) (*Watcher, err
 
 // run is the main watcher loop with debouncing.
 func (cw *Watcher) run() {
+	name := filepath.Base(cw.path)
 	for {
 		select {
 		case event, ok := <-cw.watcher.Events:
 			if !ok {
 				return
 			}
-			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) {
+			if filepath.Base(event.Name) != name {
+				continue
+			}
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) {
 				// Debounce: editors often write files in multiple steps
 				cw.timerMu.Lock()
 				if cw.debounceTimer != nil {
