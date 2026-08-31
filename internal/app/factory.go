@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/Gaurav-Gosain/tuios/internal/terminal"
 	"github.com/charmbracelet/ssh"
@@ -82,6 +83,11 @@ type OSOptions struct {
 	// authoritatively via connState.readOnly, since a client that ignored its
 	// own flag is not something this one can defend against.
 	ReadOnly bool
+
+	// PAMLogin, when set, routes every window this session creates through
+	// the given authenticated PAM login (see internal/pamauth) instead of
+	// spawning a local shell as tuios-web's own account. See OS.PAMLogin.
+	PAMLogin *pamauth.Login
 }
 
 // NewOS creates a new OS instance with the given options.
@@ -133,6 +139,9 @@ func NewOS(opts OSOptions) *OS {
 		// Daemon connection
 		DaemonClient: opts.DaemonClient,
 		SessionName:  opts.SessionName,
+
+		// PAM trainee-auth (optional; see OS.PAMLogin)
+		PAMLogin: opts.PAMLogin,
 	}
 
 	// Sidebar order and expand/collapse state survive restarts; a load failure

@@ -11,6 +11,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -49,37 +51,93 @@ func run() error {
 		return fmt.Errorf("reading password: %w", err)
 	}
 
-	conn, err := net.Dial("unix", wire.SocketPath)
+	conn, err := net.Dial("unixpacket", wire.SocketPath)
 	if err != nil {
 		return fmt.Errorf("dialing %s (is pam-helper running as root?): %w", wire.SocketPath, err)
 	}
 	defer func() { _ = conn.Close() }()
 	uconn := conn.(*net.UnixConn)
 
-	if err := wire.WriteFrame(uconn, []byte(username)); err != nil {
-		return fmt.Errorf("sending username: %w", err)
+	var loginPayload bytes.Buffer
+	wire.PutField(&loginPayload, []byte(username))
+	wire.PutField(&loginPayload, passwordB)
+	if err := wire.WriteMessage(uconn, wire.MsgLogin, loginPayload.Bytes(), -1); err != nil {
+		return fmt.Errorf("sending login: %w", err)
 	}
-	if err := wire.WriteFrame(uconn, passwordB); err != nil {
-		return fmt.Errorf("sending password: %w", err)
+	if err := expectOK(uconn, wire.MsgLoginResult, "login"); err != nil {
+		return err
 	}
+	fmt.Println("logged in — press enter to open a shell (ctrl-] to close it), or ctrl-c to quit.")
 
-	ok, fd, err := wire.RecvResult(uconn)
-	if err != nil {
-		return fmt.Errorf("receiving result: %w", err)
-	}
-	if !ok {
-		msg, rerr := wire.ReadFrame(uconn)
-		if rerr != nil {
-			return fmt.Errorf("login failed (and reading the reason failed too: %v)", rerr)
+	for {
+		if _, err := reader.ReadString('\n'); err != nil {
+			return nil
 		}
-		return fmt.Errorf("login failed: %s", msg)
+
+		w, h := 80, 24
+		if cw, ch, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+			w, h = cw, ch
+		}
+		var spawnPayload [8]byte
+		binary.BigEndian.PutUint32(spawnPayload[0:4], uint32(w))
+		binary.BigEndian.PutUint32(spawnPayload[4:8], uint32(h))
+		if err := wire.WriteMessage(uconn, wire.MsgSpawnPTY, spawnPayload[:], -1); err != nil {
+			return fmt.Errorf("sending spawn request: %w", err)
+		}
+		msgType, payload, fd, err := wire.ReadMessage(uconn)
+		if err != nil {
+			return fmt.Errorf("reading spawn result: %w", err)
+		}
+		if msgType != wire.MsgSpawnPTYResult {
+			return fmt.Errorf("unexpected response type %d to spawn", msgType)
+		}
+		if len(payload) < 5 || payload[0] != 1 {
+			return fmt.Errorf("spawn failed: %s", spawnErrorText(payload))
+		}
+		pid := binary.BigEndian.Uint32(payload[1:5])
+		if fd < 0 {
+			return fmt.Errorf("spawn succeeded but no pty fd was received")
+		}
+
+		ptyFile := os.NewFile(uintptr(fd), "pty")
+		fmt.Printf("attached to pid %d — ctrl-] to detach\n", pid)
+		if err := attach(ptyFile); err != nil {
+			_ = ptyFile.Close()
+			return err
+		}
+		_ = ptyFile.Close()
+		fmt.Println("detached — press enter to open another shell, or ctrl-c to quit.")
 	}
+}
 
-	ptyFile := os.NewFile(uintptr(fd), "pty")
-	defer func() { _ = ptyFile.Close() }()
+// expectOK reads one message, checks it's the expected type and status-ok,
+// and turns a status-error response into a Go error.
+func expectOK(conn *net.UnixConn, wantType byte, what string) error {
+	msgType, payload, _, err := wire.ReadMessage(conn)
+	if err != nil {
+		return fmt.Errorf("reading %s result: %w", what, err)
+	}
+	if msgType != wantType {
+		return fmt.Errorf("unexpected response type %d to %s", msgType, what)
+	}
+	if len(payload) < 1 || payload[0] != 1 {
+		r := bytes.NewReader(payload[min(1, len(payload)):])
+		msg, _ := wire.GetField(r)
+		return fmt.Errorf("%s failed: %s", what, msg)
+	}
+	return nil
+}
 
-	fmt.Println("logged in — you are now attached to a real shell running as that user. ctrl-] to detach.")
-	return attach(ptyFile)
+func spawnErrorText(payload []byte) string {
+	if len(payload) < 5 {
+		return "malformed response"
+	}
+	r := bytes.NewReader(payload[5:])
+	msg, err := wire.GetField(r)
+	if err != nil {
+		return "malformed error message"
+	}
+	return string(msg)
 }
 
 // attach puts the local terminal in raw mode and pipes it to/from the PTY

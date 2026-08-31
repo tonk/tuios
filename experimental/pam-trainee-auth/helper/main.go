@@ -1,22 +1,30 @@
 // Command pam-helper is the privileged half of the PAM trainee-auth
-// prototype. It must run as root. It authenticates a username/password pair
-// against PAM (service "tuios-web", see ../pam.d/tuios-web), and on success
-// spawns that user's login shell attached to a fresh PTY, running as their
-// own uid/gid with their own supplementary groups and home directory. The PTY
-// master fd is then handed to whichever unprivileged client asked for it,
-// over a Unix socket, using SCM_RIGHTS — the client never needs any
-// privilege of its own, and this helper never has to touch the shell's
-// stdin/stdout itself once the fd has crossed over.
+// prototype. It must run as root. One connection is one PAM login: it
+// authenticates a username/password pair against PAM (service "tuios-web",
+// see ../pam.d/tuios-web) once, then — for as long as the connection stays
+// open — spawns as many shells as asked for that trainee's own uid/gid, each
+// on its own fresh PTY, handing the master fd to the caller via SCM_RIGHTS.
+// The caller never needs any privilege of its own, and this helper never
+// touches a shell's stdin/stdout again once its fd has crossed over.
+//
+// Closing the connection is what ends the login: every child shell still
+// running for it is signalled, then the PAM session is closed and its
+// credentials released. This lets one authenticated trainee open and close
+// as many windows as they like without re-entering a password, while still
+// tying the whole login's lifetime to one clear, unambiguous event.
 //
 // This is a prototype: the wire protocol (see ../internal/wire) sends the
-// password in the clear over a local socket, with no client authentication of
-// its own beyond "can connect to this socket." That is acceptable for proving
-// the PAM + setuid + fd-passing mechanics out, and not acceptable as shipped:
-// see ../README.md for what a real integration into tuios needs to add.
+// password in the clear over a local socket, with no client authentication
+// of its own beyond "can connect to this socket." That is acceptable for
+// proving the PAM + setuid + fd-passing mechanics out, and not acceptable as
+// shipped: see ../README.md for what a real integration into tuios needs to
+// add.
 package main
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
@@ -45,7 +53,11 @@ func main() {
 	}
 
 	_ = os.Remove(wire.SocketPath)
-	ln, err := net.Listen("unix", wire.SocketPath)
+	// unixpacket (SOCK_SEQPACKET) rather than plain unix (SOCK_STREAM): each
+	// WriteMsgUnix call is then guaranteed to arrive as exactly one
+	// ReadMsgUnix call, so a message's SCM_RIGHTS fd can never end up
+	// ambiguous about which read it belongs to.
+	ln, err := net.Listen("unixpacket", wire.SocketPath)
 	if err != nil {
 		log.Fatalf("listen %s: %v", wire.SocketPath, err)
 	}
@@ -75,49 +87,107 @@ func main() {
 	}
 }
 
+// login is one authenticated PAM session and the shells spawned under it.
+type login struct {
+	username string
+	tx       *pam.Transaction
+	u        *user.User
+	uid, gid uint32
+	groups   []uint32
+	shell    string
+	env      []string
+
+	mu       sync.Mutex
+	children map[int]*os.Process // pid -> process, only pids this login itself spawned
+}
+
 func handleConn(conn *net.UnixConn) {
 	defer func() { _ = conn.Close() }()
 
-	usernameB, err := wire.ReadFrame(conn)
+	msgType, payload, _, err := wire.ReadMessage(conn)
 	if err != nil {
-		log.Printf("read username: %v", err)
+		log.Printf("read login message: %v", err)
 		return
 	}
-	passwordB, err := wire.ReadFrame(conn)
-	if err != nil {
-		log.Printf("read password: %v", err)
+	if msgType != wire.MsgLogin {
+		log.Printf("expected MsgLogin, got type %d", msgType)
 		return
 	}
-	username := string(usernameB)
-	password := string(passwordB)
+	username, password, err := decodeLogin(payload)
+	if err != nil {
+		log.Printf("decoding login message: %v", err)
+		return
+	}
 
-	ptmx, cleanup, err := authenticateAndSpawn(username, password)
+	lg, err := authenticate(username, password)
 	if err != nil {
 		log.Printf("login for %q failed: %v", username, err)
-		if sendErr := wire.SendResult(conn, false, 0); sendErr != nil {
-			log.Printf("sending failure result: %v", sendErr)
+		_ = wire.WriteMessage(conn, wire.MsgLoginResult, encodeResult(false, err), -1)
+		return
+	}
+	defer lg.close()
+
+	log.Printf("login for %q ok", username)
+	if err := wire.WriteMessage(conn, wire.MsgLoginResult, encodeResult(true, nil), -1); err != nil {
+		log.Printf("sending login result: %v", err)
+		return
+	}
+
+	for {
+		msgType, payload, _, err := wire.ReadMessage(conn)
+		if err != nil {
+			log.Printf("login for %q: connection ended (%v)", username, err)
 			return
 		}
-		_ = wire.WriteFrame(conn, []byte(err.Error()))
-		return
+		switch msgType {
+		case wire.MsgSpawnPTY:
+			handleSpawnPTY(conn, lg, payload)
+		case wire.MsgClosePTY:
+			handleClosePTY(conn, lg, payload)
+		default:
+			log.Printf("login for %q: unexpected message type %d", username, msgType)
+			return
+		}
 	}
-	defer func() { _ = ptmx.Close() }() // conn keeps its own dup via SCM_RIGHTS
-
-	log.Printf("login for %q ok, handing off pty fd", username)
-	if err := wire.SendResult(conn, true, int(ptmx.Fd())); err != nil {
-		log.Printf("sending pty fd: %v", err)
-		cleanup()
-		return
-	}
-	// cleanup (pam close session) runs once the shell exits, from the
-	// goroutine authenticateAndSpawn started; nothing more to do here.
 }
 
-// authenticateAndSpawn runs the PAM login sequence and, on success, starts
-// the user's shell on a fresh PTY as their own uid/gid. cleanup must be
-// called (it is, automatically, once the shell exits) to close the PAM
-// session and release credentials.
-func authenticateAndSpawn(username, password string) (ptmx *os.File, cleanup func(), err error) {
+func handleSpawnPTY(conn *net.UnixConn, lg *login, payload []byte) {
+	cols, rows, err := decodeSpawnPTY(payload)
+	if err != nil {
+		log.Printf("decoding spawn request: %v", err)
+		_ = wire.WriteMessage(conn, wire.MsgSpawnPTYResult, encodeSpawnResult(false, 0, err), -1)
+		return
+	}
+
+	ptmx, proc, err := lg.spawnShell(cols, rows)
+	if err != nil {
+		log.Printf("login for %q: spawning shell: %v", lg.username, err)
+		_ = wire.WriteMessage(conn, wire.MsgSpawnPTYResult, encodeSpawnResult(false, 0, err), -1)
+		return
+	}
+	defer func() { _ = ptmx.Close() }() // caller keeps its own dup via SCM_RIGHTS
+
+	log.Printf("login for %q: spawned pid %d", lg.username, proc.Pid)
+	if err := wire.WriteMessage(conn, wire.MsgSpawnPTYResult, encodeSpawnResult(true, proc.Pid, nil), int(ptmx.Fd())); err != nil {
+		log.Printf("sending spawn result: %v", err)
+		_ = proc.Kill()
+	}
+}
+
+func handleClosePTY(conn *net.UnixConn, lg *login, payload []byte) {
+	pid, err := decodeClosePTY(payload)
+	if err != nil {
+		log.Printf("decoding close request: %v", err)
+		_ = wire.WriteMessage(conn, wire.MsgClosePTYResult, encodeResult(false, err), -1)
+		return
+	}
+	err = lg.closeShell(pid)
+	_ = wire.WriteMessage(conn, wire.MsgClosePTYResult, encodeResult(err == nil, err), -1)
+}
+
+// authenticate runs the PAM login sequence once. On success the returned
+// *login can spawn any number of shells until close is called.
+func authenticate(username, password string) (*login, error) {
 	answered := false
 	convo := func(style pam.Style, msg string) (string, error) {
 		switch style {
@@ -139,15 +209,12 @@ func authenticateAndSpawn(username, password string) (ptmx *os.File, cleanup fun
 
 	tx, err := pam.StartFunc(pamService, username, convo)
 	if err != nil {
-		return nil, nil, fmt.Errorf("pam start: %w", err)
+		return nil, fmt.Errorf("pam start: %w", err)
 	}
-	// On any error path below, End() releases the transaction; on the success
-	// path, the goroutine that waits for the shell does it instead, after
-	// CloseSession/SetCred(Delete).
 	endOnce := sync.OnceFunc(func() { _ = tx.End() })
-	fail := func(step string, err error) (*os.File, func(), error) {
+	fail := func(step string, err error) (*login, error) {
 		endOnce()
-		return nil, nil, fmt.Errorf("%s: %w", step, err)
+		return nil, fmt.Errorf("%s: %w", step, err)
 	}
 
 	if err := tx.Authenticate(0); err != nil {
@@ -167,57 +234,102 @@ func authenticateAndSpawn(username, password string) (ptmx *os.File, cleanup fun
 	u, err := user.Lookup(username)
 	if err != nil {
 		closeSession(tx)
-		endOnce()
-		return nil, nil, fmt.Errorf("looking up %q after successful auth: %w", username, err)
+		return fail("looking up user after successful auth", err)
 	}
 	uid, err := strconv.ParseUint(u.Uid, 10, 32)
 	if err != nil {
 		closeSession(tx)
-		endOnce()
-		return nil, nil, fmt.Errorf("parsing uid %q: %w", u.Uid, err)
+		return fail("parsing uid", err)
 	}
 	gid, err := strconv.ParseUint(u.Gid, 10, 32)
 	if err != nil {
 		closeSession(tx)
-		endOnce()
-		return nil, nil, fmt.Errorf("parsing gid %q: %w", u.Gid, err)
+		return fail("parsing gid", err)
 	}
 	groups, err := supplementaryGroups(u)
 	if err != nil {
 		closeSession(tx)
-		endOnce()
-		return nil, nil, fmt.Errorf("resolving supplementary groups: %w", err)
+		return fail("resolving supplementary groups", err)
 	}
-
 	shell := loginShell(username)
-	env := buildEnv(u, shell, tx)
 
-	cmd := exec.Command(shell, "-l")
-	cmd.Dir = u.HomeDir
-	cmd.Env = env
+	return &login{
+		username: username,
+		tx:       tx,
+		u:        u,
+		uid:      uint32(uid),
+		gid:      uint32(gid),
+		groups:   groups,
+		shell:    shell,
+		env:      buildEnv(u, shell, tx),
+		children: make(map[int]*os.Process),
+	}, nil
+}
+
+// spawnShell starts one more shell for this login, on its own fresh PTY at
+// the given size.
+func (lg *login) spawnShell(cols, rows int) (ptmx *os.File, proc *os.Process, err error) {
+	// #nosec G204 - lg.shell is resolved from /etc/passwd for the
+	// already-authenticated user, not attacker input.
+	cmd := exec.Command(lg.shell, "-l")
+	cmd.Dir = lg.u.HomeDir
+	cmd.Env = lg.env
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
-			Uid:    uint32(uid),
-			Gid:    uint32(gid),
-			Groups: groups,
+			Uid:    lg.uid,
+			Gid:    lg.gid,
+			Groups: lg.groups,
 		},
 	}
 
-	ptmx, err = pty.StartWithSize(cmd, nil)
+	ptmx, err = pty.StartWithSize(cmd, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
 	if err != nil {
-		closeSession(tx)
-		endOnce()
 		return nil, nil, fmt.Errorf("starting shell: %w", err)
 	}
 
+	lg.mu.Lock()
+	lg.children[cmd.Process.Pid] = cmd.Process
+	lg.mu.Unlock()
+
 	go func() {
-		_ = cmd.Wait()
-		closeSession(tx)
-		endOnce()
-		log.Printf("session for %q ended", username)
+		_ = cmd.Wait() // reap; the caller detects exit itself via its copy of the pty fd
+		lg.mu.Lock()
+		delete(lg.children, cmd.Process.Pid)
+		lg.mu.Unlock()
 	}()
 
-	return ptmx, func() { closeSession(tx); endOnce() }, nil
+	return ptmx, cmd.Process, nil
+}
+
+// closeShell signals one of this login's own shells to exit. It refuses to
+// touch a pid this login did not itself spawn — a compromised or careless
+// client asking a root process to kill an arbitrary pid is exactly the kind
+// of request this must never honor blindly.
+func (lg *login) closeShell(pid int) error {
+	lg.mu.Lock()
+	proc, ok := lg.children[pid]
+	lg.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("pid %d does not belong to this login", pid)
+	}
+	return proc.Signal(syscall.SIGHUP)
+}
+
+// close signals every shell still running for this login, then tears down
+// the PAM session. Called once the connection ends, whatever the reason.
+func (lg *login) close() {
+	lg.mu.Lock()
+	remaining := make([]*os.Process, 0, len(lg.children))
+	for _, p := range lg.children {
+		remaining = append(remaining, p)
+	}
+	lg.mu.Unlock()
+	for _, p := range remaining {
+		_ = p.Signal(syscall.SIGHUP)
+	}
+	closeSession(lg.tx)
+	_ = lg.tx.End()
+	log.Printf("login for %q ended", lg.username)
 }
 
 func closeSession(tx *pam.Transaction) {
@@ -288,4 +400,68 @@ func buildEnv(u *user.User, shell string, tx *pam.Transaction) []string {
 		out = append(out, k+"="+v)
 	}
 	return out
+}
+
+// --- message payload encode/decode ---
+
+func decodeLogin(payload []byte) (username, password string, err error) {
+	r := bytes.NewReader(payload)
+	u, err := wire.GetField(r)
+	if err != nil {
+		return "", "", fmt.Errorf("reading username: %w", err)
+	}
+	p, err := wire.GetField(r)
+	if err != nil {
+		return "", "", fmt.Errorf("reading password: %w", err)
+	}
+	return string(u), string(p), nil
+}
+
+func encodeResult(ok bool, err error) []byte {
+	var buf bytes.Buffer
+	if ok {
+		buf.WriteByte(1)
+		return buf.Bytes()
+	}
+	buf.WriteByte(0)
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
+	wire.PutField(&buf, []byte(msg))
+	return buf.Bytes()
+}
+
+func decodeSpawnPTY(payload []byte) (cols, rows int, err error) {
+	if len(payload) != 8 {
+		return 0, 0, fmt.Errorf("bad spawn request: %d bytes", len(payload))
+	}
+	return int(binary.BigEndian.Uint32(payload[0:4])), int(binary.BigEndian.Uint32(payload[4:8])), nil
+}
+
+func encodeSpawnResult(ok bool, pid int, err error) []byte {
+	var buf bytes.Buffer
+	if ok {
+		buf.WriteByte(1)
+		var p [4]byte
+		binary.BigEndian.PutUint32(p[:], uint32(pid))
+		buf.Write(p[:])
+		return buf.Bytes()
+	}
+	buf.WriteByte(0)
+	var p [4]byte
+	buf.Write(p[:]) // pid unused on failure, but keep the layout fixed
+	msg := ""
+	if err != nil {
+		msg = err.Error()
+	}
+	wire.PutField(&buf, []byte(msg))
+	return buf.Bytes()
+}
+
+func decodeClosePTY(payload []byte) (pid int, err error) {
+	if len(payload) != 4 {
+		return 0, fmt.Errorf("bad close request: %d bytes", len(payload))
+	}
+	return int(binary.BigEndian.Uint32(payload)), nil
 }

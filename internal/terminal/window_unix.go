@@ -13,22 +13,28 @@ import (
 // TriggerRedraw ensures terminal applications properly respond to resize.
 // This sends SIGWINCH signal to notify applications of the size change.
 func (w *Window) TriggerRedraw() {
-	if w.Cmd == nil || w.Cmd.Process == nil {
-		return
-	}
-
-	// Send SIGWINCH signal immediately to notify the shell of the resize.
-	// PTY.Resize() is synchronous, so the kernel PTY size is updated immediately.
-	// Shells query the new size via ioctl(TIOCGWINSZ) when they receive SIGWINCH.
+	// PTY.Resize() is synchronous, so the kernel PTY size is updated
+	// immediately. Shells query the new size via ioctl(TIOCGWINSZ) when they
+	// receive SIGWINCH; this just makes sure they receive it promptly rather
+	// than only noticing on their next read.
 	w.ioMu.RLock()
-	process := w.Cmd.Process
+	cmd := w.Cmd
+	adoptedPID := w.AdoptedPID
 	w.ioMu.RUnlock()
 
-	if process != nil {
-		// Send SIGWINCH (window change signal) to the process
-		// Applications should handle this and redraw as needed
-		_ = process.Signal(os.Signal(syscall.SIGWINCH)) // Best effort, ignore error
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Signal(os.Signal(syscall.SIGWINCH)) // Best effort, ignore error
+		return
 	}
+	// A window whose shell was spawned by an external privileged helper (see
+	// internal/pamauth) runs as the trainee's own uid, not this process's -
+	// signaling it directly fails with EPERM, since only that uid or root
+	// may. This is a real, accepted gap: the shell only notices the new size
+	// on its next ioctl(TIOCGWINSZ), typically its next keypress or redraw,
+	// rather than immediately. PTY.Resize() itself (the part that actually
+	// changes the kernel's winsize) already ran before TriggerRedraw is
+	// called and is unaffected either way.
+	_ = adoptedPID
 }
 
 // getPgid gets the process group ID of a given process ID.
