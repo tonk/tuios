@@ -2,7 +2,7 @@ BINDIR := $(CURDIR)
 INSTALL_DIR := /usr/local/bin
 DIST := $(CURDIR)/dist
 PACKAGING := $(CURDIR)/packaging
-PAM_HELPER_DIR := $(CURDIR)/experimental/pam-trainee-auth
+PAM_HELPER_DIR := $(CURDIR)/pam-helper
 
 # ?= so CI can pin an exact released version (e.g. VERSION=0.8.0, no leading
 # "v"): rpm's Version field rejects hyphens, which a dirty/commit-suffixed

@@ -25,7 +25,7 @@ NC='\033[0m'
 REPO="Gaurav-Gosain/tuios"
 BINARY_NAME="tuios-pam-helper"
 PAM_SERVICE_PATH="/etc/pam.d/tuios-web"
-PAM_SERVICE_REPO_PATH="experimental/pam-trainee-auth/pam.d/tuios-web"
+PAM_SERVICE_REPO_PATH="pam-helper/pam.d/tuios-web"
 
 print_info()    { echo -e "${BLUE}i${NC} $1"; }
 print_success() { echo -e "${GREEN}+${NC} $1"; }
@@ -75,7 +75,7 @@ main() {
     ARCH="$(uname -m)"
     if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
         print_error "Only amd64 is currently published for tuios-pam-helper. Detected: $ARCH"
-        print_info "Build it yourself instead: see experimental/pam-trainee-auth/README.md in the repo"
+        print_info "Build it yourself instead: see pam-helper/README.md in the repo"
         print_info "(needs libpam0g-dev / pam-devel, then \`make pam-helper\`)."
         exit 1
     fi

@@ -47,8 +47,8 @@ const (
 )
 
 const (
-	maxPayload = 1 << 16       // plenty for a username, password or error string
-	headerLen  = 5             // 1 type byte + 4 length bytes
+	maxPayload = 1 << 16 // plenty for a username, password or error string
+	headerLen  = 5       // 1 type byte + 4 length bytes
 	maxRead    = headerLen + maxPayload
 )
 

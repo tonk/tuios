@@ -38,7 +38,7 @@ jobs:
           set -eu
           apt-get update -qq
           # libpam0g-dev: only needed to build tuios-pam-helper (cgo, see
-          # experimental/pam-trainee-auth), a separate Go module tuios/tuios-web
+          # pam-helper), a separate Go module tuios/tuios-web
           # themselves have no dependency on.
           apt-get install -y -qq --no-install-recommends make libpam0g-dev
           # Pinned, not @latest: nfpm's own go.mod can require a newer Go than

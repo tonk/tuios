@@ -32,7 +32,7 @@ jobs:
         # this repo's go.mod asks setup-go to install (v2.47.0 needs >=1.26.4),
         # and GOTOOLCHAIN=local means setup-go's version is final, not a floor.
         # libpam0g-dev: only needed to build tuios-pam-helper (cgo, see
-        # experimental/pam-trainee-auth), a separate Go module tuios/tuios-web
+        # pam-helper), a separate Go module tuios/tuios-web
         # themselves have no dependency on. make/gcc are already on this image.
         run: |
           set -eu

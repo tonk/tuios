@@ -2,7 +2,7 @@
 # (.forgejo/workflows/release.yml). Cross-compiles tuios/tuios-web for Linux
 # and packages them into .deb/.rpm via nfpm - a pure-Go packager, so no
 # dpkg-deb or rpmbuild is needed here. Also builds tuios-pam-helper (see
-# experimental/pam-trainee-auth), a cgo binary needing libpam0g-dev - a
+# pam-helper), a cgo binary needing libpam0g-dev - a
 # dependency of that build alone, not of tuios/tuios-web.
 #
 # This is a build-time tool image only, not something tuios itself runs in;

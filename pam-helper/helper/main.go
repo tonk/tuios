@@ -1,5 +1,5 @@
-// Command pam-helper is the privileged half of the PAM trainee-auth
-// prototype. It must run as root. One connection is one PAM login: it
+// Command pam-helper is the privileged half of tuios-web's optional
+// --pam-auth mode. It must run as root. One connection is one PAM login: it
 // authenticates a username/password pair against PAM (service "tuios-web",
 // see ../pam.d/tuios-web) once, then — for as long as the connection stays
 // open — spawns as many shells as asked for that trainee's own uid/gid, each
@@ -13,12 +13,12 @@
 // as many windows as they like without re-entering a password, while still
 // tying the whole login's lifetime to one clear, unambiguous event.
 //
-// This is a prototype: the wire protocol (see ../internal/wire) sends the
-// password in the clear over a local socket, with no client authentication
-// of its own beyond "can connect to this socket." That is acceptable for
-// proving the PAM + setuid + fd-passing mechanics out, and not acceptable as
-// shipped: see ../README.md for what a real integration into tuios needs to
-// add.
+// The wire protocol (see ../internal/wire) sends the password in the clear
+// over a local socket, with no client authentication of its own beyond "can
+// connect to this socket." That's the accepted trust boundary: the socket
+// is reachable only on this host, and every actual credential check still
+// happens here, against PAM. See ../README.md for the full design and its
+// known limitations.
 package main
 
 import (
@@ -40,7 +40,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/msteinert/pam/v2"
 
-	"github.com/tonk/tuios-pam-poc/internal/wire"
+	"github.com/Gaurav-Gosain/tuios/pam-helper/internal/wire"
 )
 
 // pamService is the PAM service name; /etc/pam.d/tuios-web must exist (see
@@ -209,7 +209,7 @@ func authenticate(username, password string) (*login, error) {
 		case pam.PromptEchoOff, pam.PromptEchoOn:
 			if answered {
 				// A second prompt (e.g. an expired-password change flow) is
-				// out of scope for this prototype.
+				// not yet handled.
 				return "", errors.New("unexpected second PAM prompt")
 			}
 			answered = true

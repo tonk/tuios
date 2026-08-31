@@ -1,9 +1,8 @@
 // Package pamauth is tuios-web's client for the (optional, opt-in) PAM
 // trainee-auth helper: a small privileged process that authenticates a
 // username/password pair against PAM and, on success, spawns shells running
-// as that trainee's own Unix account — see
-// experimental/pam-trainee-auth/README.md for the full design and how to
-// build/run the helper.
+// as that trainee's own Unix account — see pam-helper/README.md for the
+// full design and how to build/run the helper.
 //
 // This package is pure Go with no cgo dependency of its own: PAM itself
 // (and the setuid/fork work) lives entirely in the separate, privileged
@@ -19,7 +18,7 @@
 // this login and tears down the PAM session.
 //
 // The wire format here is intentionally kept byte-for-byte identical to
-// experimental/pam-trainee-auth/internal/wire — the two packages are
+// pam-helper/internal/wire — the two packages are
 // deliberately not shared code (this module must stay free of the helper's
 // cgo/PAM dependency), but they must be kept in sync by hand if the
 // protocol changes.
@@ -185,7 +184,7 @@ func Verify(socketPath, username, password string) error {
 	return login.Close()
 }
 
-// --- wire protocol (kept in sync by hand with experimental/pam-trainee-auth/internal/wire) ---
+// --- wire protocol (kept in sync by hand with pam-helper/internal/wire) ---
 
 func writeMessage(conn *net.UnixConn, msgType byte, payload []byte, fd int) error {
 	if len(payload) > maxPayload {

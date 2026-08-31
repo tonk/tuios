@@ -142,7 +142,7 @@ isn't already present.
 ### From source, without the Makefile
 
 ```sh
-# from experimental/pam-trainee-auth
+# from pam-helper
 go build -o pam-helper ./helper
 sudo cp pam.d/tuios-web /etc/pam.d/tuios-web
 sudo ./pam-helper &      # must be root

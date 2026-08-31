@@ -1,4 +1,4 @@
-module github.com/tonk/tuios-pam-poc
+module github.com/Gaurav-Gosain/tuios/pam-helper
 
 go 1.26.7
 

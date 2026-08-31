@@ -1,9 +1,10 @@
-// Command pam-client is the unprivileged half of the PAM trainee-auth
-// prototype: it asks for a username and password, hands them to pam-helper
-// over a Unix socket, and if login succeeds, receives back a PTY master fd
-// for a shell already running as that trainee's own Unix account. It then
-// acts as a minimal terminal, so you can drive that shell interactively and
-// confirm `whoami`/`id`/`echo $HOME` all show the right identity.
+// Command pam-client is a minimal manual test client for pam-helper: it asks
+// for a username and password, hands them to pam-helper over a Unix socket,
+// and if login succeeds, receives back a PTY master fd for a shell already
+// running as that trainee's own Unix account. It then acts as a minimal
+// terminal, so you can drive that shell interactively and confirm
+// `whoami`/`id`/`echo $HOME` all show the right identity - useful for trying
+// the helper out on its own, independent of tuios-web.
 //
 // This client itself never runs privileged and never touches PAM; it only
 // ever sees a file descriptor the helper already set up.
@@ -24,7 +25,7 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/term"
 
-	"github.com/tonk/tuios-pam-poc/internal/wire"
+	"github.com/Gaurav-Gosain/tuios/pam-helper/internal/wire"
 )
 
 func main() {
