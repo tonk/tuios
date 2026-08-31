@@ -36,13 +36,17 @@ func ThemeSwatch(id string) []color.Color {
 
 var ensureRegistryOnce sync.Once
 
-// EnsureRegistry populates the tint registry with the built-in tints and any
-// custom themes, without enabling theming or changing the current theme. This
-// lets the settings page list and preview themes even when the session started
-// with no theme selected.
+// EnsureRegistry populates the tint registry with the built-in tints, the
+// themes tuios bundles with its own binary (see bundled.go), and any custom
+// themes from the user's themes directory - in that order, so a user's own
+// file always wins a same-id collision with either of the other two -
+// without enabling theming or changing the current theme. This lets the
+// settings page list and preview themes even when the session started with
+// no theme selected.
 func EnsureRegistry() {
 	ensureRegistryOnce.Do(func() {
 		tint.NewDefaultRegistry()
+		registerBundledThemes()
 		if themesDir, err := GetThemesDir(); err == nil {
 			if _, err := LoadCustomThemes(themesDir); err != nil {
 				log.Printf("Warning: error loading custom themes: %v", err)

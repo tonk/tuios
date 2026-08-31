@@ -1,0 +1,63 @@
+# Training - a light, high-contrast theme for teaching or presenting from a
+# projector or a shared screen, where a dark background and thin strokes are
+# hard to read from the back of the room. Converted from a real kitty config
+# built for exactly that.
+#
+# The source kitty config only set foreground/background/cursor/selection/
+# border/tab colors, not the 16 ANSI colors - kitty falls back to its own
+# built-in default palette for those, so the black/red/green/... below are
+# kitty's actual documented defaults, not a guess, to keep ANSI-colored
+# output looking the same as it did under the original config.
+id           = "training"
+display_name = "Training"
+dark         = false
+fg           = "#000000"
+bg           = "#ffffff"
+cursor       = "#008800"
+selection_bg = "#5b1b52"
+
+black  = "#000000"
+red    = "#cc0403"
+green  = "#19cb00"
+yellow = "#cecb00"
+blue   = "#0d73cc"
+purple = "#cb1ed1"
+cyan   = "#0dcdcd"
+white  = "#dddddd"
+
+bright_black  = "#767676"
+bright_red    = "#f2201f"
+bright_green  = "#23fd00"
+bright_yellow = "#fffd00"
+bright_blue   = "#1a8fff"
+bright_purple = "#fd28ff"
+bright_cyan   = "#14ffff"
+bright_white  = "#ffffff"
+
+[ui]
+# kitty's active_border_color/inactive_border_color. kitty has no separate
+# terminal-mode/window-mode border distinction, so both focused variants
+# reuse the same active color.
+border_focused_window   = "#d3869b"
+border_focused_terminal = "#d3869b"
+border_unfocused        = "#665c54"
+
+# kitty's cursor_text_color was "background" (the keyword, meaning "use the
+# terminal background under the cursor block"), which is bg (#ffffff) here.
+terminal_cursor_fg = "#ffffff"
+
+# kitty's active_tab_background/foreground and inactive_tab_background/
+# foreground - tuios's closest equivalent to a tab bar is the workspace
+# pill strip.
+workspace_pill_active_bg   = "#665c54"
+workspace_pill_active_fg   = "#fbf1c7"
+workspace_pill_inactive_bg = "#3c3836"
+workspace_pill_inactive_fg = "#a89984"
+
+# kitty's url_color (the underline color for hyperlinks): closest tuios
+# equivalent is the overlay's informational accent.
+info = "#83a598"
+
+# kitty's visual_bell_color/bell_border_color: closest tuios equivalent is
+# the overlay's positive/on accent.
+success = "#8ec07c"

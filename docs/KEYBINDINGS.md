@@ -358,6 +358,7 @@ Access debug and development tools:
 | `Ctrl+B` `D` `c` | Toggle cache statistics |
 | `Ctrl+B` `D` `k` | Toggle showkeys overlay |
 | `Ctrl+B` `D` `a` | Toggle animations |
+| `Ctrl+B` `D` `r` | Reload custom theme files from `~/.config/tuios/themes/` without restarting |
 | `Ctrl+B` `D` `Esc` | Cancel |
 
 **Log Viewer Keys:**

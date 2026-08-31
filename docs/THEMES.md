@@ -8,6 +8,7 @@ overlays, the dockbar) from them.
 ## Table of Contents
 
 - [Selecting a Theme](#selecting-a-theme)
+- [Bundled Themes](#bundled-themes)
 - [Custom Themes](#custom-themes)
 - [Theme File Format](#theme-file-format)
 - [Defaults for Omitted Colors](#defaults-for-omitted-colors)
@@ -41,6 +42,24 @@ Leaving the theme unset disables theming entirely and TUIOS uses your terminal's
 own colors. An unknown theme name logs a warning and leaves the colors as they
 were, rather than failing to start.
 
+## Bundled Themes
+
+Alongside bubbletint's own large built-in catalog, tuios ships a handful of
+its own themes directly in the binary - no file to create, nothing to
+install, always there. Currently:
+
+- **`training`** - a light, high-contrast theme built for reading a
+  projected or shared screen from a distance (a classroom's back row, say),
+  where a typical dark background and thin strokes are hard to make out.
+  Pairs well with `--font-family saucecodeprosemibold` in `tuios-web` for
+  the same reason - see [Web Terminal Mode](WEB.md#features).
+
+Select it the same way as any other theme: `theme = "training"`,
+`--theme training`, or from the picker. Its source lives at
+`internal/theme/bundled/training.toml` in the repo, in the exact same
+format as a [custom theme](#custom-themes) below - a file you drop in your
+own themes directory under the same id still wins over the bundled one.
+
 ## Custom Themes
 
 Custom themes are `.json` or `.toml` files in the themes directory:
@@ -63,8 +82,14 @@ themes, or the app, from loading.
 comments (`#`). Prefer it for anything you plan to hand-edit; `.json` still
 works exactly as before for existing theme files.
 
-Themes are read once, at startup. Adding or editing a theme file requires a
-restart.
+Themes are read once, at startup, by default. Adding or editing a theme
+file takes effect without a restart too, though: saving `config.toml`
+again (any setting, not just the theme) re-scans the directory as a side
+effect, and so does `Ctrl+B` `D` `r` ("Reload custom theme files") from a
+running session - see [Keybindings](KEYBINDINGS.md#debug-prefix-ctrlb-d).
+Removing a theme file is the one case that still needs an actual restart:
+a reload only ever adds or updates registrations, it never un-registers
+one whose file disappeared.
 
 ## Theme File Format
 

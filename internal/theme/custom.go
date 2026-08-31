@@ -71,11 +71,19 @@ func LoadCustomThemeFile(path string) (*tint.Tint, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read theme file: %w", err)
 	}
+	return loadThemeBytes(data, filepath.Base(path))
+}
 
+// loadThemeBytes is LoadCustomThemeFile's actual parser, factored out so a
+// theme tuios ships embedded in its own binary (see bundled.go) can share
+// it without needing a real path on disk. name is used only for two things:
+// picking JSON vs TOML by its extension, and - same as LoadCustomThemeFile
+// - deriving an ID when the file itself doesn't set one.
+func loadThemeBytes(data []byte, name string) (*tint.Tint, error) {
 	var t tint.Tint
 	var ui *uiOverridesRaw
 
-	if strings.EqualFold(filepath.Ext(path), ".toml") {
+	if strings.EqualFold(filepath.Ext(name), ".toml") {
 		var f tomlThemeFile
 		if err := toml.Unmarshal(data, &f); err != nil {
 			return nil, fmt.Errorf("failed to parse theme TOML: %w", err)
@@ -99,7 +107,7 @@ func LoadCustomThemeFile(path string) (*tint.Tint, error) {
 
 	// Derive ID from filename if not set in the file
 	if t.ID == "" {
-		base := filepath.Base(path)
+		base := filepath.Base(name)
 		t.ID = strings.ToLower(strings.TrimSuffix(base, filepath.Ext(base)))
 	}
 
