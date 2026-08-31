@@ -66,29 +66,49 @@ func newFrontDoor(publicAddr, internalAddr string, tlsConfig *tls.Config, pamSoc
 		if injectSettings && r.URL.Path == "/" {
 			ensureSessionCookie(w, r)
 		}
-		if pamSocketPath != "" {
-			username, password, ok := r.BasicAuth()
-			if !ok {
-				unauthorizedHTTP(w)
-				return
-			}
-			if err := pamauth.Verify(pamSocketPath, username, password); err != nil {
-				// Same reasoning as pamAuthMiddleware in pamauth.go: log the
-				// real reason server-side, tell the browser nothing more
-				// than "authentication failed".
-				log.Printf("PAM login for %q failed: %v", username, err)
-				unauthorizedHTTP(w)
-				return
-			}
-		}
 		proxy.ServeHTTP(w, r)
 	})
 
+	// Wrapped around the whole mux, not inlined into the "/" handler above:
+	// Go's ServeMux picks the most specific registered pattern for a
+	// request, so a check that only ran inside the "/" handler never fired
+	// for a more specific pattern registered elsewhere - which is exactly
+	// how /tuios-settings/* (registered above by registerWebSettingsRoutes)
+	// ended up reachable without a PAM login. Wrapping here instead means
+	// every path this server answers is gated the same way, including any
+	// future route, without each one having to remember to check.
+	var handler http.Handler = mux
+	if pamSocketPath != "" {
+		handler = requirePAM(pamSocketPath, mux)
+	}
+
 	return &http.Server{
 		Addr:      publicAddr,
-		Handler:   mux,
+		Handler:   handler,
 		TLSConfig: tlsConfig,
 	}
+}
+
+// requirePAM wraps next so every request must present valid PAM credentials
+// first. See newFrontDoor for why this wraps the whole mux rather than being
+// inlined into one route's handler.
+func requirePAM(pamSocketPath string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			unauthorizedHTTP(w)
+			return
+		}
+		if err := pamauth.Verify(pamSocketPath, username, password); err != nil {
+			// Same reasoning as pamAuthMiddleware in pamauth.go: log the
+			// real reason server-side, tell the browser nothing more than
+			// "authentication failed".
+			log.Printf("PAM login for %q failed: %v", username, err)
+			unauthorizedHTTP(w)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func unauthorizedHTTP(w http.ResponseWriter) {
