@@ -135,6 +135,86 @@ type setThemeRequest struct {
 	Theme string `json:"theme"`
 }
 
+// webTermTheme mirrors the shape of the xterm-style Theme object webterm.js
+// accepts (see terminal.js's own THEME constant and webtermOptions' `theme:
+// THEME` field). It exists because tuios itself never paints a pane
+// background - SetTheme always passes a nil background to the VT emulator,
+// so whatever is behind a real terminal (configurable independently of
+// tuios) shows through - but over the web there is no such thing behind
+// sip's canvas, only whatever THEME it was constructed with once, at
+// startup. Sending this back out lets the injected JS re-apply it via
+// webterm.setOptions({theme: ...}), the same live-patch mechanism sip's own
+// settings panel already uses for fontSize/cursorBlink/etc: confirmed live
+// (via the WebGL renderer's own setTheme, which forces a full repaint) by
+// driving it directly through devtools before wiring this up, since neither
+// webterm.js nor terminal.js document it anywhere.
+type webTermTheme struct {
+	Foreground          string `json:"foreground,omitempty"`
+	Background          string `json:"background,omitempty"`
+	Cursor              string `json:"cursor,omitempty"`
+	CursorAccent        string `json:"cursorAccent,omitempty"`
+	SelectionBackground string `json:"selectionBackground,omitempty"`
+	Black               string `json:"black,omitempty"`
+	Red                 string `json:"red,omitempty"`
+	Green               string `json:"green,omitempty"`
+	Yellow              string `json:"yellow,omitempty"`
+	Blue                string `json:"blue,omitempty"`
+	Magenta             string `json:"magenta,omitempty"`
+	Cyan                string `json:"cyan,omitempty"`
+	White               string `json:"white,omitempty"`
+	BrightBlack         string `json:"brightBlack,omitempty"`
+	BrightRed           string `json:"brightRed,omitempty"`
+	BrightGreen         string `json:"brightGreen,omitempty"`
+	BrightYellow        string `json:"brightYellow,omitempty"`
+	BrightBlue          string `json:"brightBlue,omitempty"`
+	BrightMagenta       string `json:"brightMagenta,omitempty"`
+	BrightCyan          string `json:"brightCyan,omitempty"`
+	BrightWhite         string `json:"brightWhite,omitempty"`
+}
+
+// webTermThemeFor converts a tint.Tint (bubbletint's palette type, the same
+// one internal/theme drives the TUI's own rendering from) into the shape
+// webterm.js expects. t is assumed non-nil; callers guard that themselves
+// since "no theme" and "empty webTermTheme" mean different things to them.
+func webTermThemeFor(t *tint.Tint) webTermTheme {
+	hex := func(c *tint.Color) string {
+		if c == nil {
+			return ""
+		}
+		return c.Hex()
+	}
+	// Cursor is missing from most themes (see tint.Tint's own doc comment);
+	// falling back to the foreground color matches what a real terminal
+	// emulator does absent an explicit cursor color.
+	cursor := hex(t.Cursor)
+	if cursor == "" {
+		cursor = hex(t.Fg)
+	}
+	return webTermTheme{
+		Foreground:          hex(t.Fg),
+		Background:          hex(t.Bg),
+		Cursor:              cursor,
+		CursorAccent:        hex(t.Bg),
+		SelectionBackground: hex(t.SelectionBg),
+		Black:               hex(t.Black),
+		Red:                 hex(t.Red),
+		Green:               hex(t.Green),
+		Yellow:              hex(t.Yellow),
+		Blue:                hex(t.Blue),
+		Magenta:             hex(t.Purple),
+		Cyan:                hex(t.Cyan),
+		White:               hex(t.White),
+		BrightBlack:         hex(t.BrightBlack),
+		BrightRed:           hex(t.BrightRed),
+		BrightGreen:         hex(t.BrightGreen),
+		BrightYellow:        hex(t.BrightYellow),
+		BrightBlue:          hex(t.BrightBlue),
+		BrightMagenta:       hex(t.BrightPurple),
+		BrightCyan:          hex(t.BrightCyan),
+		BrightWhite:         hex(t.BrightWhite),
+	}
+}
+
 func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -150,6 +230,11 @@ func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	t, ok := tint.GetTint(req.Theme)
+	if !ok {
+		http.Error(w, "unknown theme", http.StatusBadRequest)
+		return
+	}
 	v, ok := programRegistry.Load(c.Value)
 	if !ok {
 		http.Error(w, "session not found (reload the page)", http.StatusNotFound)
@@ -161,7 +246,9 @@ func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	program.Send(app.SetThemeMsg{Theme: req.Theme})
-	w.WriteHeader(http.StatusNoContent)
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(webTermThemeFor(t))
 }
 
 func handleBundledFont(w http.ResponseWriter, _ *http.Request) {
@@ -187,7 +274,26 @@ const fontCookieName = "tuios_font"
 // of sip's own body scripts run, which is what lets it override
 // window.__sipConfig.fontFamily in time for terminal.js's construction of
 // the terminal to see it.
-const settingsInjectHead = `
+//
+// bgHex bakes in the currently active theme's background (see
+// setThemeResponse for why sip's page needs this at all: tuios itself never
+// paints a pane background, so nothing else would ever set it). This is what
+// a fresh load or reload shows immediately, before the settings-panel JS has
+// even run - without it, a reload after picking a theme would flash back to
+// sip's own fixed background until the panel finished loading, if it ever
+// corrected it at all. An empty bgHex (theming disabled) injects no rule, so
+// sip's own CSS default applies exactly as it did before this feature
+// existed. This rule and the live one settingsInjectFooter sets on a change
+// use different specificity levels: this one is an ordinary "body, html"
+// stylesheet rule, so live updates only need a plain element.style.background
+// set (inline style always outranks a stylesheet rule, !important or not) to
+// override it, with no !important tug-of-war between the two.
+func settingsInjectHead(bgHex string) string {
+	bgRule := ""
+	if bgHex != "" {
+		bgRule = "body, html { background-color: " + bgHex + "; }\n    "
+	}
+	return `
     <style>
     @font-face {
         font-family: 'SauceCodePro NFM';
@@ -205,7 +311,7 @@ const settingsInjectHead = `
         max-height: calc(100vh - 70px);
         overflow-y: auto;
     }
-    </style>
+    ` + bgRule + `</style>
     <script>
     (function() {
         var m = document.cookie.match(/(?:^|; )` + fontCookieName + `=([^;]*)/);
@@ -216,6 +322,7 @@ const settingsInjectHead = `
     })();
     </script>
 `
+}
 
 // settingsInjectHTML is spliced into the "/" response right before the
 // settings panel's Apply button - see injectSettingsUI. Two new setting-group
@@ -245,14 +352,38 @@ func settingsInjectHTML(selectedFont string) string {
 `
 }
 
-const settingsInjectFooter = `
+// settingsInjectFooter is spliced into "/" right before </body>. initialTheme
+// is the JSON-encoded webTermTheme for the theme active when this page was
+// served ("null" when theming is disabled), applied once webterm exists so a
+// reload does not silently drop back to sip's own built-in palette.
+func settingsInjectFooter(initialTheme string) string {
+	return `
     <script>
     (function() {
         function whenReady(fn) {
-            if (window.sip && window.sip.term) { fn(); return; }
+            if (window.sip && window.sip.term && window.sip.term.webterm) { fn(); return; }
             setTimeout(function() { whenReady(fn); }, 100);
         }
+
+        // Shared by the initial-load application below and the dropdown's
+        // change handler. webterm.setOptions({theme: ...}) is confirmed live
+        // (its WebGL/Canvas renderer's own setTheme forces a full repaint) -
+        // neither webterm.js nor terminal.js document this anywhere; sip's
+        // own settings panel never had a reason to try it, only ever
+        // patching fontSize/cursorBlink/etc. The plain CSS background is a
+        // cheap fallback for the sliver of page the canvas does not cover.
+        function applyTheme(t) {
+            if (!t) { return; }
+            window.sip.term.webterm.setOptions({ theme: t });
+            if (t.background) {
+                document.body.style.backgroundColor = t.background;
+                document.documentElement.style.backgroundColor = t.background;
+            }
+        }
+
         whenReady(function() {
+            applyTheme(` + initialTheme + `);
+
             var themeSelect = document.getElementById('tuios-theme-select');
             var fontSelect = document.getElementById('tuios-font-select');
             if (!themeSelect || !fontSelect) { return; }
@@ -278,7 +409,10 @@ const settingsInjectFooter = `
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ theme: themeSelect.value })
-                }).catch(function() {});
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(applyTheme)
+                    .catch(function() {});
             });
 
             fontSelect.addEventListener('change', function() {
@@ -289,14 +423,19 @@ const settingsInjectFooter = `
     })();
     </script>
 `
+}
 
 // injectSettingsUI splices settingsInjectHead/settingsInjectHTML/
 // settingsInjectFooter into the "/" response's HTML. Called from
 // rewriteIndexResponse (pamfrontdoor.go), which handles the actual
-// Content-Length fixup; this function only does string surgery.
-func injectSettingsUI(body, selectedFont string) string {
-	body = strings.Replace(body, "</head>", settingsInjectHead+"</head>", 1)
+// Content-Length fixup; this function only does string surgery. bgHex and
+// initialThemeJSON both describe the theme active when this page was served
+// (empty / "null" when theming is disabled) - rewriteIndexResponse computes
+// both from the same *tint.Tint, one for the CSS fallback, one for the JS
+// webterm.setOptions call.
+func injectSettingsUI(body, selectedFont, bgHex, initialThemeJSON string) string {
+	body = strings.Replace(body, "</head>", settingsInjectHead(bgHex)+"</head>", 1)
 	body = strings.Replace(body, `<button id="settings-apply"`, settingsInjectHTML(selectedFont)+`        <button id="settings-apply"`, 1)
-	body = strings.Replace(body, "</body>", settingsInjectFooter+"</body>", 1)
+	body = strings.Replace(body, "</body>", settingsInjectFooter(initialThemeJSON)+"</body>", 1)
 	return body
 }

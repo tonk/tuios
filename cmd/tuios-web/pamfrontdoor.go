@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
+	"github.com/Gaurav-Gosain/tuios/internal/theme"
 )
 
 // newFrontDoor builds the public-facing HTTP(S) server used whenever
@@ -123,7 +125,22 @@ func rewriteIndexResponse(resp *http.Response) error {
 			selectedFont = decoded
 		}
 	}
-	rewritten := injectSettingsUI(string(body), selectedFont)
+	bgHex := ""
+	initialThemeJSON := "null"
+	if t := theme.Current(); t != nil {
+		if t.Bg != nil {
+			// t.Bg is a *tint.Color; passing a nil one through the
+			// color.Color interface here would not compare equal to nil (a
+			// nil pointer wrapped in a non-nil interface), so the nil check
+			// has to happen on the concrete type before it crosses into
+			// ColorToString.
+			bgHex = theme.ColorToString(t.Bg)
+		}
+		if encoded, err := json.Marshal(webTermThemeFor(t)); err == nil {
+			initialThemeJSON = string(encoded)
+		}
+	}
+	rewritten := injectSettingsUI(string(body), selectedFont, bgHex, initialThemeJSON)
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
 	resp.ContentLength = int64(len(rewritten))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))
