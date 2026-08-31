@@ -37,12 +37,34 @@ file descriptors and gets out of the way:
 
 ## How it's wired into tuios-web
 
-- `--pam-auth` adds an `sip.ConnectMiddleware` (`cmd/tuios-web/pamauth.go`)
-  that gates every connection behind HTTP Basic Auth, verified by dialing the
-  helper. On success the resulting `*pamauth.Login` — a live, authenticated
-  connection, not just a yes/no answer — rides into the session via
-  `sip.WithIdentity`, the same context-carrying mechanism `touchMiddleware`
-  already uses for touch-device detection.
+- **A front door in front of sip** (`cmd/tuios-web/pamfrontdoor.go`). This is
+  the piece that makes a login prompt actually appear in the browser, and it
+  exists for a specific reason: sip's own page-load auth hook (`checkAuth`,
+  guarding `/`) only supports one fixed username/password pair via
+  `sip.Config.BasicUsername`/`BasicPassword`, with no hook for a dynamic
+  per-trainee check — and a browser's native Basic Auth popup only ever
+  appears for a 401 on a plain HTTP request (the page load), never for one on
+  a WebSocket handshake, which is the only place a `sip.ConnectMiddleware`
+  alone can run. So in `--pam-auth` mode, `runWebServer` rebinds sip itself
+  to a loopback-only internal address (an OS-assigned free port, probed via
+  `probeLoopbackPort`) and instead runs its own `http.Server` on the address
+  the user actually asked for, gating *every* request — page load, static
+  assets, the WebSocket upgrade, all of it — with real PAM Basic Auth
+  (`pamauth.Verify`, a check-only login: dial, authenticate, close
+  immediately) before reverse-proxying it through. This is also why sip's
+  own TLS handling gets bypassed for `--pam-auth`: the front door terminates
+  TLS itself now, since it's the one holding the public-facing listener.
+- `pamAuthMiddleware`, an `sip.ConnectMiddleware` (`cmd/tuios-web/pamauth.go`),
+  still runs *inside* sip's (now-internal) instance, at the WebSocket
+  handshake specifically. This is where the real, lasting session identity
+  gets created: a browser that already passed the front door's gate has its
+  credentials cached for the origin and attaches them automatically to the
+  WebSocket upgrade too (this happens in the browser's network layer,
+  invisible to the page's own JS, which has no way to attach an
+  `Authorization` header to a `WebSocket` itself). On success the resulting
+  `*pamauth.Login` rides into the session via `sip.WithIdentity`, the same
+  context-carrying mechanism `touchMiddleware` already uses for touch-device
+  detection.
 - `createTUIOSHandler` (`cmd/tuios-web/main.go`) checks for that identity
   before falling through to the normal ephemeral/daemon-backed paths, and
   when present builds an ordinary local `OS` instance with `OSOptions.PAMLogin`
@@ -71,6 +93,18 @@ restart — the same limitation `--ephemeral` already has, for the same reason:
 there's no separate daemon process for either kind of session to live in
 independently of the one connection that created it.
 
+**A side effect of the front door worth knowing about**: sip generates a
+self-signed certificate and starts a WebTransport listener automatically for
+any loopback bind, including the now-internal one — but that listener is
+unreachable (it's not something the front door proxies, and QUIC/UDP
+proxying is a different, harder problem than the HTTP/WebSocket proxying
+implemented here). A browser will briefly try WebTransport, fail to reach
+it, and fall back to WebSocket — the same fallback path sip already uses
+whenever WebTransport isn't available for any other reason, just triggered
+here by an unreachable rather than absent endpoint. Effect: a short
+(sub-second, in testing) connection delay on first load, not a broken
+connection.
+
 ## Trying it
 
 Needs `libpam0g-dev` (or your distro's PAM headers) to build the helper,
@@ -88,9 +122,11 @@ go build -o tuios-web ./cmd/tuios-web
 ./tuios-web --pam-auth --port 7681
 ```
 
-Open `http://localhost:7681`, and the browser's own login prompt (HTTP Basic
-Auth) asks for a real local account's username and password. On success you
-land in a real shell running as that account.
+Open `http://localhost:7681`, and the browser's own native login prompt
+(HTTP Basic Auth) asks for a real local account's username and password —
+right on page load, before the terminal UI even appears, since that's what
+the front door in `pamfrontdoor.go` gates. On success you land in a real
+shell running as that account.
 
 The standalone `client/` (log in, get a shell, no browser needed) still
 works the same way for quick manual checks:
@@ -107,15 +143,20 @@ go build -o pam-client ./client
 
 Tested end to end against disposable local accounts (`useradd -m`, the PAM
 service file above, no LDAP/SSSD — matches the target training environment),
-through the real `tuios-web` binary over a real WebSocket connection, not
+through the real `tuios-web` binary and a real WebSocket connection, not
 just the standalone helper/client:
 
-- **Full web session**: connected with HTTP Basic Auth, opened a window,
-  typed into it, and got back `whoami`/`id`/`$HOME`/`pwd` all resolved to the
-  trainee account — through actual tuios VT rendering, not a raw pty dump.
-- **Auth gate**: no credentials and a wrong password both got a clean 401
-  with `WWW-Authenticate`, before any WebSocket upgrade; a correct login
-  proceeded straight through.
+- **Front-door auth gate**: `GET /` with no credentials and with a wrong
+  password both got a clean 401 with `WWW-Authenticate: Basic
+  realm="tuios-web"` directly from the public port — the actual thing that
+  makes a browser show its native login popup — before ever reaching sip's
+  internal instance; a correct login proxied through to the real
+  `index.html` (200, correct content type).
+- **Full web session through the proxy**: connected over WebSocket with HTTP
+  Basic Auth to the front door, opened a window, typed into it, and got back
+  `whoami`/`id`/`$HOME` all resolved to the trainee account — through actual
+  tuios VT rendering and the reverse proxy, not a direct connection to sip's
+  internal instance.
 - **Independent multi-spawn** (the reason the protocol became persistent
   rather than one-shot): two `SpawnPTY` calls on the same login produced two
   different pids, both correctly isolated as the trainee's account — this is

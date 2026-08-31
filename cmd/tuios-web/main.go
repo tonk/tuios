@@ -4,11 +4,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -298,16 +300,34 @@ func runWebServer() error {
 		ThemeName:         themeName,
 	}, userConfig)
 
+	// In --pam-auth mode, sip's own server binds loopback-only and plain
+	// HTTP; the PAM front door (below, after sip.NewServer) is what actually
+	// listens on the address the user asked for and terminates TLS, since
+	// sip has no hook to gate its own page-load route with a dynamic
+	// per-trainee check - only the WebSocket handshake (see pamauth.go).
+	sipHost, sipPort := webHost, webPort
+	sipTLSCert, sipTLSKey := tlsCert, tlsKey
+	var pamInternalAddr string
+	if webPAMAuth {
+		internalPort, err := probeLoopbackPort()
+		if err != nil {
+			return fmt.Errorf("--pam-auth: finding an internal port for sip: %w", err)
+		}
+		sipHost, sipPort = "127.0.0.1", internalPort
+		sipTLSCert, sipTLSKey = "", ""
+		pamInternalAddr = net.JoinHostPort(sipHost, sipPort)
+	}
+
 	// Create sip server
 	sipConfig := sip.DefaultConfig()
-	sipConfig.Host = webHost
-	sipConfig.Port = webPort
+	sipConfig.Host = sipHost
+	sipConfig.Port = sipPort
 	sipConfig.ReadOnly = webReadOnly
 	sipConfig.MaxConnections = webMaxConnections
 	sipConfig.Debug = debugMode
-	sipConfig.TLSCert = tlsCert
-	sipConfig.TLSKey = tlsKey
-	sipConfig.AllowInsecureNoTLS = webInsecure
+	sipConfig.TLSCert = sipTLSCert
+	sipConfig.TLSKey = sipTLSKey
+	sipConfig.AllowInsecureNoTLS = webInsecure || webPAMAuth
 	if webFontPath != "" {
 		if _, err := os.Stat(webFontPath); err != nil {
 			return fmt.Errorf("--font-path %s: %w", webFontPath, err)
@@ -353,8 +373,57 @@ func runWebServer() error {
 		log.Printf("Insecure: %s is served over plain HTTP, so anyone on this network can read what you type", serverURL())
 	}
 
-	// Serve TUIOS using sip
-	return server.Serve(ctx, createTUIOSHandler)
+	if !webPAMAuth {
+		// Serve TUIOS using sip
+		return server.Serve(ctx, createTUIOSHandler)
+	}
+
+	// sip serves loopback-only (above); the PAM front door is what actually
+	// listens on the address the user asked for. It owns TLS termination
+	// too, since sip's internal instance is plain HTTP.
+	var frontTLS *tls.Config
+	if tlsCert != "" {
+		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return fmt.Errorf("loading TLS keypair for the PAM front door: %w", err)
+		}
+		frontTLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	}
+	front := newPAMFrontDoor(net.JoinHostPort(webHost, webPort), pamInternalAddr, webPAMSocket, frontTLS)
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- server.Serve(ctx, createTUIOSHandler) }()
+	go func() {
+		var err error
+		if frontTLS != nil {
+			err = front.ListenAndServeTLS("", "")
+		} else {
+			err = front.ListenAndServe()
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- fmt.Errorf("PAM front door: %w", err)
+		}
+	}()
+	go func() {
+		<-ctx.Done()
+		_ = front.Close()
+	}()
+
+	return <-errCh
+}
+
+// probeLoopbackPort asks the kernel for a free port on 127.0.0.1 by binding
+// to port 0, reading back what it chose, and releasing it immediately. Used
+// to pick sip's internal, loopback-only address in --pam-auth mode without
+// risking a fixed port colliding with something else on the machine.
+func probeLoopbackPort() (string, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = ln.Close() }()
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	return port, err
 }
 
 // isLoopbackHost reports whether a bind address keeps traffic inside this

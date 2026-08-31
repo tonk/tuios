@@ -171,6 +171,20 @@ func (l *Login) Close() error {
 // ConnectMiddleware's request context directly.
 func (l *Login) String() string { return "pam-authenticated" }
 
+// Verify checks a username/password pair against the helper without
+// establishing a lasting login: it dials, authenticates, and immediately
+// closes. Used to gate plain HTTP requests (the page load and its assets)
+// so a browser's native Basic Auth prompt appears on first load and caches
+// credentials the later WebSocket upgrade - which does call Dial to
+// establish a real, lasting Login - can then reuse automatically.
+func Verify(socketPath, username, password string) error {
+	login, err := Dial(socketPath, username, password)
+	if err != nil {
+		return err
+	}
+	return login.Close()
+}
+
 // --- wire protocol (kept in sync by hand with experimental/pam-trainee-auth/internal/wire) ---
 
 func writeMessage(conn *net.UnixConn, msgType byte, payload []byte, fd int) error {
