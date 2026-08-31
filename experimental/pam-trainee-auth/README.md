@@ -111,6 +111,36 @@ Needs `libpam0g-dev` (or your distro's PAM headers) to build the helper,
 since `github.com/msteinert/pam/v2` is a cgo binding. `tuios-web` itself
 needs no new system dependency — `internal/pamauth` is pure Go.
 
+### From the root Makefile (recommended)
+
+```sh
+# from the repo root
+make install-pam-helper   # builds tuios-pam-helper + installs
+                           # /usr/local/bin/tuios-pam-helper and
+                           # /etc/pam.d/tuios-web (needs sudo)
+sudo tuios-pam-helper &    # must be root
+
+make install               # tuios + tuios-web, unchanged - no PAM dependency
+tuios-web --pam-auth --port 7681
+```
+
+`pam-helper`/`dist-pam-helper`/`package-pam-helper`/`install-pam-helper` are
+deliberately separate targets, not folded into `build`/`dist`/`package`/
+`install`: those stay exactly as they were, with no new system dependency,
+and nobody gets a root-run privileged binary bundled into a routine
+`make install` without asking for it by name. CI calls `make
+package-pam-helper` as an explicit additional step (see
+`.forgejo/workflows/release.yml`, `.github/workflows/release.yml`), so a
+tagged release includes `tuios-pam-helper` (raw binary + `.deb`/`.rpm`,
+linux/amd64 only — see the Makefile comment on `PAM_HELPER_ARCH` for why not
+arm64 too) alongside the usual `tuios`/`tuios-web` assets. A prebuilt release
+can also be fetched directly: `install-pam-helper.sh` at the repo root
+mirrors `install.sh`/`install-web.sh`'s download-a-release-asset approach,
+Linux/amd64 only, and additionally installs the PAM service file if one
+isn't already present.
+
+### From source, without the Makefile
+
 ```sh
 # from experimental/pam-trainee-auth
 go build -o pam-helper ./helper

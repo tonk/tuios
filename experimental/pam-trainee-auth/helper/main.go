@@ -47,7 +47,22 @@ import (
 // ../pam.d/tuios-web for a starter file to install there).
 const pamService = "tuios-web"
 
+// Version information, set via -ldflags by the root Makefile's
+// dist-pam-helper/package-pam-helper targets - the same -X main.xxx pattern
+// cmd/tuios and cmd/tuios-web use, kept in sync by hand since this is a
+// separate module the root build can't reach with a shared var.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	builtBy = "unknown"
+)
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Printf("tuios-pam-helper %s (commit %s, built %s by %s)\n", version, commit, date, builtBy)
+		return
+	}
 	if os.Geteuid() != 0 {
 		log.Fatal("pam-helper must run as root (it needs to authenticate against /etc/shadow and setuid to the trainee's account)")
 	}
