@@ -37,6 +37,16 @@ type ClipboardSetMsg struct {
 	Text string
 }
 
+// SetThemeMsg asks the running session to switch its color theme. Exported
+// so a caller outside the bubbletea Update loop (e.g. cmd/tuios-web's
+// settings HTTP handler, which only has a *tea.Program, not direct access to
+// this OS) can change the theme the same safe way every other external event
+// reaches Update: as a tea.Msg delivered through Program.Send, never by
+// mutating OS state directly from a foreign goroutine.
+type SetThemeMsg struct {
+	Theme string
+}
+
 // SessionCreatedMsg carries the result of creating a detached session off the
 // Update goroutine. Name is the session that was asked for; Err is why it did
 // not happen.
@@ -1024,6 +1034,12 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// The focused cwd held still long enough; evaluate it for a project tape.
 		// A non-nil command only happens when auto mode just started a Lua tape.
 		return m, m.handleTapeDebounce(msg.gen)
+
+	case SetThemeMsg:
+		if err := m.SetTheme(msg.Theme); err != nil {
+			m.LogError("Failed to set theme %q: %v", msg.Theme, err)
+		}
+		return m, nil
 
 	case WindowExitMsg:
 		windowID := msg.WindowID

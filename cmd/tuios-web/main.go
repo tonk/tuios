@@ -53,6 +53,7 @@ var (
 	webFontPath       string
 	webPAMAuth        bool
 	webPAMSocket      string
+	webWebSettings    bool
 	// TUIOS forwarded flags
 	debugMode         bool
 	asciiOnly         bool
@@ -167,6 +168,7 @@ Client features:
 	rootCmd.Flags().StringVar(&webFontPath, "font-path", "", "Path to a custom font file (.ttf, .otf, .woff, .woff2) to serve and register as --font-family")
 	rootCmd.Flags().BoolVar(&webPAMAuth, "pam-auth", false, "Require PAM login (username/password) before serving a connection; each trainee gets their own session running as their own Unix account. Off by default. Needs a separately-run pam-helper process; see pam-helper/README.md")
 	rootCmd.Flags().StringVar(&webPAMSocket, "pam-socket", pamauth.DefaultSocketPath, "Path to the pam-helper's Unix socket")
+	rootCmd.Flags().BoolVar(&webWebSettings, "web-settings", false, "Add a Theme and Font Family picker to the browser's settings panel. Off by default: it costs real WebTransport (falls back to WebSocket), since adding to sip's settings panel needs the same front-door proxy --pam-auth uses")
 
 	// Daemon mode flags
 	rootCmd.Flags().StringVar(&defaultSession, "default-session", "", "Default session name for all connections (creates shared session)")
@@ -300,22 +302,27 @@ func runWebServer() error {
 		ThemeName:         themeName,
 	}, userConfig)
 
-	// In --pam-auth mode, sip's own server binds loopback-only and plain
-	// HTTP; the PAM front door (below, after sip.NewServer) is what actually
-	// listens on the address the user asked for and terminates TLS, since
-	// sip has no hook to gate its own page-load route with a dynamic
-	// per-trainee check - only the WebSocket handshake (see pamauth.go).
+	// In --pam-auth or --web-settings mode, sip's own server binds
+	// loopback-only and plain HTTP; the front door (below, after
+	// sip.NewServer) is what actually listens on the address the user asked
+	// for and terminates TLS. Neither feature has a hook into sip itself to
+	// do its job otherwise - PAM needs to gate the page-load route with a
+	// dynamic per-trainee check sip's own single-fixed-password checkAuth
+	// can't do (see pamauth.go), and --web-settings needs to inject markup
+	// into a page embedded into the sip module at build time (see
+	// websettings.go).
+	needsFrontDoor := webPAMAuth || webWebSettings
 	sipHost, sipPort := webHost, webPort
 	sipTLSCert, sipTLSKey := tlsCert, tlsKey
-	var pamInternalAddr string
-	if webPAMAuth {
+	var frontInternalAddr string
+	if needsFrontDoor {
 		internalPort, err := probeLoopbackPort()
 		if err != nil {
-			return fmt.Errorf("--pam-auth: finding an internal port for sip: %w", err)
+			return fmt.Errorf("finding an internal port for sip: %w", err)
 		}
 		sipHost, sipPort = "127.0.0.1", internalPort
 		sipTLSCert, sipTLSKey = "", ""
-		pamInternalAddr = net.JoinHostPort(sipHost, sipPort)
+		frontInternalAddr = net.JoinHostPort(sipHost, sipPort)
 	}
 
 	// Create sip server
@@ -327,7 +334,7 @@ func runWebServer() error {
 	sipConfig.Debug = debugMode
 	sipConfig.TLSCert = sipTLSCert
 	sipConfig.TLSKey = sipTLSKey
-	sipConfig.AllowInsecureNoTLS = webInsecure || webPAMAuth
+	sipConfig.AllowInsecureNoTLS = webInsecure || needsFrontDoor
 	if webFontPath != "" {
 		if _, err := os.Stat(webFontPath); err != nil {
 			return fmt.Errorf("--font-path %s: %w", webFontPath, err)
@@ -360,6 +367,9 @@ func runWebServer() error {
 		sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, pamAuthMiddleware(webPAMSocket))
 		log.Printf("PAM auth enabled (service defined by the pam-helper's own /etc/pam.d/tuios-web, socket %s)", webPAMSocket)
 	}
+	if webWebSettings {
+		sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, sessionIDMiddleware())
+	}
 
 	server := sip.NewServer(sipConfig)
 
@@ -373,26 +383,30 @@ func runWebServer() error {
 		log.Printf("Insecure: %s is served over plain HTTP, so anyone on this network can read what you type", serverURL())
 	}
 
-	if !webPAMAuth {
+	if !needsFrontDoor {
 		// Serve TUIOS using sip
-		return server.Serve(ctx, createTUIOSHandler)
+		return server.ServeWithProgram(ctx, createTUIOSProgramHandler())
 	}
 
-	// sip serves loopback-only (above); the PAM front door is what actually
+	// sip serves loopback-only (above); the front door is what actually
 	// listens on the address the user asked for. It owns TLS termination
 	// too, since sip's internal instance is plain HTTP.
 	var frontTLS *tls.Config
 	if tlsCert != "" {
 		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
 		if err != nil {
-			return fmt.Errorf("loading TLS keypair for the PAM front door: %w", err)
+			return fmt.Errorf("loading TLS keypair for the front door: %w", err)
 		}
 		frontTLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
 	}
-	front := newPAMFrontDoor(net.JoinHostPort(webHost, webPort), pamInternalAddr, webPAMSocket, frontTLS)
+	pamSocket := ""
+	if webPAMAuth {
+		pamSocket = webPAMSocket
+	}
+	front := newFrontDoor(net.JoinHostPort(webHost, webPort), frontInternalAddr, frontTLS, pamSocket, webWebSettings)
 
 	errCh := make(chan error, 2)
-	go func() { errCh <- server.Serve(ctx, createTUIOSHandler) }()
+	go func() { errCh <- server.ServeWithProgram(ctx, createTUIOSProgramHandler()) }()
 	go func() {
 		var err error
 		if frontTLS != nil {
@@ -414,8 +428,9 @@ func runWebServer() error {
 
 // probeLoopbackPort asks the kernel for a free port on 127.0.0.1 by binding
 // to port 0, reading back what it chose, and releasing it immediately. Used
-// to pick sip's internal, loopback-only address in --pam-auth mode without
-// risking a fixed port colliding with something else on the machine.
+// to pick sip's internal, loopback-only address whenever the front door is
+// active (--pam-auth or --web-settings) without risking a fixed port
+// colliding with something else on the machine.
 func probeLoopbackPort() (string, error) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

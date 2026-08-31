@@ -155,6 +155,7 @@ tuios-web --theme dracula --show-keys
 | `--config` | | Path to a config.toml file to use instead of the default (`~/.config/tuios/config.toml`) |
 | `--font-family` | | CSS font-family for the browser terminal, or a bundled font name (`saucecodepro`). Default: the bundled JetBrains Mono Nerd Font |
 | `--font-path` | | Path to a custom font file (`.ttf`, `.otf`, `.woff`, `.woff2`) to serve and register as `--font-family`; overrides a bundled name |
+| `--web-settings` | `false` | Add a Theme and Font Family picker to the browser's settings panel. Costs real WebTransport (falls back to WebSocket) since it needs the same front-door proxy `--pam-auth` uses |
 | `--default-session` | | Default session name for all connections |
 | `--ephemeral` | `false` | Disable daemon mode (sessions don't persist) |
 
