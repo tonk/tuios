@@ -27,17 +27,25 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Install build tooling (make, nfpm)
+      - name: Install build tooling (nfpm, PAM headers)
         # Pinned, not @latest: nfpm's own go.mod can require a newer Go than
         # this repo's go.mod asks setup-go to install (v2.47.0 needs >=1.26.4),
         # and GOTOOLCHAIN=local means setup-go's version is final, not a floor.
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
+        # libpam0g-dev: only needed to build tuios-pam-helper (cgo, see
+        # pam-helper), a separate Go module tuios/tuios-web
+        # themselves have no dependency on. make/gcc are already on this image.
+        run: |
+          set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends libpam0g-dev
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
 
       - name: Cross-compile and package (deb, rpm, standalone binaries)
         run: |
           set -eu
           VERSION="${GITHUB_REF_NAME#v}"
           make package VERSION="${VERSION}"
+          make package-pam-helper VERSION="${VERSION}"
           make checksums
 
       - name: List built artifacts

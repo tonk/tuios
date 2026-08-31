@@ -33,7 +33,8 @@ print_warning() {
     echo -e "${YELLOW}⚠${NC} $1"
 }
 
-# Detect OS
+# Detect OS. Only Linux is actually published today: the release pipeline
+# (see Makefile's dist/package targets) builds Linux binaries only.
 detect_os() {
     case "$(uname -s)" in
         Linux*)     OS="Linux";;
@@ -46,18 +47,14 @@ detect_os() {
     echo "$OS"
 }
 
-# Detect architecture
+# Detect architecture, mapped to the release asset naming (amd64/arm64 - see
+# LINUX_ARCHES in the Makefile). Only those two are published.
 detect_arch() {
     ARCH=$(uname -m)
     case $ARCH in
-        x86_64)  echo "x86_64";;
-        amd64)   echo "x86_64";;
-        arm64)   echo "arm64";;
-        aarch64) echo "arm64";;
-        armv7l)  echo "armv7";;
-        armv6l)  echo "armv6";;
-        i386|i686) echo "i386";;
-        *)       echo "unknown";;
+        x86_64|amd64)   echo "amd64";;
+        arm64|aarch64)  echo "arm64";;
+        *)              echo "unknown";;
     esac
 }
 
@@ -107,15 +104,12 @@ main() {
     print_info "Detected OS: $OS"
     print_info "Detected Architecture: $ARCH"
 
-    # Check if OS/arch is supported
-    if [ "$OS" = "UNKNOWN" ] || [ "$ARCH" = "unknown" ]; then
-        print_error "Unsupported OS or architecture: $OS/$ARCH"
-        exit 1
-    fi
-
-    if [ "$OS" = "Windows" ]; then
-        print_error "Windows is not supported by this script. Please download the binary manually from:"
-        print_info "https://github.com/${REPO}/releases/latest"
+    # Check if OS/arch is supported. Only linux/amd64 and linux/arm64 are
+    # actually published (see Makefile's LINUX_ARCHES) - everything else,
+    # Windows included, needs a source build.
+    if [ "$OS" != "Linux" ] || [ "$ARCH" = "unknown" ]; then
+        print_error "No published binary for $OS/$(uname -m). Only linux/amd64 and linux/arm64 are currently released."
+        print_info "See https://github.com/${REPO} to build from source instead."
         exit 1
     fi
 
@@ -124,36 +118,27 @@ main() {
     VERSION=$(get_latest_version)
     print_success "Latest version: $VERSION"
 
-    # Construct download URL
-    # Format: tuios_0.0.6_Linux_x86_64.tar.gz
-    # Note: GoReleaser uses version without 'v' prefix in filenames
+    # Construct download URL. Format: tuios_0.8.20_linux_amd64 - a raw
+    # binary, not an archive (see Makefile's dist target, which is what the
+    # release pipeline actually runs: no per-OS archive, no macOS/Windows
+    # build).
     VERSION_NO_V="${VERSION#v}"  # Remove leading 'v' from version
 
-    if [ "$OS" = "Darwin" ]; then
-        OS_FORMATTED="Darwin"
-    else
-        OS_FORMATTED="$OS"
-    fi
-
-    ARCHIVE_NAME="${BINARY_NAME}_${VERSION_NO_V}_${OS_FORMATTED}_${ARCH}.tar.gz"
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE_NAME}"
+    ASSET_NAME="${BINARY_NAME}_${VERSION_NO_V}_linux_${ARCH}"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET_NAME}"
 
     # Create temporary directory
     TMP_DIR=$(mktemp -d)
     trap 'rm -rf -- $TMP_DIR' EXIT
 
-    print_info "Downloading $ARCHIVE_NAME..."
-    if ! download_file "$DOWNLOAD_URL" "$TMP_DIR/$ARCHIVE_NAME"; then
+    print_info "Downloading $ASSET_NAME..."
+    if ! download_file "$DOWNLOAD_URL" "$TMP_DIR/$BINARY_NAME"; then
         print_error "Failed to download release"
         print_info "URL: $DOWNLOAD_URL"
         exit 1
     fi
+    chmod +x "$TMP_DIR/$BINARY_NAME"
     print_success "Downloaded successfully"
-
-    # Extract archive
-    print_info "Extracting archive..."
-    tar -xzf "$TMP_DIR/$ARCHIVE_NAME" -C "$TMP_DIR"
-    print_success "Extracted successfully"
 
     # Determine installation directory
     if [ -w "/usr/local/bin" ]; then

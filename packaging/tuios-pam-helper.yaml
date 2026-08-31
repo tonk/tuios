@@ -1,0 +1,37 @@
+# nfpm package spec for tuios-pam-helper (github.com/goreleaser/nfpm).
+#
+# ARCH, VERSION and BIN_PATH are supplied as environment variables by
+# `make package-pam-helper` (see Makefile) - one invocation of nfpm per
+# format. Unlike tuios/tuios-web, this ships an /etc/pam.d config file too:
+# the binary is useless without it, and "noreplace" keeps a local edit from
+# being clobbered by an upgrade.
+name: "tuios-pam-helper"
+arch: "${ARCH}"
+platform: "linux"
+version: "${VERSION}"
+section: "utils"
+priority: "optional"
+maintainer: "Gaurav Gosain <me@gaurav.zip>"
+description: |
+  Privileged PAM authentication helper for tuios-web's optional --pam-auth
+  mode: authenticates a trainee against PAM and spawns their shells as
+  their own Unix account. Must run as root; see the tuios-web docs before
+  deploying. This package installs the binary and a starter
+  /etc/pam.d/tuios-web - it does not run the helper for you (no service
+  unit is installed).
+vendor: "tuios"
+homepage: "https://github.com/Gaurav-Gosain/tuios"
+license: "MIT"
+
+contents:
+  - src: "${BIN_PATH}"
+    dst: "/usr/local/bin/tuios-pam-helper"
+    expand: true
+    file_info:
+      mode: 0755
+  - src: "${PAM_D_SRC}"
+    dst: "/etc/pam.d/tuios-web"
+    expand: true
+    type: "config|noreplace"
+    file_info:
+      mode: 0644

@@ -4,11 +4,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,6 +22,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/app"
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/input"
+	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/fang"
@@ -48,6 +51,8 @@ var (
 	webConfigPath     string
 	webFontFamily     string
 	webFontPath       string
+	webPAMAuth        bool
+	webPAMSocket      string
 	// TUIOS forwarded flags
 	debugMode         bool
 	asciiOnly         bool
@@ -160,6 +165,8 @@ Client features:
 	rootCmd.Flags().StringVar(&webConfigPath, "config", "", "Path to a config.toml file to use instead of the default (~/.config/tuios/config.toml)")
 	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal, or a bundled font name (saucecodepro). Default: the bundled JetBrains Mono Nerd Font")
 	rootCmd.Flags().StringVar(&webFontPath, "font-path", "", "Path to a custom font file (.ttf, .otf, .woff, .woff2) to serve and register as --font-family")
+	rootCmd.Flags().BoolVar(&webPAMAuth, "pam-auth", false, "Require PAM login (username/password) before serving a connection; each trainee gets their own session running as their own Unix account. Off by default. Needs a separately-run pam-helper process; see pam-helper/README.md")
+	rootCmd.Flags().StringVar(&webPAMSocket, "pam-socket", pamauth.DefaultSocketPath, "Path to the pam-helper's Unix socket")
 
 	// Daemon mode flags
 	rootCmd.Flags().StringVar(&defaultSession, "default-session", "", "Default session name for all connections (creates shared session)")
@@ -293,16 +300,34 @@ func runWebServer() error {
 		ThemeName:         themeName,
 	}, userConfig)
 
+	// In --pam-auth mode, sip's own server binds loopback-only and plain
+	// HTTP; the PAM front door (below, after sip.NewServer) is what actually
+	// listens on the address the user asked for and terminates TLS, since
+	// sip has no hook to gate its own page-load route with a dynamic
+	// per-trainee check - only the WebSocket handshake (see pamauth.go).
+	sipHost, sipPort := webHost, webPort
+	sipTLSCert, sipTLSKey := tlsCert, tlsKey
+	var pamInternalAddr string
+	if webPAMAuth {
+		internalPort, err := probeLoopbackPort()
+		if err != nil {
+			return fmt.Errorf("--pam-auth: finding an internal port for sip: %w", err)
+		}
+		sipHost, sipPort = "127.0.0.1", internalPort
+		sipTLSCert, sipTLSKey = "", ""
+		pamInternalAddr = net.JoinHostPort(sipHost, sipPort)
+	}
+
 	// Create sip server
 	sipConfig := sip.DefaultConfig()
-	sipConfig.Host = webHost
-	sipConfig.Port = webPort
+	sipConfig.Host = sipHost
+	sipConfig.Port = sipPort
 	sipConfig.ReadOnly = webReadOnly
 	sipConfig.MaxConnections = webMaxConnections
 	sipConfig.Debug = debugMode
-	sipConfig.TLSCert = tlsCert
-	sipConfig.TLSKey = tlsKey
-	sipConfig.AllowInsecureNoTLS = webInsecure
+	sipConfig.TLSCert = sipTLSCert
+	sipConfig.TLSKey = sipTLSKey
+	sipConfig.AllowInsecureNoTLS = webInsecure || webPAMAuth
 	if webFontPath != "" {
 		if _, err := os.Stat(webFontPath); err != nil {
 			return fmt.Errorf("--font-path %s: %w", webFontPath, err)
@@ -331,6 +356,10 @@ func runWebServer() error {
 		return fmt.Errorf("--touch is %q: it takes auto, on or off", webTouch)
 	}
 	sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, touchMiddleware(touch))
+	if webPAMAuth {
+		sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, pamAuthMiddleware(webPAMSocket))
+		log.Printf("PAM auth enabled (service defined by the pam-helper's own /etc/pam.d/tuios-web, socket %s)", webPAMSocket)
+	}
 
 	server := sip.NewServer(sipConfig)
 
@@ -344,8 +373,57 @@ func runWebServer() error {
 		log.Printf("Insecure: %s is served over plain HTTP, so anyone on this network can read what you type", serverURL())
 	}
 
-	// Serve TUIOS using sip
-	return server.Serve(ctx, createTUIOSHandler)
+	if !webPAMAuth {
+		// Serve TUIOS using sip
+		return server.Serve(ctx, createTUIOSHandler)
+	}
+
+	// sip serves loopback-only (above); the PAM front door is what actually
+	// listens on the address the user asked for. It owns TLS termination
+	// too, since sip's internal instance is plain HTTP.
+	var frontTLS *tls.Config
+	if tlsCert != "" {
+		cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
+		if err != nil {
+			return fmt.Errorf("loading TLS keypair for the PAM front door: %w", err)
+		}
+		frontTLS = &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}
+	}
+	front := newPAMFrontDoor(net.JoinHostPort(webHost, webPort), pamInternalAddr, webPAMSocket, frontTLS)
+
+	errCh := make(chan error, 2)
+	go func() { errCh <- server.Serve(ctx, createTUIOSHandler) }()
+	go func() {
+		var err error
+		if frontTLS != nil {
+			err = front.ListenAndServeTLS("", "")
+		} else {
+			err = front.ListenAndServe()
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- fmt.Errorf("PAM front door: %w", err)
+		}
+	}()
+	go func() {
+		<-ctx.Done()
+		_ = front.Close()
+	}()
+
+	return <-errCh
+}
+
+// probeLoopbackPort asks the kernel for a free port on 127.0.0.1 by binding
+// to port 0, reading back what it chose, and releasing it immediately. Used
+// to pick sip's internal, loopback-only address in --pam-auth mode without
+// risking a fixed port colliding with something else on the machine.
+func probeLoopbackPort() (string, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = ln.Close() }()
+	_, port, err := net.SplitHostPort(ln.Addr().String())
+	return port, err
 }
 
 // isLoopbackHost reports whether a bind address keeps traffic inside this
@@ -488,6 +566,20 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 	graphicsOut := sess.PtySlave()
 	touch := sessionIsTouch(sess.Context())
 
+	// A PAM-authenticated connection (--pam-auth) always gets its own
+	// session, spawning every window as the trainee's own Unix account -
+	// this takes priority over both the ephemeral and daemon-backed paths
+	// below, neither of which is safe to hand a session that must run as a
+	// different uid per connection.
+	if login, ok := pamLoginFromContext(sess.Context()); ok {
+		model := createPAMTUIOSInstance(login, pty.Width, pty.Height, graphicsOut, touch)
+		go func() {
+			<-sess.Context().Done()
+			_ = login.Close()
+		}()
+		return model, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
+	}
+
 	// Determine session name
 	sessionName := webServerConfig.defaultSession
 
@@ -557,6 +649,44 @@ func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch
 	return tuiosInstance, []tea.ProgramOption{
 		tea.WithFPS(config.MaxFPSCap),
 	}
+}
+
+// createPAMTUIOSInstance builds a session for a connection --pam-auth already
+// authenticated: an ordinary local (non-daemon) OS instance, except every
+// window it creates - including the one it opens automatically here - is
+// spawned by login instead of as tuios-web's own account. See OS.PAMLogin
+// and AddWindow.
+//
+// This does not persist across a tuios-web restart the way a daemon-backed
+// session does - the same limitation ephemeral mode already has, and for the
+// same reason: there is no daemon process in either case for a session to
+// live in independently of this one connection.
+func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut *os.File, touch bool) tea.Model {
+	userConfig, err := loadWebUserConfig()
+	if err != nil {
+		userConfig = config.DefaultConfig()
+	}
+	// A trainee logging in should land in a ready, typeable shell, not a
+	// blank tuios screen or one sitting in window-management mode where
+	// keystrokes are bindings rather than input.
+	userConfig.Startup.OpenDefaultWindow = true
+	userConfig.Startup.StartInTerminalMode = true
+
+	app.SetInputHandler(input.HandleInput)
+	keybindRegistry := config.NewKeybindRegistry(userConfig)
+
+	return app.NewOS(app.OSOptions{
+		KeybindRegistry:           keybindRegistry,
+		UserConfig:                userConfig,
+		ShowKeys:                  showKeys,
+		Width:                     width,
+		Height:                    height,
+		EnableGraphicsPassthrough: true,
+		ForceGraphicsEnabled:      true,
+		GraphicsOutput:            graphicsOut,
+		TouchClient:               touch,
+		PAMLogin:                  login,
+	})
 }
 
 // createDaemonTUIOSInstance creates a TUIOS instance connected to the daemon

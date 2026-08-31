@@ -33,11 +33,14 @@ jobs:
           git fetch --depth=1 origin "refs/tags/${GITHUB_REF_NAME}"
           git checkout -q FETCH_HEAD
 
-      - name: Install build tooling (make, nfpm)
+      - name: Install build tooling (make, nfpm, PAM headers)
         run: |
           set -eu
           apt-get update -qq
-          apt-get install -y -qq --no-install-recommends make
+          # libpam0g-dev: only needed to build tuios-pam-helper (cgo, see
+          # pam-helper), a separate Go module tuios/tuios-web
+          # themselves have no dependency on.
+          apt-get install -y -qq --no-install-recommends make libpam0g-dev
           # Pinned, not @latest: nfpm's own go.mod can require a newer Go than
           # this runner's image has (v2.47.0 needs >=1.26.4).
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
@@ -48,6 +51,7 @@ jobs:
           export PATH="$PATH:$(go env GOPATH)/bin"
           VERSION="${GITHUB_REF_NAME#v}"
           make package VERSION="${VERSION}"
+          make package-pam-helper VERSION="${VERSION}"
           make checksums
 
       - name: List built artifacts

@@ -2,6 +2,7 @@ BINDIR := $(CURDIR)
 INSTALL_DIR := /usr/local/bin
 DIST := $(CURDIR)/dist
 PACKAGING := $(CURDIR)/packaging
+PAM_HELPER_DIR := $(CURDIR)/pam-helper
 
 # ?= so CI can pin an exact released version (e.g. VERSION=0.8.0, no leading
 # "v"): rpm's Version field rejects hyphens, which a dirty/commit-suffixed
@@ -18,7 +19,15 @@ LDFLAGS := -s -w \
 
 LINUX_ARCHES := amd64 arm64
 
-.PHONY: all build tuios tuios-web install clean dist package checksums
+# tuios-pam-helper is Linux/amd64 only, on purpose: it's a cgo binary
+# (github.com/msteinert/pam/v2, needs libpam0g-dev), and cross-compiling cgo
+# to arm64 would need a cross toolchain and arm64 PAM headers neither this
+# Makefile nor CI sets up. amd64 covers the CI runner and the common case;
+# revisit if arm64 is ever actually needed.
+PAM_HELPER_ARCH := amd64
+
+.PHONY: all build tuios tuios-web install clean dist package checksums \
+	pam-helper install-pam-helper dist-pam-helper package-pam-helper check-pam-headers
 
 all: build
 
@@ -35,7 +44,7 @@ install: build
 	sudo install -m 0755 $(BINDIR)/tuios-web $(INSTALL_DIR)/tuios-web
 
 clean:
-	rm -f $(BINDIR)/tuios $(BINDIR)/tuios-web
+	rm -f $(BINDIR)/tuios $(BINDIR)/tuios-web $(BINDIR)/tuios-pam-helper
 	rm -rf $(DIST)
 
 # dist cross-compiles standalone Linux binaries for release: one raw binary
@@ -68,3 +77,43 @@ package: dist
 
 checksums:
 	cd $(DIST) && sha256sum * > checksums.txt
+
+# --- tuios-pam-helper ---
+#
+# Deliberately NOT part of build/install/dist/package above: it lives in its
+# own Go module (see PAM_HELPER_DIR) precisely so the ordinary build never
+# needs libpam0g-dev, and it's a root-run, security-sensitive tool nobody
+# should get bundled into a routine `make install` without asking for it by
+# name. CI calls these targets explicitly, alongside (not instead of) the
+# ordinary ones - see .forgejo/workflows/release.yml and
+# .github/workflows/release.yml.
+
+check-pam-headers:
+	@test -f /usr/include/security/pam_appl.h || { \
+		echo "error: PAM headers not found (needed to build tuios-pam-helper)." >&2; \
+		echo "  Debian/Ubuntu: sudo apt-get install libpam0g-dev" >&2; \
+		echo "  Fedora/RHEL:   sudo dnf install pam-devel" >&2; \
+		exit 1; \
+	}
+
+pam-helper: check-pam-headers
+	cd $(PAM_HELPER_DIR) && go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINDIR)/tuios-pam-helper ./helper
+
+install-pam-helper: pam-helper
+	sudo install -m 0755 $(BINDIR)/tuios-pam-helper $(INSTALL_DIR)/tuios-pam-helper
+	sudo install -m 0644 $(PAM_HELPER_DIR)/pam.d/tuios-web /etc/pam.d/tuios-web
+
+dist-pam-helper: check-pam-headers
+	mkdir -p $(DIST)
+	@echo "==> tuios-pam-helper linux/$(PAM_HELPER_ARCH)"
+	cd $(PAM_HELPER_DIR) && CGO_ENABLED=1 GOOS=linux GOARCH=$(PAM_HELPER_ARCH) go build -trimpath -ldflags "$(LDFLAGS)" \
+		-o $(DIST)/tuios-pam-helper_$(VERSION)_linux_$(PAM_HELPER_ARCH) ./helper
+
+package-pam-helper: dist-pam-helper
+	@for fmt in deb rpm; do \
+		echo "==> tuios-pam-helper linux/$(PAM_HELPER_ARCH) ($$fmt)"; \
+		VERSION=$(VERSION) ARCH=$(PAM_HELPER_ARCH) \
+			BIN_PATH=$(DIST)/tuios-pam-helper_$(VERSION)_linux_$(PAM_HELPER_ARCH) \
+			PAM_D_SRC=$(PAM_HELPER_DIR)/pam.d/tuios-web \
+			nfpm package --config $(PACKAGING)/tuios-pam-helper.yaml --packager $$fmt --target $(DIST)/ || exit 1; \
+	done

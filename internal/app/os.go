@@ -14,6 +14,7 @@ import (
 	"github.com/Gaurav-Gosain/tuios/internal/hooks"
 	"github.com/Gaurav-Gosain/tuios/internal/layout"
 	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
 	"github.com/Gaurav-Gosain/tuios/internal/session"
 	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
 	"github.com/Gaurav-Gosain/tuios/internal/tape"
@@ -328,6 +329,13 @@ type OS struct {
 	IsDaemonSession bool               // True when running as part of a persistent daemon session
 	DaemonClient    *session.TUIClient // Client for daemon communication (nil in local mode)
 	SessionName     string             // Name of the daemon session (if attached)
+	// PAMLogin is non-nil for a tuios-web connection authenticated via the
+	// optional PAM trainee-auth helper (see internal/pamauth and --pam-auth).
+	// When set, AddWindow spawns every window - the first and every later
+	// "new window" - through this login instead of the normal local PTY
+	// path, so all of a trainee's windows run as their own Unix account, not
+	// as whatever account the tuios-web process itself runs as.
+	PAMLogin *pamauth.Login
 	// ReadOnly mirrors OSOptions.ReadOnly: this client's own input is dropped
 	// locally rather than sent. See OSOptions.ReadOnly for why this is a
 	// courtesy, not the enforcement point.

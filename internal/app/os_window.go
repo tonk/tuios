@@ -446,7 +446,22 @@ func (m *OS) AddWindow(name string) *OS {
 
 	x, y, width, height := m.NewWindowPlacement()
 
-	window := terminal.NewWindow(newID, title, x, y, width, height, len(m.Windows), m.WindowExitChan, m.PTYDataChan)
+	var window *terminal.Window
+	if m.PAMLogin != nil {
+		// Every window in a PAM-authenticated session - the first and every
+		// later "new window" alike - runs as the trainee's own Unix account,
+		// spawned by the privileged helper this login is talking to, not by
+		// this (unprivileged) process. See OS.PAMLogin.
+		innerWidth, innerHeight := max(width-2, 1), max(height-2, 1)
+		ptyFile, pid, err := m.PAMLogin.SpawnPTY(innerWidth, innerHeight)
+		if err != nil {
+			m.LogError("Failed to create window %s (PAM spawn failed: %v)", title, err)
+			return m
+		}
+		window = terminal.NewAdoptedWindow(newID, title, x, y, width, height, len(m.Windows), m.WindowExitChan, m.PTYDataChan, ptyFile, pid)
+	} else {
+		window = terminal.NewWindow(newID, title, x, y, width, height, len(m.Windows), m.WindowExitChan, m.PTYDataChan)
+	}
 	if window == nil {
 		m.LogError("Failed to create window %s (PTY creation failed)", title)
 		return m // Failed to create window
@@ -657,6 +672,18 @@ func (m *OS) DeleteWindow(i int) *OS {
 		delete(m.MultifocusSet, deletedWindow.ID)
 		if len(m.MultifocusSet) == 0 {
 			m.MultifocusSet = nil
+		}
+	}
+
+	// An adopted window's process runs as the trainee's own uid: this
+	// process has no permission to signal it directly (see
+	// window_unix.go's TriggerRedraw for the same boundary), so closing it
+	// goes back through the privileged helper that spawned it. Best effort:
+	// if this fails the shell is merely orphaned rather than explicitly
+	// closed, since Close() below still tears down this side's fd either way.
+	if m.PAMLogin != nil && deletedWindow.AdoptedPID != 0 {
+		if err := m.PAMLogin.ClosePTY(deletedWindow.AdoptedPID); err != nil {
+			m.LogError("Failed to close PAM-spawned window %s: %v", deletedWindow.ID, err)
 		}
 	}
 

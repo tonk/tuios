@@ -4,6 +4,7 @@ package terminal
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image/color"
 	"log"
@@ -12,10 +13,12 @@ import (
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"charm.land/lipgloss/v2"
 	xpty "github.com/charmbracelet/x/xpty"
+	"github.com/creack/pty"
 
 	"github.com/Gaurav-Gosain/tuios/internal/config"
 	"github.com/Gaurav-Gosain/tuios/internal/theme"
@@ -194,6 +197,13 @@ type Window struct {
 	Pty                xpty.Pty
 	Cmd                *exec.Cmd
 	ShellPgid          int      // Process group ID of the shell
+	// AdoptedPID is nonzero when this window's Pty wraps a process this
+	// package did not itself spawn (Cmd is nil in that case) - see
+	// NewAdoptedWindow. It is the pid an external privileged helper (see
+	// internal/pamauth) reported when it started the shell, kept so the
+	// exit-detection goroutine can poll it and so a caller that owns the
+	// helper connection can ask it to close this specific shell.
+	AdoptedPID int
 	cwd                cwdCache // Memoised working directory, see CWD
 	LastUpdate         time.Time
 	Dirty              bool
@@ -476,17 +486,21 @@ func shortID(id string) string {
 	return id[:8]
 }
 
-// NewWindow creates a new terminal window with the specified properties.
-// It spawns a shell process, sets up PTY communication, and initializes the virtual terminal.
-// Returns nil if window creation fails.
-func NewWindow(id, title string, x, y, width, height, z int, exitChan chan string, ptyDataChan chan struct{}) *Window {
+// newWindowSkeleton builds everything about a Window that does not depend on
+// how its PTY/process comes to exist: the VT emulator, theme colors, and the
+// escape-sequence callbacks. NewWindow (spawns a shell itself) and
+// NewAdoptedWindow (wraps a shell an external process already started) both
+// build on this, then diverge only on how Pty/Cmd/AdoptedPID and exit
+// detection get set up. Returns the window plus the inner (border-excluded)
+// terminal dimensions both callers need for their own PTY sizing.
+func newWindowSkeleton(id, title string, x, y, width, height, z int, ptyDataChan chan struct{}) (window *Window, terminalWidth, terminalHeight int) {
 	if title == "" {
 		title = "Terminal " + shortID(id)
 	}
 
 	// Create VT terminal with inner dimensions (accounting for borders)
-	terminalWidth := max(width-2, 1)
-	terminalHeight := max(height-2, 1)
+	terminalWidth = max(width-2, 1)
+	terminalHeight = max(height-2, 1)
 	// Create terminal with scrollback buffer support
 	terminal := vt.NewEmulator(terminalWidth, terminalHeight)
 	// Set scrollback buffer size from config (default: 10000, configurable via --scrollback-lines or config file)
@@ -496,7 +510,7 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 	// Using 10x20 pixels as reasonable defaults for a typical monospace font
 	terminal.SetCellSize(10, 20)
 
-	window := &Window{
+	window = &Window{
 		Width:              width,
 		Height:             height,
 		X:                  x,
@@ -574,6 +588,15 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 			}
 		},
 	})
+
+	return window, terminalWidth, terminalHeight
+}
+
+// NewWindow creates a new terminal window with the specified properties.
+// It spawns a shell process, sets up PTY communication, and initializes the virtual terminal.
+// Returns nil if window creation fails.
+func NewWindow(id, title string, x, y, width, height, z int, exitChan chan string, ptyDataChan chan struct{}) *Window {
+	window, terminalWidth, terminalHeight := newWindowSkeleton(id, title, x, y, width, height, z, ptyDataChan)
 
 	// Detect shell
 	shell := detectShell()
@@ -691,6 +714,113 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 	}()
 
 	return window
+}
+
+// adoptedPty wraps a PTY master file descriptor handed off by an external
+// privileged process (see internal/pamauth) instead of one this package
+// opened and started itself. Embedding *os.File gives it Read/Write/Close/
+// Fd/Name for free; only Resize and Size need real implementations, and
+// Start must never be called - the process on the other end of the master is
+// already running, started by whoever handed the fd over.
+type adoptedPty struct {
+	*os.File
+}
+
+func (p *adoptedPty) Resize(width, height int) error {
+	return pty.Setsize(p.File, &pty.Winsize{Cols: uint16(width), Rows: uint16(height)}) //nolint:gosec // width/height are terminal cell counts, never near uint16 overflow
+}
+
+func (p *adoptedPty) Size() (width, height int, err error) {
+	rows, cols, err := pty.Getsize(p.File)
+	if err != nil {
+		return 0, 0, err
+	}
+	return cols, rows, nil
+}
+
+func (p *adoptedPty) Start(*exec.Cmd) error {
+	return errors.New("adoptedPty: Start is not supported; the process is already running")
+}
+
+// NewAdoptedWindow builds a Window around a PTY and process that something
+// else already started — a privileged helper authenticating a trainee via
+// PAM and spawning their shell as their own Unix account (see
+// internal/pamauth), rather than this package spawning a shell itself via
+// NewWindow. Everything downstream of construction (I/O, resize, rendering)
+// is identical either way; only how the process/fd came to exist and how its
+// exit is detected differ.
+//
+// Unlike NewWindow, there is no local *exec.Cmd here (Cmd is left nil), so
+// two things work differently for an adopted window:
+//   - Exit detection can't use exec.Cmd.Wait — this process never forked
+//     pid, so it cannot reap it via wait4. It polls the pid's liveness
+//     instead (see waitForAdoptedExit).
+//   - Close() already treats a nil Cmd as "nothing local to kill" (see
+//     window_io.go), which is correct here: killing the actual process is
+//     the caller's job, through the same privileged helper connection that
+//     spawned it (ClosePTY), not something this process has permission to
+//     do directly against another uid's process.
+func NewAdoptedWindow(id, title string, x, y, width, height, z int, exitChan chan string, ptyDataChan chan struct{}, ptyFile *os.File, pid int) *Window {
+	window, terminalWidth, terminalHeight := newWindowSkeleton(id, title, x, y, width, height, z, ptyDataChan)
+
+	adopted := &adoptedPty{File: ptyFile}
+	if err := adopted.Resize(terminalWidth, terminalHeight); err != nil {
+		// Not a critical error, continue - matches NewWindow's own handling
+		// of a post-start resize failure.
+		_ = err
+	}
+
+	_, cancel := context.WithCancel(context.Background())
+
+	window.Pty = adopted
+	window.Cmd = nil
+	window.AdoptedPID = pid
+	window.cancelFunc = cancel
+
+	// Store the pid's process group for CWD()/HasForegroundProcess(), the
+	// same as NewWindow does from cmd.Process.Pid.
+	if pgid, err := getPgid(pid); err == nil {
+		window.ShellPgid = pgid
+	}
+
+	window.PublishGeometry()
+	window.handleIOOperations()
+	window.enableTerminalFeatures()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("window %s goroutine panic: %v\n%s", window.ID, r, debug.Stack())
+			}
+		}()
+
+		waitForAdoptedExit(pid)
+		window.SetProcessExited(true)
+		cancel()
+		time.Sleep(config.ProcessWaitDelay)
+		select {
+		case exitChan <- id:
+		default:
+		}
+	}()
+
+	return window
+}
+
+// waitForAdoptedExit blocks until pid is gone. Signal 0 sends nothing but
+// still asks the kernel whether the pid exists and, separately, whether this
+// process would be allowed to signal it — ESRCH means gone, any other
+// result (including EPERM, expected here since the pid runs as a different
+// uid) means it is still alive. This is the standard way to poll a process
+// this one did not fork and so cannot wait4/reap.
+func waitForAdoptedExit(pid int) {
+	const pollInterval = 500 * time.Millisecond
+	for {
+		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+			return
+		}
+		time.Sleep(pollInterval)
+	}
 }
 
 // NewDaemonWindow creates a new terminal window that uses a daemon-managed PTY.
