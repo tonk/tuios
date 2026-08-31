@@ -3,9 +3,20 @@
 #
 # Usage: get_tuios [--force|-f]
 #
-# Must be run as root (needed to write to /usr/local/bin). Installs both
-# binaries in one pass, each compared against what's already there and
-# skipped unless it's actually behind (or --force is given).
+# Must be run as root (needed to write to /usr/local/bin, or to register a
+# package with dpkg/rpm). Installs both binaries in one pass, each compared
+# against what's already there and skipped unless it's actually behind (or
+# --force is given).
+#
+# Picks whichever package format the release actually publishes matches the
+# host: a Debian-based system (Debian, Ubuntu, ...) gets the .deb via dpkg,
+# a RHEL-based one (Fedora, RHEL, CentOS, Rocky, Alma, ...) gets the .rpm
+# via rpm, and anything else - Arch, Alpine, openSUSE, a container base with
+# neither package manager - falls back to the same raw binary the script
+# always used before this. There is no .tar.gz to fall back to: the release
+# pipeline (see the repo's Makefile dist/package targets) only ever
+# publishes raw linux/amd64+arm64 binaries plus nfpm-built .deb/.rpm, no
+# archive of any kind.
 #
 # Unlike a service-specific redeploy script, this never stops or starts
 # anything: tuios itself has no service to stop (it's the interactive TUI),
@@ -61,15 +72,62 @@ then
     echo "Error: only Linux is published; build from source on $(uname -s)." >&2
     exit 1
 fi
+# ARCH matches the raw-binary and .deb asset names (amd64/arm64); RPMARCH
+# matches the .rpm ones, which nfpm names after uname -m's own words
+# instead (x86_64/aarch64) - both are derived from the same uname -m result,
+# just spelled the way each package format happens to spell it.
 case "$(uname -m)" in
-    x86_64)  ARCH="amd64"  ;;
-    aarch64) ARCH="arm64"  ;;
+    x86_64)  ARCH="amd64";  RPMARCH="x86_64"  ;;
+    aarch64) ARCH="arm64";  RPMARCH="aarch64" ;;
     *) echo "Error: unsupported architecture $(uname -m)." >&2; exit 1 ;;
 esac
 
-# ── Version detection ─────────────────────────────────────────────────────────
-LATEST="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-    | grep '"tag_name"' | head -1 \
+# ── Package format detection ──────────────────────────────────────────────────
+# /etc/os-release's ID/ID_LIKE is the standard, distro-maintained way to ask
+# "what family is this" (the same file `hostnamectl`, systemd, and most other
+# install scripts read) - checked first since it works even on a minimal
+# image that hasn't got dpkg or rpm installed yet. Falls back to whichever
+# package-manager binary is actually present if the file is missing or
+# doesn't name a family this script recognizes, and finally to the raw
+# binary if neither applies - a bare "unknown" distro, or one like Arch or
+# Alpine that is neither Debian- nor RHEL-based.
+detect_pkg_format() {
+    local id="" id_like=""
+    if [[ -r /etc/os-release ]]
+    then
+        # A plain KEY=value file by spec, safe to source; avoids depending
+        # on a JSON/ini parser just to read two fields.
+        # shellcheck source=/dev/null
+        . /etc/os-release
+        id="${ID:-}"
+        id_like="${ID_LIKE:-}"
+    fi
+    case " ${id} ${id_like} " in
+        *" debian "*|*" ubuntu "*) echo "deb"; return ;;
+        *" fedora "*|*" rhel "*|*" centos "*) echo "rpm"; return ;;
+    esac
+    if command -v dpkg >/dev/null 2>&1
+    then
+        echo "deb"; return
+    fi
+    if command -v rpm >/dev/null 2>&1
+    then
+        echo "rpm"; return
+    fi
+    echo "raw"
+}
+PKG_FORMAT="$(detect_pkg_format)"
+echo "Package format: ${PKG_FORMAT}"
+
+# ── Version + release asset list ──────────────────────────────────────────────
+# One fetch of the whole release, not just tag_name, so the .deb/.rpm asset
+# URLs below can be matched out of it too - avoids hand-assembling a
+# filename from parts (version, arch, and nfpm's own "-1" release-number
+# suffix on the .rpm side) that would silently go stale if the packaging
+# ever changes shape.
+RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest")"
+
+LATEST="$(echo "${RELEASE_JSON}" | grep '"tag_name"' | head -1 \
     | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
 
 if [[ -z "${LATEST}" ]]
@@ -78,6 +136,20 @@ then
     exit 1
 fi
 LATEST_NO_V="${LATEST#v}"
+
+# find_asset_url PATTERN - the release asset URL whose filename matches
+# PATTERN (an extended regex, anchored by the caller). Matches against the
+# full download URL, not just a filename fragment, so looking up "tuios"
+# can never accidentally pick up "tuios-web"'s or "tuios-pam-helper"'s
+# asset instead - PATTERN itself is what guarantees that (see its callers
+# below), this just does the searching.
+find_asset_url() {
+    local pattern="$1"
+    echo "${RELEASE_JSON}" \
+        | grep -oE '"browser_download_url": *"[^"]*"' \
+        | sed 's/.*"\(https:[^"]*\)"/\1/' \
+        | grep -E "${pattern}" | head -1
+}
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 TMPFILES=()
@@ -95,7 +167,9 @@ do
     if [[ -x "${BINARY}" ]]
     then
         # First line looks like "tuios version v0.8.23"; the version is
-        # always the last field, so this doesn't care which binary it is.
+        # always the last field, so this doesn't care which binary it is -
+        # or which package format installed it: dpkg/rpm still land the
+        # binary at the same path, so this check works unchanged either way.
         CURRENT="$("${BINARY}" --version 2>/dev/null | head -1 | awk '{print $NF}')"
     else
         CURRENT=""
@@ -112,11 +186,40 @@ do
         continue
     fi
 
-    # Format: tuios_0.8.23_linux_amd64 / tuios-web_0.8.23_linux_amd64 - a
-    # raw binary, not an archive (see Makefile's dist target, which is what
-    # the release pipeline actually runs).
-    ASSET="${BIN}_${LATEST_NO_V}_linux_${ARCH}"
-    URL="https://github.com/${REPO}/releases/download/${LATEST}/${ASSET}"
+    FORMAT="${PKG_FORMAT}"
+    URL=""
+    case "${FORMAT}" in
+        deb)
+            # tuios_0.8.23_amd64.deb - anchored on "_<version>_<arch>.deb"
+            # right after BIN, so "tuios" can't match "tuios-web_...".
+            # The "|| true" matters under set -e/pipefail: grep finding no
+            # match makes the pipeline itself report failure, which would
+            # otherwise abort the whole script right here instead of
+            # falling through to the raw-binary fallback below.
+            URL="$(find_asset_url "${BIN}_${LATEST_NO_V}_${ARCH}\.deb$" || true)"
+            ;;
+        rpm)
+            # tuios-0.8.23-1.x86_64.rpm - the release number (usually "1")
+            # is deliberately a wildcard here rather than assumed, so a
+            # packaging change that bumps it doesn't silently 404 this.
+            URL="$(find_asset_url "${BIN}-${LATEST_NO_V}-[0-9]+\.${RPMARCH}\.rpm$" || true)"
+            ;;
+    esac
+    if [[ -z "${URL}" ]]
+    then
+        if [[ "${FORMAT}" != "raw" ]]
+        then
+            echo "Warning: no .${FORMAT} asset found for ${BIN}; falling back to the raw binary." >&2
+        fi
+        FORMAT="raw"
+        # tuios_0.8.23_linux_amd64 - a raw binary, not an archive (see the
+        # Makefile's dist target, which is what the release pipeline
+        # actually runs for this one).
+        ASSET="${BIN}_${LATEST_NO_V}_linux_${ARCH}"
+        URL="https://github.com/${REPO}/releases/download/${LATEST}/${ASSET}"
+    fi
+    ASSET="${URL##*/}"
+
     TMPFILE="$(mktemp "/tmp/${ASSET}.XXXXXX")"
     TMPFILES+=("${TMPFILE}")
 
@@ -127,8 +230,15 @@ do
         exit 1
     fi
 
-    install -m 0755 "${TMPFILE}" "${BINARY}"
-    echo "Installed ${BIN} ${LATEST} to ${BINARY}."
+    case "${FORMAT}" in
+        deb) dpkg -i "${TMPFILE}" ;;
+        # --replacepkgs: --force re-running against an already-current
+        # version would otherwise have rpm refuse the transaction outright
+        # ("package already installed") instead of just reinstalling it.
+        rpm) rpm -Uvh --replacepkgs "${TMPFILE}" ;;
+        raw) install -m 0755 "${TMPFILE}" "${BINARY}" ;;
+    esac
+    echo "Installed ${BIN} ${LATEST} (${FORMAT}) to ${BINARY}."
     echo
     UPDATED+=("${BIN}")
 done
