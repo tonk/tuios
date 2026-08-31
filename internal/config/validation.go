@@ -312,7 +312,8 @@ func validateAppearanceEnums(cfg *UserConfig, result *ValidationResult) {
 		[]string{"bottom", "top", "hidden"})
 	checkEnum("clock_position", cfg.Appearance.ClockPosition,
 		[]string{"left", "center", "right"})
-	validateTitleFormat(cfg.Appearance.WindowTitleFormat, result)
+	validateTitleFormat(cfg.Appearance.WindowTitleFormat, "window_title_format", knownTitlePlaceholders, result)
+	validateTitleFormat(cfg.Appearance.InitialTitleFormat, "initial_title_format", knownInitialTitlePlaceholders, result)
 	validateScrollbar(cfg, result)
 
 	checkHexColor := func(key, value string) {
@@ -368,20 +369,27 @@ func validateScrollbar(cfg *UserConfig, result *ValidationResult) {
 // knownTitlePlaceholders are the placeholders FormatWindowTitle expands.
 var knownTitlePlaceholders = []string{"{title}", "{index}", "{cwd}"}
 
+// knownInitialTitlePlaceholders are the placeholders FormatInitialTitle
+// expands. A separate list from knownTitlePlaceholders: {title}/{index}/{cwd}
+// describe an existing window being displayed, none of which exist yet at
+// the point initial_title_format runs (window creation, before the shell has
+// reported anything).
+var knownInitialTitlePlaceholders = []string{"{user}"}
+
 // titlePlaceholderPattern matches anything written as a placeholder, so a typo
 // like {name} can be reported instead of being rendered literally in the title.
 var titlePlaceholderPattern = regexp.MustCompile(`\{[^{}]*\}`)
 
-func validateTitleFormat(format string, result *ValidationResult) {
+func validateTitleFormat(format, key string, known []string, result *ValidationResult) {
 	for _, placeholder := range titlePlaceholderPattern.FindAllString(format, -1) {
-		if slices.Contains(knownTitlePlaceholders, placeholder) {
+		if slices.Contains(known, placeholder) {
 			continue
 		}
 		result.Warnings = append(result.Warnings, ValidationError{
 			Field: "appearance",
-			Key:   "window_title_format",
+			Key:   key,
 			Message: fmt.Sprintf("'%s' is not a known placeholder (allowed: %s); it will be shown literally",
-				placeholder, strings.Join(knownTitlePlaceholders, ", ")),
+				placeholder, strings.Join(known, ", ")),
 		})
 	}
 }

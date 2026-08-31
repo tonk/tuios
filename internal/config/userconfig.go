@@ -176,6 +176,8 @@ type AppearanceConfig struct {
 	BorderUnfocusedColor string `toml:"border_unfocused_color"` // Hex color for unfocused pane border (e.g., "#585b70")
 	WindowTitleFormat    string `toml:"window_title_format"`    // Format string for window titles: {title}, {index}, {cwd}
 	ShowWindowNumber     *bool  `toml:"show_window_number"`     // Prefix a window's title with its 1-based index, e.g. "1: bash" (default: true). Ignored when window_title_format is set.
+	LockTitles           bool   `toml:"lock_titles"`            // New windows start with their title locked, so the app inside can't OSC-rename it (default: false). See the toggle_title_lock keybinding.
+	InitialTitleFormat   string `toml:"initial_title_format"`   // Template for a new window's title at creation, before anything inside it runs: {user}. Empty means the usual "Terminal <id>" / shell-reported title.
 	ZoomMaxWidth         int    `toml:"zoom_max_width"`         // Max width in cells for zoom mode (0 = fullscreen, e.g. 120 centers at 120 cols)
 	NiriReverseScroll    bool   `toml:"niri_reverse_scroll"`    // Reverse mouse scroll direction in niri scrolling mode (default: false)
 	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, max: 120)
@@ -1009,6 +1011,8 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	ShowTilingIndicator = cfg.Appearance.ShowTilingIndicator
 	ShowFocusFollowsMouseIndicator = cfg.Appearance.ShowFocusFollowsMouseIndicator
 	NiriReverseScroll = cfg.Appearance.NiriReverseScroll
+	LockTitles = cfg.Appearance.LockTitles
+	InitialTitleFormat = cfg.Appearance.InitialTitleFormat
 
 	if cfg.Appearance.ScrollbackLines > 0 {
 		ScrollbackLines = cfg.Appearance.ScrollbackLines

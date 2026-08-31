@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/Gaurav-Gosain/tuios/internal/config"
 )
 
 // defaultWorkspaces bounds the workspace indices the daemon-side state
@@ -154,9 +156,14 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 
 	windowID := uuid.New().String()
 	if title == "" {
-		// The same default the renderer used when it still created windows
-		// itself, so a window looks the same however it was asked for.
-		title = "Terminal " + windowID[:8]
+		if t := config.FormatInitialTitle(); t != "" {
+			title = t
+		} else {
+			// The same default the renderer used when it still created
+			// windows itself, so a window looks the same however it was
+			// asked for.
+			title = "Terminal " + windowID[:8]
+		}
 	}
 	pty, err := s.CreatePTY(windowID, ptyWidth, ptyHeight, onExit)
 	if err != nil {
@@ -175,14 +182,15 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 		}
 
 		win = WindowState{
-			ID:        windowID,
-			Title:     title,
-			X:         0,
-			Y:         0,
-			Width:     width,
-			Height:    height,
-			Workspace: workspace,
-			PTYID:     pty.ID,
+			ID:          windowID,
+			Title:       title,
+			X:           0,
+			Y:           0,
+			Width:       width,
+			Height:      height,
+			Workspace:   workspace,
+			PTYID:       pty.ID,
+			TitleLocked: config.LockTitles,
 			// The daemon has no viewport, so this box is a placeholder that keeps
 			// the PTY a usable size until a client places the window properly.
 			Unplaced: true,

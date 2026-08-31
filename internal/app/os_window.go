@@ -441,6 +441,9 @@ func (m *OS) AddWindow(name string) *OS {
 
 	newID := createID()
 	title := fmt.Sprintf("Terminal %s", newID[:8])
+	if t := config.FormatInitialTitle(); t != "" {
+		title = t
+	}
 
 	m.LogInfo("Creating new window: %s (workspace %d)", title, m.CurrentWorkspace)
 
@@ -466,6 +469,7 @@ func (m *OS) AddWindow(name string) *OS {
 		m.LogError("Failed to create window %s (PTY creation failed)", title)
 		return m // Failed to create window
 	}
+	window.SetTitleLocked(config.LockTitles)
 
 	caps := GetHostCapabilities()
 	if caps.CellWidth > 0 && caps.CellHeight > 0 {

@@ -72,6 +72,8 @@ var exampleTables = []exampleTable{
 			{"border_unfocused_color", `""`, "Hex color for unfocused pane borders. Empty uses the theme's color."},
 			{"window_title_format", `""`, "Template overriding how a window's title is built: {title}, {index}, {cwd}. Empty shows the title as-is."},
 			{"show_window_number", "true", `Prefix a window's title with its 1-based index, e.g. "1: bash". Ignored once window_title_format is set.`},
+			{"initial_title_format", `""`, "Template for a new window's title at creation, before anything inside it runs: {user}. Empty leaves the usual Terminal <id> / shell-reported title."},
+			{"lock_titles", "false", "New windows start with their title locked, so the app inside can't OSC-rename it. See the toggle_title_lock keybinding."},
 			{"zoom_max_width", "0", "Max width in cells for zoom mode. 0 means fullscreen."},
 			{"niri_reverse_scroll", "false", "Reverse the mouse-wheel direction when scrolling the niri-style scrolling layout."},
 			{"max_fps", "60", "Maximum render FPS. Range 10-240."},

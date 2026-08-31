@@ -2,8 +2,11 @@
 package config
 
 import (
+	"os"
+	"os/user"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -701,6 +704,49 @@ func FormatWindowTitle(title string, index int, cwd string) string {
 		"{index}", strconv.Itoa(index),
 		"{cwd}", cwd,
 	).Replace(WindowTitleFormat)
+}
+
+// LockTitles makes a new window start with its title locked, the same state
+// SetTitleLocked(true) puts it in via the toggle_title_lock keybinding - the
+// app inside it can OSC-set a title once (or not, if InitialTitleFormat
+// already gave it one), but can never overwrite it afterward.
+// Set via appearance.lock_titles config
+var LockTitles = false
+
+// InitialTitleFormat is the template used for a new window's title at the
+// moment it is created, before anything inside it has had a chance to set
+// its own via OSC. See FormatInitialTitle for the supported placeholders.
+// Empty (the default) leaves window creation's own title alone - normally
+// "Terminal <id>" until the shell reports something else.
+// Set via appearance.initial_title_format config
+var InitialTitleFormat = ""
+
+var currentUsernameOnce = sync.OnceValue(func() string {
+	if u, err := user.Current(); err == nil && u.Username != "" {
+		return u.Username
+	}
+	// os/user can fail to resolve a UID it cannot look up (no matching
+	// /etc/passwd entry and no cgo NSS available, e.g. some minimal
+	// containers); fall back to whatever the environment says instead of
+	// leaving {user} empty.
+	if u := os.Getenv("USER"); u != "" {
+		return u
+	}
+	return os.Getenv("LOGNAME")
+})
+
+// FormatInitialTitle expands InitialTitleFormat, or reports "" (meaning: no
+// override, the caller's own default title stands) when it is empty. {user}
+// is the OS username the tuios process is running as - see
+// currentUsernameOnce for how that is resolved. Looked up lazily and cached
+// for the life of the process, since it cannot change once running.
+func FormatInitialTitle() string {
+	if InitialTitleFormat == "" {
+		return ""
+	}
+	return strings.NewReplacer(
+		"{user}", currentUsernameOnce(),
+	).Replace(InitialTitleFormat)
 }
 
 // HideClock controls whether the clock overlay is hidden

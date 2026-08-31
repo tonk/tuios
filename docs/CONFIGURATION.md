@@ -439,6 +439,31 @@ A template that overrides how a window's title is built, when you want more cont
 
 **Note:** Also settable from the in-app settings page (Appearance, "Window title format").
 
+### initial_title_format
+
+A template for a new window's title at the moment it is created, before the shell inside it has run anything or set its own title. Unlike `window_title_format`, which reformats however a window is *displayed*, this decides the actual title text itself.
+
+**Valid placeholders:**
+- `{user}` - The OS username tuios is running as
+
+**Default:** `""` (empty, meaning the usual `Terminal <id>` until the shell reports its own title)
+
+**Example:** `"{user}'s shell"` gives every new window a title like `tonk's shell` until (unless `lock_titles` is also on) the shell inside it sets its own.
+
+**Note:** Also settable from the in-app settings page (Appearance, "Initial title format").
+
+### lock_titles
+
+New windows start with their title locked — the same state the `toggle_title_lock` keybinding (`l` by default) puts a window in — so the shell or program running inside can never overwrite it with an OSC title-change escape sequence. Combine with `initial_title_format` for a title that both starts as something specific and stays that way.
+
+**Valid values:**
+- `true` - Every new window starts title-locked
+- `false` - Titles behave as normal; lock a window individually with `toggle_title_lock` (default)
+
+**Default:** `false`
+
+**Note:** Also settable from the in-app settings page (Appearance, "Lock titles by default").
+
 ### hide_clock
 
 Controls whether the clock/status overlay is hidden.

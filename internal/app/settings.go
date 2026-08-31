@@ -384,6 +384,18 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowWindowNumber = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			stringItem("Initial title format", "Template for a new window's title at creation, before anything inside it runs: {user}", "{user}", "(default)",
+				func(m *OS) string { return config.InitialTitleFormat },
+				func(m *OS, v string) {
+					config.InitialTitleFormat = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.InitialTitleFormat = v })
+				}),
+			boolItem("Lock titles by default", "New windows start with their title locked, so the app inside can't OSC-rename it",
+				func() bool { return config.LockTitles },
+				func(m *OS, v bool) {
+					config.LockTitles = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.LockTitles = v })
+				}),
 			boolItem("Cursor blink", "Blink the focused pane's cursor. Apps can still override it with a cursor-style sequence.",
 				func() bool { return config.CursorBlink },
 				func(m *OS, v bool) {
