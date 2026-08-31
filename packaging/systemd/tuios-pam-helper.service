@@ -1,0 +1,30 @@
+[Unit]
+Description=tuios-pam-helper - privileged PAM auth/spawn helper for tuios-web
+Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/pam-helper/README.md
+Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/DEPLOYMENT.md
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tuios-pam-helper
+Restart=on-failure
+RestartSec=2
+
+# Must run as root: it authenticates callers against PAM (/etc/shadow) and
+# setuid()s to whichever trainee account they logged in as before spawning
+# their shell - see pam-helper/README.md, "Why a separate process". Do not
+# add User=/Group=/DynamicUser= here; the binary itself refuses to start
+# under a non-root euid.
+#
+# Its own socket (/run/tuios-pam-helper.sock) is deliberately world-
+# read/writable (chmod 0666) - PAM is the actual authentication gate, not
+# the socket. See pam-helper/README.md, "What's still not here" for the
+# accepted trust boundary this implies (same-host only).
+#
+# No further sandboxing directives (ProtectSystem, PrivateDevices, etc.) are
+# applied here: this daemon needs broad access - to authenticate against
+# the system's real PAM stack and to spawn processes as arbitrary other
+# local users - that most systemd hardening options would break outright.
+
+[Install]
+WantedBy=multi-user.target

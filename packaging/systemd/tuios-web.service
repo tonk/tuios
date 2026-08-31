@@ -1,0 +1,50 @@
+[Unit]
+Description=tuios-web - browser-accessible TUIOS session server
+Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/WEB.md
+Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/DEPLOYMENT.md
+After=network.target
+# Only relevant if ExecStart below is edited to add --pam-auth (see
+# docs/DEPLOYMENT.md, "PAM multi-tenant mode"). Uncomment both lines then:
+#Wants=tuios-pam-helper.service
+#After=tuios-pam-helper.service
+
+[Service]
+Type=simple
+User=tuios-web
+Group=tuios-web
+
+# Entirely unprivileged, with or without --pam-auth: all privileged work
+# (PAM login, setuid to a trainee's own account) happens in the separate
+# tuios-pam-helper daemon across a Unix socket - see pam-helper/README.md.
+#
+# Binds loopback only; a reverse proxy (see packaging/nginx/tuios-web.conf
+# and docs/DEPLOYMENT.md) is what actually terminates TLS and faces the
+# public network. Edit this line to add --pam-auth (multi-tenant login,
+# needs tuios-pam-helper.service - see above) and/or --web-settings (the
+# in-browser theme/font picker); see docs/WEB.md for the full flag list.
+ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7681 --config /etc/tuios-web/config.toml
+Restart=on-failure
+RestartSec=2
+
+# Gives tuios-web's session-persistence state (internal/session's
+# "resurrection" data, under $HOME/.local/state by XDG default) and its
+# daemon socket a stable, systemd-managed home instead of scattering them
+# under a service account's otherwise-empty $HOME. StateDirectory=tuios-web
+# creates and owns /var/lib/tuios-web (mode 0750) before every start.
+Environment=HOME=/var/lib/tuios-web
+StateDirectory=tuios-web
+WorkingDirectory=/var/lib/tuios-web
+
+# Safe, narrow hardening only. tuios-web spawns a real shell for whoever
+# connects (as the tuios-web account itself, unless --pam-auth hands that
+# off to tuios-pam-helper) - broader sandboxing like ProtectSystem=strict or
+# ProtectHome=true would cripple that shell's access to the rest of the
+# filesystem, which is the opposite of what a "terminal in the browser"
+# tool is for. See docs/DEPLOYMENT.md, "Hardening notes" for the trade-off
+# and when the stricter options are actually safe to add (a --pam-auth-only
+# deployment, where every real shell runs as a trainee account instead).
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

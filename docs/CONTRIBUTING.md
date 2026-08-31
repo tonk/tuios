@@ -197,6 +197,7 @@ When contributing, consider updating:
 - **docs/CONFIGURATION.md** - For configuration options
 - **docs/CLI_REFERENCE.md** - For CLI flags/commands
 - **docs/ARCHITECTURE.md** - For architectural changes
+- **docs/DEPLOYMENT.md** - For packaging/deployment changes (systemd units, nginx config, install scripts)
 
 ---
 

@@ -373,6 +373,11 @@ getting WebTransport back.
 3. Use `--max-connections` to limit resource usage
 4. Consider `--read-only` for public demos
 
+For a full walkthrough - systemd units for `tuios-web` (and, for PAM
+multi-tenant mode, its `tuios-pam-helper` companion), a ready-to-edit nginx
+config, and how to verify the result - see
+[Production Deployment](DEPLOYMENT.md).
+
 ### CORS
 
 All origins allowed by default. For production, configure `AllowOrigins` in the server config.
@@ -424,6 +429,7 @@ Server logs include:
 
 ## Related Documentation
 
+- [Production Deployment](DEPLOYMENT.md) - systemd units, nginx/TLS, and PAM multi-tenant setup for running this as a real service
 - [CLI Reference](CLI_REFERENCE.md) - Complete command reference
 - [Configuration](CONFIGURATION.md) - TOML configuration options
 - [Keybindings](KEYBINDINGS.md) - Keyboard shortcuts

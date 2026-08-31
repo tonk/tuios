@@ -107,6 +107,11 @@ connection.
 
 ## Trying it
 
+This section is the quick manual way to try the helper out - a backgrounded
+shell job, no service management. For running it (and `tuios-web`) as an
+actual unattended service, with systemd units and an nginx reverse proxy,
+see [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md) instead.
+
 Needs `libpam0g-dev` (or your distro's PAM headers) to build the helper,
 since `github.com/msteinert/pam/v2` is a cgo binding. `tuios-web` itself
 needs no new system dependency — `internal/pamauth` is pure Go.

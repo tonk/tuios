@@ -15,10 +15,11 @@ maintainer: "Gaurav Gosain <me@gaurav.zip>"
 description: |
   Privileged PAM authentication helper for tuios-web's optional --pam-auth
   mode: authenticates a trainee against PAM and spawns their shells as
-  their own Unix account. Must run as root; see the tuios-web docs before
-  deploying. This package installs the binary and a starter
-  /etc/pam.d/tuios-web - it does not run the helper for you (no service
-  unit is installed).
+  their own Unix account. Must run as root; see docs/DEPLOYMENT.md before
+  deploying. This package installs the binary, a starter
+  /etc/pam.d/tuios-web, and a systemd unit
+  (/usr/lib/systemd/system/tuios-pam-helper.service) - it does not enable
+  or start the service for you.
 vendor: "tuios"
 homepage: "https://github.com/Gaurav-Gosain/tuios"
 license: "MIT"
@@ -32,6 +33,11 @@ contents:
   - src: "${PAM_D_SRC}"
     dst: "/etc/pam.d/tuios-web"
     expand: true
+    type: "config|noreplace"
+    file_info:
+      mode: 0644
+  - src: "packaging/systemd/tuios-pam-helper.service"
+    dst: "/usr/lib/systemd/system/tuios-pam-helper.service"
     type: "config|noreplace"
     file_info:
       mode: 0644
