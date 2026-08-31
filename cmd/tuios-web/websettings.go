@@ -38,6 +38,7 @@ import (
 	"github.com/lrstanley/bubbletint/v2"
 
 	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/Gaurav-Gosain/tuios/internal/theme"
 )
 
 const sidCookieName = "tuios_sid"
@@ -120,9 +121,18 @@ func ensureSessionCookie(w http.ResponseWriter, r *http.Request) string {
 // (never proxied to sip): the theme list, the theme-change endpoint, and the
 // bundled font files the injected picker offers.
 func registerWebSettingsRoutes(mux *http.ServeMux) {
+	// Populates the tint registry with the built-in themes plus anything in
+	// ~/.config/tuios/themes/ (custom themes tuios's own picker already
+	// shows). Without this, tint.TintIDs()/tint.GetTint() below only ever
+	// see the built-ins - a custom theme would silently be missing from the
+	// list and rejected by handleSetTheme, since nothing else in tuios-web's
+	// own startup path ever touches the tint registry before a request does.
+	theme.EnsureRegistry()
+
 	mux.HandleFunc("/tuios-settings/themes", handleListThemes)
 	mux.HandleFunc("/tuios-settings/theme", handleSetTheme)
 	mux.HandleFunc("/tuios-settings/fonts/saucecodepro.ttf", handleBundledFont)
+	mux.HandleFunc("/tuios-settings/fonts/saucecodepro-semibold.ttf", handleBundledSemiBoldFont)
 }
 
 func handleListThemes(w http.ResponseWriter, _ *http.Request) {
@@ -256,6 +266,11 @@ func handleBundledFont(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(sauceCodeProFont)
 }
 
+func handleBundledSemiBoldFont(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "font/ttf")
+	_, _ = w.Write(sauceCodeProSemiBoldFont)
+}
+
 // fontCookieName persists the chosen font-family across a reload. Font
 // family isn't part of sip's own live-appliable settings (unlike font
 // *size*, which sip's stock panel already patches into a running terminal
@@ -298,6 +313,13 @@ func settingsInjectHead(bgHex string) string {
     @font-face {
         font-family: 'SauceCodePro NFM';
         src: url('/tuios-settings/fonts/saucecodepro.ttf');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'SauceCodePro NFM SemiBold';
+        src: url('/tuios-settings/fonts/saucecodepro-semibold.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
@@ -347,6 +369,7 @@ func settingsInjectHTML(selectedFont string) string {
                 <option value=""` + selected("") + `>Default</option>
                 <option value="'JetBrainsMono Nerd Font Mono', monospace"` + selected("'JetBrainsMono Nerd Font Mono', monospace") + `>JetBrains Mono</option>
                 <option value="'SauceCodePro NFM', monospace"` + selected("'SauceCodePro NFM', monospace") + `>SauceCodePro</option>
+                <option value="'SauceCodePro NFM SemiBold', monospace"` + selected("'SauceCodePro NFM SemiBold', monospace") + `>SauceCodePro SemiBold</option>
             </select>
         </div>
 `

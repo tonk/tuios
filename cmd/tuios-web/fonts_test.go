@@ -71,4 +71,30 @@ func TestResolveFontConfig(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("semibold bundled name spills its own font under its own family", func(t *testing.T) {
+		for _, alias := range []string{"saucecodeprosemibold", "Sauce Code Pro SemiBold", "SauceCodePro NFM SemiBold"} {
+			family, path, err := resolveFontConfig(alias, "")
+			if err != nil {
+				t.Fatalf("resolveFontConfig(%q): %v", alias, err)
+			}
+			if want := "SauceCodePro NFM SemiBold"; family != want {
+				t.Errorf("resolveFontConfig(%q) family = %q, want %q", alias, family, want)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("spilled font not readable at %q: %v", path, err)
+			}
+			if len(data) != len(sauceCodeProSemiBoldFont) {
+				t.Errorf("spilled file is %d bytes, embedded asset is %d", len(data), len(sauceCodeProSemiBoldFont))
+			}
+			// The two weights must never collide on disk: spilling one after
+			// the other into the same temp dir by filename would silently
+			// serve the wrong bytes under a fresh --font-path/--font-family
+			// pair that only ever asks for one of them.
+			if len(data) == len(sauceCodeProFont) {
+				t.Errorf("spilled SemiBold font happens to be the same size as Regular (%d bytes) - verify it is not actually the Regular file", len(data))
+			}
+		}
+	})
 }
