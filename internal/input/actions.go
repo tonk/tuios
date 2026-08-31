@@ -109,6 +109,7 @@ func (d *ActionDispatcher) registerHandlers() {
 
 	// Window actions
 	d.Register("toggle_zoom", handleToggleZoom)
+	d.Register("toggle_title_lock", handleToggleTitleLock)
 
 	// Scrolling tiling actions (niri-like)
 	d.Register("scroll_focus_left", handleScrollFocusLeft)
@@ -489,6 +490,20 @@ func handleToggleZoom(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		o.ShowNotification("ZOOM", "info", config.NotificationDuration)
 	} else {
 		o.ShowNotification("", "info", 0) // clear
+	}
+	return o, nil
+}
+
+func handleToggleTitleLock(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	fw := o.GetFocusedWindow()
+	if fw == nil {
+		return o, nil
+	}
+	fw.SetTitleLocked(!fw.TitleLocked())
+	if fw.TitleLocked() {
+		o.ShowNotification("Title Locked", "success", config.NotificationDuration)
+	} else {
+		o.ShowNotification("Title Unlocked", "info", config.NotificationDuration)
 	}
 	return o, nil
 }

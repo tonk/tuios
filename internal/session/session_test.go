@@ -880,6 +880,7 @@ func TestStateSyncPayloadRoundTrip(t *testing.T) {
 					Minimized:   false,
 					PTYID:       "pty-def",
 					IsAltScreen: true,
+					TitleLocked: true,
 				},
 			},
 			WorkspaceFocus: map[int]string{
@@ -949,6 +950,9 @@ func TestStateSyncPayloadRoundTrip(t *testing.T) {
 		}
 		if w.IsAltScreen != orig.IsAltScreen {
 			t.Errorf("Window[%d].IsAltScreen mismatch: got %v, want %v", i, w.IsAltScreen, orig.IsAltScreen)
+		}
+		if w.TitleLocked != orig.TitleLocked {
+			t.Errorf("Window[%d].TitleLocked mismatch: got %v, want %v", i, w.TitleLocked, orig.TitleLocked)
 		}
 		if w.X != orig.X || w.Y != orig.Y {
 			t.Errorf("Window[%d] position mismatch: got (%d,%d), want (%d,%d)", i, w.X, w.Y, orig.X, orig.Y)

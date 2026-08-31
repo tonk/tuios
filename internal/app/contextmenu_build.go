@@ -16,6 +16,7 @@ const (
 	glyphClose    = ""
 	glyphMinimize = ""
 	glyphZoom     = ""
+	glyphLock     = ""
 	glyphSplitV   = ""
 	glyphSplitH   = ""
 	glyphTiling   = ""
@@ -215,6 +216,17 @@ func contextMenuWindowName(m *OS, windowIndex int, fallback string) string {
 	return fallback
 }
 
+// lockTitleItem builds the pane menu's title-lock row. The label says which
+// way the click will flip it, so the menu doubles as an indicator of the
+// pane's current lock state without a separate checkmark convention.
+func lockTitleItem(m *OS, win *terminal.Window) ContextMenuItem {
+	label := "Lock title"
+	if win != nil && win.TitleLocked() {
+		label = "Unlock title"
+	}
+	return m.item(glyphLock, label, "toggle_title_lock", false)
+}
+
 // item builds a row, resolving its key hint from the live registry.
 func (m *OS) item(icon, label, action string, dim bool) ContextMenuItem {
 	return ContextMenuItem{
@@ -264,6 +276,7 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 		// Never dimmed for a hidden title bar: the editor is a centred dialog and
 		// draws its own frame wherever the name happens to show.
 		m.item(glyphRename, "Rename", "rename_window", false),
+		lockTitleItem(m, win),
 		// An accent shows on the rail, so there is nothing to set without one.
 		m.item(glyphPalette, "Accent color", "set_accent", !m.SidebarActive()),
 		m.item(glyphZoom, "Zoom", "toggle_zoom", false),

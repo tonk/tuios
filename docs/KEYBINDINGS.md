@@ -79,6 +79,7 @@ The rail's remaining keys are listed by that help overlay, which reads them from
 | Key | Action |
 |-----|--------|
 | `z` | Toggle zoom (fullscreen focused window) |
+| `l` | Lock/unlock focused window's title (blocks OSC title changes from the app inside it) |
 | `n` | Create new window |
 | `w` or `x` | Close focused window |
 | `r` | Rename focused window |

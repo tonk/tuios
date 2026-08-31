@@ -125,6 +125,16 @@ func (w *Window) Title() string {
 // SetTitle records the current window title.
 func (w *Window) SetTitle(t string) { w.title.Store(&t) }
 
+// TitleLocked reports whether the guest is currently blocked from changing
+// the title via OSC 0/2 (see SetTitleLocked).
+func (w *Window) TitleLocked() bool { return w.titleLocked.Load() }
+
+// SetTitleLocked freezes or unfreezes the window's title. While locked, the
+// Title VT callback (wired in newWindowSkeleton and NewAdoptedWindow) drops
+// OSC 0/2 title changes instead of applying them, so a guest application can
+// no longer overwrite whatever title was current at lock time.
+func (w *Window) SetTitleLocked(locked bool) { w.titleLocked.Store(locked) }
+
 // IsAltScreen reports whether the application is using the alternate screen buffer.
 func (w *Window) IsAltScreen() bool { return w.isAltScreen.Load() }
 
@@ -184,26 +194,27 @@ var (
 // Each window maintains its own virtual terminal, PTY, and rendering cache.
 // Scrollback buffer support is provided by the vendored vt library.
 type Window struct {
-	title              atomic.Pointer[string]           // Written on PTY/monitor goroutine, read on UI goroutine
-	geomSnap           atomic.Pointer[GeometrySnapshot] // See PublishGeometry
-	CustomName         string                           // User-defined window name
-	Width              int
-	Height             int
-	X                  int
-	Y                  int
-	Z                  int
-	ID                 string
-	Terminal           *vt.Emulator
-	Pty                xpty.Pty
-	Cmd                *exec.Cmd
-	ShellPgid          int      // Process group ID of the shell
+	title       atomic.Pointer[string]           // Written on PTY/monitor goroutine, read on UI goroutine
+	titleLocked atomic.Bool                      // When true, OSC 0/2 title changes from the guest are ignored (see the Title VT callback)
+	geomSnap    atomic.Pointer[GeometrySnapshot] // See PublishGeometry
+	CustomName  string                           // User-defined window name
+	Width       int
+	Height      int
+	X           int
+	Y           int
+	Z           int
+	ID          string
+	Terminal    *vt.Emulator
+	Pty         xpty.Pty
+	Cmd         *exec.Cmd
+	ShellPgid   int // Process group ID of the shell
 	// AdoptedPID is nonzero when this window's Pty wraps a process this
 	// package did not itself spawn (Cmd is nil in that case) - see
 	// NewAdoptedWindow. It is the pid an external privileged helper (see
 	// internal/pamauth) reported when it started the shell, kept so the
 	// exit-detection goroutine can poll it and so a caller that owns the
 	// helper connection can ask it to close this specific shell.
-	AdoptedPID int
+	AdoptedPID         int
 	cwd                cwdCache // Memoised working directory, see CWD
 	LastUpdate         time.Time
 	Dirty              bool
@@ -558,8 +569,9 @@ func newWindowSkeleton(id, title string, x, y, width, height, z int, ptyDataChan
 			window.SetCursorBlink(!steady) // Invert: steady=false means blinking=true
 		},
 		Title: func(title string) {
-			// Update window title from terminal escape sequence
-			if title != "" {
+			// Update window title from terminal escape sequence, unless the
+			// user has locked it (see SetTitleLocked).
+			if title != "" && !window.TitleLocked() {
 				window.SetTitle(title)
 			}
 		},
@@ -895,8 +907,9 @@ func NewDaemonWindow(id, title string, x, y, width, height, z int, ptyID string,
 			window.SetCursorBlink(!steady) // Invert: steady=false means blinking=true
 		},
 		Title: func(title string) {
-			// Update window title from terminal escape sequence
-			if title != "" {
+			// Update window title from terminal escape sequence, unless the
+			// user has locked it (see SetTitleLocked).
+			if title != "" && !window.TitleLocked() {
 				window.SetTitle(title)
 			}
 		},

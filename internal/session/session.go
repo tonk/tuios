@@ -57,6 +57,7 @@ type WindowState struct {
 	PreMinimizeH int    `json:"pre_minimize_h,omitempty"`
 	PTYID        string `json:"pty_id"`                  // Reference to daemon-managed PTY
 	IsAltScreen  bool   `json:"is_alt_screen,omitempty"` // Alternate screen buffer active (for mouse forwarding)
+	TitleLocked  bool   `json:"title_locked,omitempty"`  // Guest OSC 0/2 title changes are ignored while true
 	// Cwd is the working directory of the window's shell process, captured on the
 	// daemon side when saving resurrection state. On cold-start restore a fresh
 	// shell is respawned here. Empty for live state syncs (clients do not set it).

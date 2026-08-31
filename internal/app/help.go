@@ -32,6 +32,7 @@ func GetHelpCategories(registry *config.KeybindRegistry) []HelpCategory {
 			Bindings: generateCategoryBindings(registry, "Window Management", []string{
 				"new_window", "close_window", "rename_window",
 				"minimize_window", "restore_all", "toggle_zoom",
+				"toggle_title_lock",
 				"next_window", "prev_window",
 				"terminal_next_window", "terminal_prev_window",
 				"terminal_focus_left", "terminal_focus_right",

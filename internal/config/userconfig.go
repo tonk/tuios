@@ -617,12 +617,13 @@ func getDefaultWindowManagementKeybinds() map[string][]string {
 		digitChord = "opt+%d"
 	}
 	base := map[string][]string{
-		"new_window":      {"n"},
-		"close_window":    {"w", "x"},
-		"rename_window":   {"r"},
-		"minimize_window": {"m"},
-		"restore_all":     {"M"},
-		"toggle_zoom":     {"z"},
+		"new_window":        {"n"},
+		"close_window":      {"w", "x"},
+		"rename_window":     {"r"},
+		"minimize_window":   {"m"},
+		"restore_all":       {"M"},
+		"toggle_zoom":       {"z"},
+		"toggle_title_lock": {"l"},
 		// Finishing a mouse selection has always told the user to press
 		// 'c' to copy it. Until this binding existed, nothing was
 		// listening.

@@ -113,6 +113,7 @@ func (m *OS) BuildSessionState() *session.SessionState {
 			PreMinimizeH: w.PreMinimizeHeight,
 			PTYID:        w.PTYID,
 			IsAltScreen:  w.IsAltScreen(), // Save alt screen state for mouse forwarding on restore
+			TitleLocked:  w.TitleLocked(),
 		}
 	}
 
@@ -611,6 +612,7 @@ func (m *OS) updateWindowFromState(w *terminal.Window, ws *session.WindowState) 
 	w.PreMinimizeWidth = ws.PreMinimizeW
 	w.PreMinimizeHeight = ws.PreMinimizeH
 	w.SetAltScreen(ws.IsAltScreen)
+	w.SetTitleLocked(ws.TitleLocked)
 	w.AgentMessage = ws.AgentMessage
 	w.AgentHarness = ws.AgentHarness
 	w.AgentStateAt = ws.AgentStateAt
@@ -692,6 +694,7 @@ func adoptWindowState(window *terminal.Window, ws session.WindowState) {
 	window.PreMinimizeWidth = ws.PreMinimizeW
 	window.PreMinimizeHeight = ws.PreMinimizeH
 	window.SetAltScreen(ws.IsAltScreen) // also drives mouse event forwarding
+	window.SetTitleLocked(ws.TitleLocked)
 	window.AgentState = string(ws.AgentState)
 	window.AgentMessage = ws.AgentMessage
 	window.AgentHarness = ws.AgentHarness

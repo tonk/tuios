@@ -283,6 +283,7 @@ var ActionDescriptions = map[string]string{
 	"minimize_window":    "Minimize window",
 	"restore_all":        "Restore all minimized",
 	"toggle_zoom":        "Toggle zoom (fullscreen)",
+	"toggle_title_lock":  "Lock/unlock window title",
 	"next_window":        "Next window",
 	"prev_window":        "Previous window",
 	"toggle_last_window": "Toggle last focused window",
