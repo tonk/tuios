@@ -82,8 +82,8 @@ make install-pam-helper    # PAM multi-tenant mode only; needs libpam0g-dev
 Or from a GitHub/Forgejo release, without a Go toolchain at all:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install-web.sh | bash
-curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install-pam-helper.sh | bash  # PAM mode only
+curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install-web.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install-pam-helper.sh | bash  # PAM mode only
 ```
 
 Both install scripts fetch a platform-matched release asset and drop it in

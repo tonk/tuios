@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # tuios-pam-helper Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install-pam-helper.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install-pam-helper.sh | bash
 #
 # tuios-pam-helper is the privileged half of tuios-web's optional
 # --pam-auth mode: it runs as root, authenticates trainees against PAM, and
@@ -22,7 +22,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-REPO="Gaurav-Gosain/tuios"
+# tonk/tuios, not the upstream Gaurav-Gosain/tuios this was originally
+# forked from: pam-helper (and its release asset, and this starter PAM
+# service file) only exist on this fork, never upstream.
+REPO="tonk/tuios"
 BINARY_NAME="tuios-pam-helper"
 PAM_SERVICE_PATH="/etc/pam.d/tuios-web"
 PAM_SERVICE_REPO_PATH="pam-helper/pam.d/tuios-web"

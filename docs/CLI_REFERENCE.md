@@ -71,7 +71,7 @@ nix-shell -p tuios
 ### Quick Install Script (Linux/macOS)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install.sh | bash
 ```
 
 ### Go Install
@@ -82,7 +82,7 @@ go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
 
 ### Pre-built Binaries
 
-Download from [GitHub Releases](https://github.com/Gaurav-Gosain/tuios/releases)
+Download from [GitHub Releases](https://github.com/tonk/tuios/releases)
 
 ---
 

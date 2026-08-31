@@ -72,7 +72,7 @@ nix run github:Gaurav-Gosain/tuios#tuios
 
 ```bash
 # Quick install script (Linux/macOS)
-curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install.sh | bash
 
 # Go install
 go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
@@ -81,7 +81,7 @@ go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
 docker run -it --rm ghcr.io/gaurav-gosain/tuios:latest
 ```
 
-**[GitHub Releases](https://github.com/Gaurav-Gosain/tuios/releases)** - Pre-built binaries for all platforms.
+**[GitHub Releases](https://github.com/tonk/tuios/releases)** - Pre-built binaries for all platforms.
 
 **Requirements:** A terminal with true color support. Kitty graphics and sixel support recommended (Ghostty, Kitty, WezTerm).
 

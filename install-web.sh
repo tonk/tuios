@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # tuios-web Installation Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install-web.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install-web.sh | bash
 
 set -e
 
@@ -12,8 +12,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# GitHub repository
-REPO="Gaurav-Gosain/tuios"
+# GitHub repository. tonk/tuios, not the upstream Gaurav-Gosain/tuios this
+# was originally forked from: releases only ever get built and published
+# from here (see .github/workflows/release.yml), so that's the only place
+# with an asset for this script to actually find.
+REPO="tonk/tuios"
 BINARY_NAME="tuios-web"
 
 # Print colored output
