@@ -271,24 +271,37 @@ func handleBundledSemiBoldFont(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write(sauceCodeProSemiBoldFont)
 }
 
-// fontCookieName persists the chosen font-family across a reload. Font
-// family isn't part of sip's own live-appliable settings (unlike font
-// *size*, which sip's stock panel already patches into a running terminal
-// without a reload) - webterm's renderer is a minified third-party bundle
-// with no confirmed way to rebuild its glyph atlas for a new face on the
-// fly, so this uses the same reload-based pattern sip's own Renderer
-// dropdown already falls back to for a setting that can't apply live (see
-// terminal.js's settings-apply handler: "the renderer addon is attached
-// once... so switching it needs a reload"). settingsInjectHead reads this
-// cookie and overrides window.__sipConfig.fontFamily before terminal.js
-// ever constructs the terminal, so the chosen font is what gets built with,
-// not something patched in after.
+// fontCookieName persists the chosen font-family across a reload, applied
+// after the terminal exists (see settingsInjectFooter's applyFontFamily)
+// rather than by overriding window.__sipConfig.fontFamily before
+// terminal.js constructs the terminal - deliberately, not by oversight.
+//
+// webterm.js's own font-preload step (xC in webterm.js, driven by
+// terminal.js's hardcoded `fonts: [...]` array of its four JetBrains Mono
+// files, none of which carry a `family` field) falls back to whatever
+// fontFamily the terminal is being constructed with as the family name for
+// *all four* of those FontFace objects: `new FontFace(g.family ?? t, ...)`.
+// Construct with a custom fontFamily already set (as overriding
+// __sipConfig.fontFamily before construction used to do) and this
+// registers four JetBrains-Mono-content FontFace objects under the custom
+// family name, then marks them "loaded" - and a browser prefers an
+// already-loaded face over triggering a new load for our own real
+// @font-face rule at the same family/weight, so the canvas keeps rendering
+// JetBrains Mono's outlines no matter which custom font is selected. Not
+// theoretical: confirmed by inspecting document.fonts (duplicate entries
+// under the same family, the bogus ones with literal quote characters
+// baked into .family from how they were constructed) and by rendering
+// both ways and diffing the pixels.
+//
+// The construction-time path is never used at all for a custom font, for
+// exactly this reason: the terminal always constructs with sip's own
+// default (JetBrains Mono), which is what xC's array actually matches, and
+// a saved custom choice is only ever applied afterward via
+// webterm.setOptions({fontFamily: ...}) - which does not go through
+// doOpen/xC again, so it never re-triggers this.
 const fontCookieName = "tuios_font"
 
-// settingsInjectHead is spliced into "/" right before </head> - before any
-// of sip's own body scripts run, which is what lets it override
-// window.__sipConfig.fontFamily in time for terminal.js's construction of
-// the terminal to see it.
+// settingsInjectHead is spliced into "/" right before </head>.
 //
 // bgHex bakes in the currently active theme's background (see
 // setThemeResponse for why sip's page needs this at all: tuios itself never
@@ -334,15 +347,6 @@ func settingsInjectHead(bgHex string) string {
         overflow-y: auto;
     }
     ` + bgRule + `</style>
-    <script>
-    (function() {
-        var m = document.cookie.match(/(?:^|; )` + fontCookieName + `=([^;]*)/);
-        if (m && m[1]) {
-            window.__sipConfig = window.__sipConfig || {};
-            window.__sipConfig.fontFamily = decodeURIComponent(m[1]);
-        }
-    })();
-    </script>
 `
 }
 
@@ -364,7 +368,7 @@ func settingsInjectHTML(selectedFont string) string {
             <select id="tuios-theme-select"><option value="">Loading…</option></select>
         </div>
         <div class="setting-group">
-            <label>Font Family (reloads the page)</label>
+            <label>Font Family</label>
             <select id="tuios-font-select">
                 <option value=""` + selected("") + `>Default</option>
                 <option value="'JetBrainsMono Nerd Font Mono', monospace"` + selected("'JetBrainsMono Nerd Font Mono', monospace") + `>JetBrains Mono</option>
@@ -404,8 +408,29 @@ func settingsInjectFooter(initialTheme string) string {
             }
         }
 
+        // Applied only after the terminal already exists - never by setting
+        // window.__sipConfig.fontFamily before construction. See
+        // fontCookieName's doc comment: doing it before construction is what
+        // makes webterm.js's own font-preload step register its four
+        // hardcoded JetBrains Mono files under our custom family name
+        // instead of theirs, and those end up winning over our real
+        // @font-face rule. setOptions never goes through that preload step,
+        // so it is the only safe way to apply a custom font at all - which
+        // also means this needs no reload, unlike the font-family picker's
+        // very first version.
+        function applyFontFamily(family) {
+            if (!family) { return; }
+            window.sip.term.webterm.setOptions({ fontFamily: family });
+            window.sip.term.fontFamily = family;
+        }
+
         whenReady(function() {
             applyTheme(` + initialTheme + `);
+
+            var savedFont = document.cookie.match(/(?:^|; )` + fontCookieName + `=([^;]*)/);
+            if (savedFont && savedFont[1]) {
+                applyFontFamily(decodeURIComponent(savedFont[1]));
+            }
 
             var themeSelect = document.getElementById('tuios-theme-select');
             var fontSelect = document.getElementById('tuios-font-select');
@@ -440,7 +465,7 @@ func settingsInjectFooter(initialTheme string) string {
 
             fontSelect.addEventListener('change', function() {
                 document.cookie = '` + fontCookieName + `=' + encodeURIComponent(fontSelect.value) + '; path=/; max-age=31536000; SameSite=Lax';
-                window.location.reload();
+                applyFontFamily(fontSelect.value);
             });
         });
     })();
