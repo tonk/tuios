@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# get_tuios — download and install the latest tuios and tuios-web releases from GitHub
+#
+# Usage: get_tuios [--force|-f]
+#
+# Must be run as root (needed to write to /usr/local/bin). Installs both
+# binaries in one pass, each compared against what's already there and
+# skipped unless it's actually behind (or --force is given).
+#
+# Unlike a service-specific redeploy script, this never stops or starts
+# anything: tuios itself has no service to stop (it's the interactive TUI),
+# and tuios-web's systemd unit (see ../docs/DEPLOYMENT.md) is left for
+# whoever runs this to restart on their own schedule - `systemctl restart
+# tuios-web` once you're ready, not automatically as a side effect of
+# updating the binary out from under a running process.
+#
+# tuios-pam-helper is deliberately not handled here, the same way it's kept
+# out of the plain `make install`/`install.sh` path in the repo itself -
+# see install-pam-helper.sh for that one, on purpose separate.
+
+set -euo pipefail
+
+# ── Configuration ─────────────────────────────────────────────────────────────
+# tonk/tuios, not the upstream Gaurav-Gosain/tuios the repo's own
+# install.sh/install-web.sh point at: this deploys what's actually running
+# in this environment - the fork with tuios-web, PAM multi-tenant auth, and
+# everything else in docs/DEPLOYMENT.md - which only ever gets released
+# from here, not upstream.
+readonly REPO="tonk/tuios"
+readonly INSTALL_DIR="/usr/local/bin"
+readonly BINARIES=("tuios" "tuios-web")
+
+# ── Argument parsing ──────────────────────────────────────────────────────────
+FORCE=0
+for arg in "${@}"
+do
+    case "${arg}" in
+        -f|--force) FORCE=1 ;;
+        -h|--help)
+            echo "Usage: $(basename "$0") [--force|-f]"
+            echo "  --force, -f   Install even if already on the latest version"
+            exit 0 ;;
+        *) echo "Unknown option: ${arg}" >&2
+           echo "Usage: $(basename "$0") [--force|-f]" >&2
+           exit 1 ;;
+    esac
+done
+
+# ── Root check ────────────────────────────────────────────────────────────────
+if [[ $(id -u) -ne 0 ]]
+then
+    echo "Error: must be run as root (needed to write to ${INSTALL_DIR})." >&2
+    exit 1
+fi
+
+# ── OS/architecture detection ─────────────────────────────────────────────────
+# Only linux/amd64 and linux/arm64 are actually published (see LINUX_ARCHES
+# in the repo's Makefile) - no macOS or Windows build exists to fetch.
+if [[ "$(uname -s)" != "Linux" ]]
+then
+    echo "Error: only Linux is published; build from source on $(uname -s)." >&2
+    exit 1
+fi
+case "$(uname -m)" in
+    x86_64)  ARCH="amd64"  ;;
+    aarch64) ARCH="arm64"  ;;
+    *) echo "Error: unsupported architecture $(uname -m)." >&2; exit 1 ;;
+esac
+
+# ── Version detection ─────────────────────────────────────────────────────────
+LATEST="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
+    | grep '"tag_name"' | head -1 \
+    | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')"
+
+if [[ -z "${LATEST}" ]]
+then
+    echo "Error: could not determine latest release version from GitHub." >&2
+    exit 1
+fi
+LATEST_NO_V="${LATEST#v}"
+
+# ── Cleanup ────────────────────────────────────────────────────────────────────
+TMPFILES=()
+cleanup() {
+    [[ ${#TMPFILES[@]} -eq 0 ]] || rm -f "${TMPFILES[@]}"
+}
+trap cleanup EXIT
+
+# ── Install each binary ─────────────────────────────────────────────────────
+UPDATED=()
+for BIN in "${BINARIES[@]}"
+do
+    BINARY="${INSTALL_DIR}/${BIN}"
+
+    if [[ -x "${BINARY}" ]]
+    then
+        # First line looks like "tuios version v0.8.23"; the version is
+        # always the last field, so this doesn't care which binary it is.
+        CURRENT="$("${BINARY}" --version 2>/dev/null | head -1 | awk '{print $NF}')"
+    else
+        CURRENT=""
+    fi
+
+    echo "── ${BIN} ──"
+    echo "Installed : ${CURRENT:-(not installed)}"
+    echo "Available : ${LATEST}"
+
+    if [[ "${CURRENT}" == "${LATEST}" && ${FORCE} -eq 0 ]]
+    then
+        echo "${BIN} is already at the latest version."
+        echo
+        continue
+    fi
+
+    # Format: tuios_0.8.23_linux_amd64 / tuios-web_0.8.23_linux_amd64 - a
+    # raw binary, not an archive (see Makefile's dist target, which is what
+    # the release pipeline actually runs).
+    ASSET="${BIN}_${LATEST_NO_V}_linux_${ARCH}"
+    URL="https://github.com/${REPO}/releases/download/${LATEST}/${ASSET}"
+    TMPFILE="$(mktemp "/tmp/${ASSET}.XXXXXX")"
+    TMPFILES+=("${TMPFILE}")
+
+    echo "Downloading ${ASSET} ..."
+    if ! curl -fL --progress-bar "${URL}" -o "${TMPFILE}"
+    then
+        echo "Error: download failed: ${URL}" >&2
+        exit 1
+    fi
+
+    install -m 0755 "${TMPFILE}" "${BINARY}"
+    echo "Installed ${BIN} ${LATEST} to ${BINARY}."
+    echo
+    UPDATED+=("${BIN}")
+done
+
+if [[ ${#UPDATED[@]} -eq 0 ]]
+then
+    echo "Done — already at the latest version (${LATEST})."
+else
+    echo "Done — updated: ${UPDATED[*]} -> ${LATEST}."
+    if [[ " ${UPDATED[*]} " == *" tuios-web "* ]]
+    then
+        echo "Restart tuios-web yourself when you're ready:"
+        echo "  systemctl restart tuios-web"
+    fi
+fi
