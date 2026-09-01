@@ -21,6 +21,24 @@ func TestNormalizeFontKey(t *testing.T) {
 	}
 }
 
+func TestWebFontCSSValue(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"", ""},
+		{"saucecodepro nfm semibold", "'SauceCodePro NFM SemiBold', monospace"},
+		{"SauceCodePro NFM SemiBold", "'SauceCodePro NFM SemiBold', monospace"},
+		{"freemono", "'FreeMono', monospace"},
+		// An unrecognized key (a custom theme author's own font, or a typo)
+		// passes through as a literal CSS family name, the same fallback
+		// resolveFontConfig gives an unrecognized --font-family.
+		{"Fira Code", "'Fira Code', monospace"},
+	}
+	for _, tt := range tests {
+		if got := webFontCSSValue(tt.in); got != tt.want {
+			t.Errorf("webFontCSSValue(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 func TestResolveFontConfig(t *testing.T) {
 	t.Run("empty family and path pass through unchanged", func(t *testing.T) {
 		family, path, err := resolveFontConfig("", "")
@@ -94,6 +112,62 @@ func TestResolveFontConfig(t *testing.T) {
 			// pair that only ever asks for one of them.
 			if len(data) == len(sauceCodeProFont) {
 				t.Errorf("spilled SemiBold font happens to be the same size as Regular (%d bytes) - verify it is not actually the Regular file", len(data))
+			}
+		}
+	})
+
+	t.Run("freemono and its bold weight resolve to distinct families", func(t *testing.T) {
+		for _, tt := range []struct {
+			aliases []string
+			family  string
+			data    []byte
+		}{
+			{[]string{"freemono", "Free Mono"}, "FreeMono", freeMonoFont},
+			{[]string{"freemonobold", "Free Mono Bold"}, "FreeMono Bold", freeMonoBoldFont},
+		} {
+			for _, alias := range tt.aliases {
+				family, path, err := resolveFontConfig(alias, "")
+				if err != nil {
+					t.Fatalf("resolveFontConfig(%q): %v", alias, err)
+				}
+				if family != tt.family {
+					t.Errorf("resolveFontConfig(%q) family = %q, want %q", alias, family, tt.family)
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatalf("spilled font not readable at %q: %v", path, err)
+				}
+				if len(data) != len(tt.data) {
+					t.Errorf("spilled file is %d bytes, embedded asset is %d", len(data), len(tt.data))
+				}
+			}
+		}
+	})
+
+	t.Run("sourcecodepro and its bold weight resolve to distinct families", func(t *testing.T) {
+		for _, tt := range []struct {
+			aliases []string
+			family  string
+			data    []byte
+		}{
+			{[]string{"sourcecodepro", "Source Code Pro"}, "Source Code Pro", sourceCodeProFont},
+			{[]string{"sourcecodeprobold", "Source Code Pro Bold"}, "Source Code Pro Bold", sourceCodeProBoldFont},
+		} {
+			for _, alias := range tt.aliases {
+				family, path, err := resolveFontConfig(alias, "")
+				if err != nil {
+					t.Fatalf("resolveFontConfig(%q): %v", alias, err)
+				}
+				if family != tt.family {
+					t.Errorf("resolveFontConfig(%q) family = %q, want %q", alias, family, tt.family)
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatalf("spilled font not readable at %q: %v", path, err)
+				}
+				if len(data) != len(tt.data) {
+					t.Errorf("spilled file is %d bytes, embedded asset is %d", len(data), len(tt.data))
+				}
 			}
 		}
 	})

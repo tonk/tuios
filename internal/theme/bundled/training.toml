@@ -61,3 +61,12 @@ info = "#83a598"
 # kitty's visual_bell_color/bell_border_color: closest tuios equivalent is
 # the overlay's positive/on accent.
 success = "#8ec07c"
+
+# tuios-web only: switches the browser terminal to this font/size when
+# Training is picked from the web settings panel - a larger, heavier weight
+# for reading from the back of a room or a shared screen. See
+# internal/theme/webpreset.go; "font" is a bundled font alias tuios-web
+# resolves itself, not a color.
+[web]
+font      = "saucecodepro nfm semibold"
+font_size = 24

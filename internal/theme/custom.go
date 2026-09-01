@@ -82,6 +82,7 @@ func LoadCustomThemeFile(path string) (*tint.Tint, error) {
 func loadThemeBytes(data []byte, name string) (*tint.Tint, error) {
 	var t tint.Tint
 	var ui *uiOverridesRaw
+	var web *webPresetRaw
 
 	if strings.EqualFold(filepath.Ext(name), ".toml") {
 		var f tomlThemeFile
@@ -90,18 +91,21 @@ func loadThemeBytes(data []byte, name string) (*tint.Tint, error) {
 		}
 		t = *f.toTint()
 		ui = f.UI
+		web = f.Web
 	} else {
 		if err := json.Unmarshal(data, &t); err != nil {
 			return nil, fmt.Errorf("failed to parse theme JSON: %w", err)
 		}
-		// A second, best-effort pass for the "ui" object: kept separate from
-		// the tint.Tint unmarshal above so an unparsed or absent "ui" section
+		// A second, best-effort pass for the "ui"/"web" objects: kept separate
+		// from the tint.Tint unmarshal above so an unparsed or absent section
 		// never affects loading the theme's actual colors.
 		var wrapper struct {
-			UI *uiOverridesRaw `json:"ui"`
+			UI  *uiOverridesRaw `json:"ui"`
+			Web *webPresetRaw   `json:"web"`
 		}
 		if err := json.Unmarshal(data, &wrapper); err == nil {
 			ui = wrapper.UI
+			web = wrapper.Web
 		}
 	}
 
@@ -126,6 +130,12 @@ func loadThemeBytes(data []byte, name string) (*tint.Tint, error) {
 		overridesByID[t.ID] = ov
 	} else {
 		delete(overridesByID, t.ID)
+	}
+
+	if wp := web.toWebPreset(); wp != nil {
+		webPresetByID[t.ID] = wp
+	} else {
+		delete(webPresetByID, t.ID)
 	}
 
 	return &t, nil
@@ -163,7 +173,8 @@ type tomlThemeFile struct {
 	BrightCyan   string `toml:"bright_cyan"`
 	BrightWhite  string `toml:"bright_white"`
 
-	UI *uiOverridesRaw `toml:"ui"`
+	UI  *uiOverridesRaw `toml:"ui"`
+	Web *webPresetRaw   `toml:"web"`
 }
 
 // toTint builds a *tint.Tint from the decoded TOML fields. Left-empty color

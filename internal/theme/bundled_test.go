@@ -30,6 +30,17 @@ func TestRegisterBundledThemesIncludesTraining(t *testing.T) {
 	if got := tn.Fg.Hex(); got != "#000000" {
 		t.Errorf("Fg = %q, want #000000", got)
 	}
+
+	wp := WebPresetForID("training")
+	if wp == nil {
+		t.Fatal(`expected a [web] preset for "training", got none`)
+	}
+	if wp.Font != "saucecodepro nfm semibold" {
+		t.Errorf("web preset font = %q, want %q", wp.Font, "saucecodepro nfm semibold")
+	}
+	if wp.FontSize != 24 {
+		t.Errorf("web preset font_size = %d, want 24", wp.FontSize)
+	}
 }
 
 // TestRegisterBundledThemesParsesEveryEmbeddedFile is a defensive check on

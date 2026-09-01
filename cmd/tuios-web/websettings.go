@@ -131,8 +131,12 @@ func registerWebSettingsRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/tuios-settings/themes", handleListThemes)
 	mux.HandleFunc("/tuios-settings/theme", handleSetTheme)
-	mux.HandleFunc("/tuios-settings/fonts/saucecodepro.ttf", handleBundledFont)
-	mux.HandleFunc("/tuios-settings/fonts/saucecodepro-semibold.ttf", handleBundledSemiBoldFont)
+	mux.HandleFunc("/tuios-settings/fonts/saucecodepro.ttf", serveBundledFont(sauceCodeProFont))
+	mux.HandleFunc("/tuios-settings/fonts/saucecodepro-semibold.ttf", serveBundledFont(sauceCodeProSemiBoldFont))
+	mux.HandleFunc("/tuios-settings/fonts/freemono.ttf", serveBundledFont(freeMonoFont))
+	mux.HandleFunc("/tuios-settings/fonts/freemono-bold.ttf", serveBundledFont(freeMonoBoldFont))
+	mux.HandleFunc("/tuios-settings/fonts/sourcecodepro.ttf", serveBundledFont(sourceCodeProFont))
+	mux.HandleFunc("/tuios-settings/fonts/sourcecodepro-bold.ttf", serveBundledFont(sourceCodeProBoldFont))
 }
 
 func handleListThemes(w http.ResponseWriter, _ *http.Request) {
@@ -225,6 +229,19 @@ func webTermThemeFor(t *tint.Tint) webTermTheme {
 	}
 }
 
+// setThemeResponse is what handleSetTheme sends back: the webTermTheme JSON
+// shape it always sent, plus an optional font/fontSize pair when the newly
+// selected theme carries a "web" preset (see internal/theme.WebPreset) - a
+// theme like "training" pairing a larger, heavier font with its color
+// palette. Both are omitted entirely when the theme has no preset, so the
+// injected JS's `if (resp.font)`/`if (resp.fontSize)` checks leave the
+// operator's own font choice alone.
+type setThemeResponse struct {
+	webTermTheme
+	Font     string `json:"font,omitempty"`
+	FontSize int    `json:"fontSize,omitempty"`
+}
+
 func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -257,18 +274,23 @@ func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 	}
 	program.Send(app.SetThemeMsg{Theme: req.Theme})
 
+	resp := setThemeResponse{webTermTheme: webTermThemeFor(t)}
+	if wp := theme.WebPresetForID(req.Theme); wp != nil {
+		resp.Font = webFontCSSValue(wp.Font)
+		resp.FontSize = wp.FontSize
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(webTermThemeFor(t))
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func handleBundledFont(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "font/ttf")
-	_, _ = w.Write(sauceCodeProFont)
-}
-
-func handleBundledSemiBoldFont(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "font/ttf")
-	_, _ = w.Write(sauceCodeProSemiBoldFont)
+// serveBundledFont returns a handler that serves one embedded font's bytes,
+// shared by every bundledFonts route registered in registerWebSettingsRoutes.
+func serveBundledFont(data []byte) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "font/ttf")
+		_, _ = w.Write(data)
+	}
 }
 
 // fontCookieName persists the chosen font-family across a reload, applied
@@ -337,6 +359,34 @@ func settingsInjectHead(bgHex string) string {
         font-style: normal;
         font-display: swap;
     }
+    @font-face {
+        font-family: 'FreeMono';
+        src: url('/tuios-settings/fonts/freemono.ttf');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'FreeMono Bold';
+        src: url('/tuios-settings/fonts/freemono-bold.ttf');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'Source Code Pro';
+        src: url('/tuios-settings/fonts/sourcecodepro.ttf');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
+    @font-face {
+        font-family: 'Source Code Pro Bold';
+        src: url('/tuios-settings/fonts/sourcecodepro-bold.ttf');
+        font-weight: 100 900;
+        font-style: normal;
+        font-display: swap;
+    }
     /* sip's own #settings-panel rule has no bottom constraint in the
        desktop (non-touch) case - only its body.sip-touch variant scrolls.
        The two rows this feature adds land at the very bottom, right before
@@ -374,6 +424,10 @@ func settingsInjectHTML(selectedFont string) string {
                 <option value="'JetBrainsMono Nerd Font Mono', monospace"` + selected("'JetBrainsMono Nerd Font Mono', monospace") + `>JetBrains Mono</option>
                 <option value="'SauceCodePro NFM', monospace"` + selected("'SauceCodePro NFM', monospace") + `>SauceCodePro</option>
                 <option value="'SauceCodePro NFM SemiBold', monospace"` + selected("'SauceCodePro NFM SemiBold', monospace") + `>SauceCodePro SemiBold</option>
+                <option value="'FreeMono', monospace"` + selected("'FreeMono', monospace") + `>FreeMono</option>
+                <option value="'FreeMono Bold', monospace"` + selected("'FreeMono Bold', monospace") + `>FreeMono Bold</option>
+                <option value="'Source Code Pro', monospace"` + selected("'Source Code Pro', monospace") + `>Source Code Pro</option>
+                <option value="'Source Code Pro Bold', monospace"` + selected("'Source Code Pro Bold', monospace") + `>Source Code Pro Bold</option>
             </select>
         </div>
 `
@@ -424,6 +478,23 @@ func settingsInjectFooter(initialTheme string) string {
             window.sip.term.fontFamily = family;
         }
 
+        // fontSize is confirmed live via the exact same setOptions call sip's
+        // own settings panel makes from its Apply button handler (see
+        // terminal.js) - only that button also persists the change, which
+        // this mirrors via window.sip.term.saveSettings() so a theme's font
+        // preset survives a reload, and updates the panel's own #font-size
+        // slider so it does not silently disagree with what is on screen.
+        function applyFontSize(size) {
+            if (!size) { return; }
+            window.sip.term.webterm.setOptions({ fontSize: size });
+            window.sip.settings.fontSize = size;
+            window.sip.term.saveSettings();
+            var input = document.getElementById('font-size');
+            var label = document.getElementById('font-size-value');
+            if (input) { input.value = size; }
+            if (label) { label.textContent = size + 'px'; }
+        }
+
         whenReady(function() {
             applyTheme(` + initialTheme + `);
 
@@ -459,7 +530,22 @@ func settingsInjectFooter(initialTheme string) string {
                     body: JSON.stringify({ theme: themeSelect.value })
                 })
                     .then(function(r) { return r.json(); })
-                    .then(applyTheme)
+                    .then(function(resp) {
+                        applyTheme(resp);
+                        // resp.font/resp.fontSize are only set when the
+                        // theme just selected carries a "web" preset (see
+                        // setThemeResponse) - a theme like "training"
+                        // pairing a larger, heavier font with its palette.
+                        // Sync the font dropdown and its cookie so the
+                        // preset persists across a reload exactly like a
+                        // manual font pick would.
+                        if (resp.font) {
+                            fontSelect.value = resp.font;
+                            document.cookie = '` + fontCookieName + `=' + encodeURIComponent(resp.font) + '; path=/; max-age=31536000; SameSite=Lax';
+                            applyFontFamily(resp.font);
+                        }
+                        applyFontSize(resp.fontSize);
+                    })
                     .catch(function() {});
             });
 

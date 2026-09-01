@@ -477,6 +477,134 @@ bg = "#000000"
 	}
 }
 
+// TestLoadCustomThemeFile_WebPreset_TOML tests that a TOML theme's [web]
+// table is parsed into webPresetByID.
+func TestLoadCustomThemeFile_WebPreset_TOML(t *testing.T) {
+	dir := t.TempDir()
+	themeTOML := `
+id = "test-web-preset-toml"
+fg = "#ffffff"
+bg = "#000000"
+
+[web]
+font = "saucecodepro nfm semibold"
+font_size = 24
+`
+	path := filepath.Join(dir, "test-web-preset-toml.toml")
+	if err := os.WriteFile(path, []byte(themeTOML), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	theme, err := LoadCustomThemeFile(path)
+	if err != nil {
+		t.Fatalf("LoadCustomThemeFile failed: %v", err)
+	}
+	t.Cleanup(func() { delete(webPresetByID, theme.ID) })
+
+	wp := WebPresetForID(theme.ID)
+	if wp == nil {
+		t.Fatal("expected a [web] preset entry for this theme, got none")
+	}
+	if wp.Font != "saucecodepro nfm semibold" {
+		t.Errorf("expected font %q, got %q", "saucecodepro nfm semibold", wp.Font)
+	}
+	if wp.FontSize != 24 {
+		t.Errorf("expected font_size 24, got %d", wp.FontSize)
+	}
+}
+
+// TestLoadCustomThemeFile_WebPreset_JSON tests that the "web" object is
+// recognized in the JSON format too, not just TOML.
+func TestLoadCustomThemeFile_WebPreset_JSON(t *testing.T) {
+	dir := t.TempDir()
+	themeJSON := `{
+		"id": "test-web-preset-json",
+		"fg": "#ffffff",
+		"bg": "#000000",
+		"web": {
+			"font": "freemono",
+			"font_size": 18
+		}
+	}`
+	path := filepath.Join(dir, "test-web-preset-json.json")
+	if err := os.WriteFile(path, []byte(themeJSON), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	theme, err := LoadCustomThemeFile(path)
+	if err != nil {
+		t.Fatalf("LoadCustomThemeFile failed: %v", err)
+	}
+	t.Cleanup(func() { delete(webPresetByID, theme.ID) })
+
+	wp := WebPresetForID(theme.ID)
+	if wp == nil || wp.Font != "freemono" || wp.FontSize != 18 {
+		t.Errorf("expected web preset {freemono 18}, got %v", wp)
+	}
+}
+
+// TestLoadCustomThemeFile_WebPreset_None tests that a theme with no "web"
+// section has no preset at all, not a zero-valued one.
+func TestLoadCustomThemeFile_WebPreset_None(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-web-preset-none.toml")
+	if err := os.WriteFile(path, []byte(`id = "test-web-preset-none"`+"\n"+`fg = "#ffffff"`+"\n"+`bg = "#000000"`+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	theme, err := LoadCustomThemeFile(path)
+	if err != nil {
+		t.Fatalf("LoadCustomThemeFile failed: %v", err)
+	}
+	if wp := WebPresetForID(theme.ID); wp != nil {
+		t.Errorf("expected no web preset, got %v", wp)
+	}
+}
+
+// TestLoadCustomThemeFile_WebPreset_ClearedOnReload tests that reloading a
+// theme file whose [web] section was removed clears the stale preset rather
+// than leaving the old one stuck in webPresetByID.
+func TestLoadCustomThemeFile_WebPreset_ClearedOnReload(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test-web-reload.toml")
+
+	withWeb := `
+id = "test-web-reload"
+fg = "#ffffff"
+bg = "#000000"
+
+[web]
+font = "freemono"
+font_size = 20
+`
+	if err := os.WriteFile(path, []byte(withWeb), 0600); err != nil {
+		t.Fatal(err)
+	}
+	theme, err := LoadCustomThemeFile(path)
+	if err != nil {
+		t.Fatalf("LoadCustomThemeFile failed: %v", err)
+	}
+	t.Cleanup(func() { delete(webPresetByID, theme.ID) })
+	if WebPresetForID(theme.ID) == nil {
+		t.Fatal("expected a preset entry after the first load")
+	}
+
+	withoutWeb := `
+id = "test-web-reload"
+fg = "#ffffff"
+bg = "#000000"
+`
+	if err := os.WriteFile(path, []byte(withoutWeb), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadCustomThemeFile(path); err != nil {
+		t.Fatalf("LoadCustomThemeFile (reload) failed: %v", err)
+	}
+	if WebPresetForID(theme.ID) != nil {
+		t.Error("expected the stale preset entry to be cleared on reload without a [web] section")
+	}
+}
+
 // TestCopyColor tests the copyColor helper.
 func TestCopyColor(t *testing.T) {
 	original := &tint.Color{R: 255, G: 128, B: 0, A: 255}

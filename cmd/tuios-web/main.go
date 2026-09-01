@@ -164,7 +164,7 @@ Client features:
 	registerCertFlags(rootCmd)
 	rootCmd.Flags().StringVar(&webTouch, "touch", "auto", "Whether a client is driven by a finger, which widens the gestures aimed at a single cell: auto, on, off")
 	rootCmd.Flags().StringVar(&webConfigPath, "config", "", "Path to a config.toml file to use instead of the default (~/.config/tuios/config.toml)")
-	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal, or a bundled font name (saucecodepro). Default: the bundled JetBrains Mono Nerd Font")
+	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal, or a bundled font name (saucecodepro, saucecodeprosemibold, freemono, freemonobold, sourcecodepro, sourcecodeprobold). Default: the bundled JetBrains Mono Nerd Font")
 	rootCmd.Flags().StringVar(&webFontPath, "font-path", "", "Path to a custom font file (.ttf, .otf, .woff, .woff2) to serve and register as --font-family")
 	rootCmd.Flags().BoolVar(&webPAMAuth, "pam-auth", false, "Require PAM login (username/password) before serving a connection; each trainee gets their own session running as their own Unix account. Off by default. Needs a separately-run pam-helper process; see pam-helper/README.md")
 	rootCmd.Flags().StringVar(&webPAMSocket, "pam-socket", pamauth.DefaultSocketPath, "Path to the pam-helper's Unix socket")
