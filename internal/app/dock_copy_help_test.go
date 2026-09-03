@@ -68,6 +68,35 @@ func TestCopyModeHelpDropsDetailBeforeItOverflows(t *testing.T) {
 	}
 }
 
+// TestImplicitCopyModeGetsItsOwnDockIndicator: a wheel scroll, scrollbar
+// drag, or drag-selection puts a pane into copy mode implicitly with nothing
+// else announcing it (EnterCopyModeImplicit's own doc comment) - the dock
+// used to fall through to its ordinary sysinfo block in that case, same as
+// terminal mode, leaving a scrolled-and-frozen pane with no unmissable
+// explanation. It should show its own indicator instead, distinct from the
+// vim-navigation help an explicit copy-mode session gets.
+func TestImplicitCopyModeGetsItsOwnDockIndicator(t *testing.T) {
+	win := newTestWindow(t, "implicit-copy-help", 40, 12)
+	win.Workspace = 1
+	m := newTestOS(win)
+	m.Width, m.Height = 120, 30
+	m.CurrentWorkspace = 1
+	win.CopyMode = &terminal.CopyMode{Active: true, Implicit: true, ScrollOffset: 7}
+
+	dock, _ := m.renderDockString()
+	plain := ansi.Strip(dock)
+
+	if !strings.Contains(plain, "scrolled") {
+		t.Errorf("no scrolled indicator in the dock: %q", plain)
+	}
+	if !strings.Contains(plain, "7/") {
+		t.Errorf("the scroll position is missing from the dock: %q", plain)
+	}
+	if strings.Contains(plain, "hjkl") || strings.Contains(plain, "visual") {
+		t.Errorf("an implicit session drew explicit copy-mode's vim-navigation help: %q", plain)
+	}
+}
+
 // lastRow is the dock's content row, stripped.
 func lastRow(dock string) string {
 	lines := strings.Split(ansi.Strip(dock), "\n")

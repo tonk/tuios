@@ -463,6 +463,7 @@ func (m *OS) renderDockString() (string, int) {
 	notif, hasNotif := m.renderNotificationBlock(barWidth, max(barWidth-actualLeftWidth-centerWidth, 0), dr)
 
 	inCopyMode := focusedWindow.CopyModeVisible()
+	inImplicitCopyMode := focusedWindow.InImplicitCopyMode()
 	switch {
 	case hasNotif:
 		// The message outranks the help line for its duration. Copy mode is a
@@ -475,6 +476,26 @@ func (m *OS) renderDockString() (string, int) {
 		// Take the longest help tier that fits; the copy-mode keys are worth a
 		// dock's width but not worth spilling off the end of it.
 		tiers := copyModeHelpTiers(focusedWindow.CopyMode.State)
+		for i, tier := range tiers {
+			rightInfo = renderCopyModeHelp(tier, pal)
+			if lipgloss.Width(rightInfo) <= rightWidth || i == len(tiers)-1 {
+				break
+			}
+		}
+	case inImplicitCopyMode:
+		// A wheel scroll, scrollbar drag, or drag-selection puts a pane into
+		// copy mode implicitly, with nothing else announcing it (see
+		// EnterCopyModeImplicit's own doc comment) - a pane can sit frozen on
+		// an old scrollback view, with live output piling up unseen below,
+		// and nothing but a small per-pane border indicator to explain why.
+		// This is the dock-level counterpart: unmissable, but still visibly
+		// different from the inCopyMode case above, since there is no
+		// deliberate vim-navigation session here to give keybinding help for.
+		scrollbackLen := 0
+		if focusedWindow.Terminal != nil {
+			scrollbackLen = focusedWindow.Terminal.ScrollbackLen()
+		}
+		tiers := implicitCopyModeHelpTiers(focusedWindow.CopyMode.ScrollOffset, scrollbackLen)
 		for i, tier := range tiers {
 			rightInfo = renderCopyModeHelp(tier, pal)
 			if lipgloss.Width(rightInfo) <= rightWidth || i == len(tiers)-1 {

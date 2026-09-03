@@ -684,6 +684,25 @@ func copyModeHelpTiers(state terminal.CopyModeState) [][]overlay.Hint {
 	return nil
 }
 
+// implicitCopyModeHelpTiers returns the dock's help for a pane a scroll
+// gesture put into copy mode implicitly (see EnterCopyModeImplicit) - the
+// dock-level companion to the per-pane border's own "N/Total" indicator
+// (render_helpers.go), for when that is too easy to miss: a pane's display
+// can otherwise sit frozen on an old scrollback view, with live output
+// piling up unseen below and nothing announcing why.
+//
+// Deliberately not copyModeHelpTiers: there is no deliberate vim-navigation
+// session here to give hjkl/visual/yank help for, just a scroll position and
+// a reminder that any keypress (or scrolling back to the bottom) returns to
+// live output.
+func implicitCopyModeHelpTiers(offset, scrollbackLen int) [][]overlay.Hint {
+	position := fmt.Sprintf("%d/%d", offset, scrollbackLen)
+	return [][]overlay.Hint{
+		{{Key: position, Label: "scrolled"}, {Key: "any key", Label: "back to live"}},
+		{{Key: position, Label: "scrolled"}},
+	}
+}
+
 // renderCopyModeHelp draws one tier as the dock's help block: the footer's own
 // strip, on the Panel step the block rests on, with a column either side.
 func renderCopyModeHelp(hints []overlay.Hint, pal overlay.Palette) string {
@@ -742,6 +761,23 @@ func (m *OS) calculateDockRightWidth() int {
 		// for it reserves exactly enough and one without falls to a shorter
 		// line instead of being one cell short of the full one.
 		tiers := copyModeHelpTiers(focusedWindow.CopyMode.State)
+		if len(tiers) == 0 {
+			return 0
+		}
+		return lipgloss.Width(renderCopyModeHelp(tiers[0], theme.UI()))
+	}
+
+	if focusedWindow.InImplicitCopyMode() {
+		// Same reservation as above, for the implicit-copy-mode indicator
+		// render_dock.go draws (see implicitCopyModeHelpTiers) - without this,
+		// this function's default (sysinfo-meters-or-nothing) answer stands,
+		// nothing is reserved for it, and the indicator gets computed
+		// correctly only to be truncated straight back out at render time.
+		scrollbackLen := 0
+		if focusedWindow.Terminal != nil {
+			scrollbackLen = focusedWindow.Terminal.ScrollbackLen()
+		}
+		tiers := implicitCopyModeHelpTiers(focusedWindow.CopyMode.ScrollOffset, scrollbackLen)
 		if len(tiers) == 0 {
 			return 0
 		}
