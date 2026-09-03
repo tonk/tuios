@@ -741,11 +741,26 @@ var currentUsernameOnce = sync.OnceValue(func() string {
 // currentUsernameOnce for how that is resolved. Looked up lazily and cached
 // for the life of the process, since it cannot change once running.
 func FormatInitialTitle() string {
+	return FormatInitialTitleForUser("")
+}
+
+// FormatInitialTitleForUser is FormatInitialTitle, but {user} expands to
+// asUser when it is non-empty instead of the OS user the process itself is
+// running as. This is what a --pam-auth window actually wants: the trainee
+// who authenticated, not the unprivileged tuios-web service account every
+// PAM-spawned shell's PTY happens to be brokered through (see OS.PAMLogin) -
+// currentUsernameOnce() would otherwise report that service account's own
+// name for every trainee alike.
+func FormatInitialTitleForUser(asUser string) string {
 	if InitialTitleFormat == "" {
 		return ""
 	}
+	user := asUser
+	if user == "" {
+		user = currentUsernameOnce()
+	}
 	return strings.NewReplacer(
-		"{user}", currentUsernameOnce(),
+		"{user}", user,
 	).Replace(InitialTitleFormat)
 }
 

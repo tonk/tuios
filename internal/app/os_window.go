@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/ui"
 )
 
 // refuseIfReadOnly is the client-side courtesy half of read-only attach: a
@@ -441,7 +441,11 @@ func (m *OS) AddWindow(name string) *OS {
 
 	newID := createID()
 	title := fmt.Sprintf("Terminal %s", newID[:8])
-	if t := config.FormatInitialTitle(); t != "" {
+	pamUser := ""
+	if m.PAMLogin != nil {
+		pamUser = m.PAMLogin.Username()
+	}
+	if t := config.FormatInitialTitleForUser(pamUser); t != "" {
 		title = t
 	}
 

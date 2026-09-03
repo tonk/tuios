@@ -56,8 +56,15 @@ const (
 // Login is one authenticated PAM session, able to spawn any number of
 // shells until Close is called.
 type Login struct {
-	conn *net.UnixConn
+	conn     *net.UnixConn
+	username string
 }
+
+// Username is the trainee this Login authenticated as - the same value
+// Dial was called with, kept around so a caller (see OS.PAMLogin) can use
+// the real logged-in identity instead of the OS user the tuios-web process
+// itself happens to run as.
+func (l *Login) Username() string { return l.username }
 
 // Dial connects to the helper at socketPath and authenticates username with
 // password. A non-nil error means either the connection or the PAM login
@@ -101,7 +108,7 @@ func Dial(socketPath, username, password string) (*Login, error) {
 		return nil, fmt.Errorf("login rejected: %s", errMsg)
 	}
 
-	return &Login{conn: uconn}, nil
+	return &Login{conn: uconn, username: username}, nil
 }
 
 // SpawnPTY asks the helper for one more shell on this login, at the given
