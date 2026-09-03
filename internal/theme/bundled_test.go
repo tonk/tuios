@@ -38,8 +38,8 @@ func TestRegisterBundledThemesIncludesTrainer(t *testing.T) {
 	if wp.Font != "saucecodepro nfm semibold" {
 		t.Errorf("web preset font = %q, want %q", wp.Font, "saucecodepro nfm semibold")
 	}
-	if wp.FontSize != 24 {
-		t.Errorf("web preset font_size = %d, want 24", wp.FontSize)
+	if wp.FontSize != 26 {
+		t.Errorf("web preset font_size = %d, want 26", wp.FontSize)
 	}
 }
 

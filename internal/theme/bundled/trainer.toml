@@ -81,4 +81,4 @@ success = "#8ec07c"
 # resolves itself, not a color.
 [web]
 font      = "saucecodepro nfm semibold"
-font_size = 24
+font_size = 26
