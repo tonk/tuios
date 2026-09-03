@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 	"github.com/charmbracelet/x/ansi"
 )
 

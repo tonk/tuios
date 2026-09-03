@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestNewOS_DoesNotClobberAppearanceGlobals is a regression test for the config

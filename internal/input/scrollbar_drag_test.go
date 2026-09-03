@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // scrolledBackPane returns a tiled pane looking some way up its own history,

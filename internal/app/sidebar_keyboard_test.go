@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // railOS returns a focused rail over the three-session fixture with its nav rows

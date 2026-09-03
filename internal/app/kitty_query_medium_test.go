@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // newQueryTestPassthrough builds a passthrough whose host either can or cannot

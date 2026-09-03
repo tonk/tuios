@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -91,7 +91,7 @@ func resetConfigToDefaults() error {
 	sb.WriteString("# Multiple keys can be bound to the same action\n")
 	sb.WriteString("#\n")
 	sb.WriteString("# Configuration location: " + configPath + "\n")
-	sb.WriteString("# Documentation: https://github.com/Gaurav-Gosain/tuios\n\n")
+	sb.WriteString("# Documentation: https://github.com/tonk/tuios\n\n")
 
 	data, err := toml.Marshal(defaultCfg)
 	if err != nil {

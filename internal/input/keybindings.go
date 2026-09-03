@@ -11,7 +11,7 @@ import (
 	"runtime"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // runtimeIsDarwin reports whether the process is running on macOS.

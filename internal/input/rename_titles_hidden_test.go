@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // Hidden titles used to veto every rename entry point, because rename once

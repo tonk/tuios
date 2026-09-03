@@ -7,7 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 func listKeybindings() error {

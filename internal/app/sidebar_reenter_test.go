@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // Enter on a terminal row hands the keyboard to that pane, which is what it is

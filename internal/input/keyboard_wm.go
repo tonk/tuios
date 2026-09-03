@@ -4,7 +4,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/tonk/tuios/internal/app"
 )
 
 // HandleWindowManagementModeKey handles keyboard input in window management mode

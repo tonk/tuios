@@ -22,9 +22,9 @@ import (
 	xpty "github.com/charmbracelet/x/xpty"
 	"github.com/google/uuid"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/guestenv"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // debugEnabled returns true if debug logging is enabled via TUIOS_DEBUG_INTERNAL env var

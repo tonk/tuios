@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // twoPaneSideBySide builds a tiling OS with two daemon panes splitting the row:

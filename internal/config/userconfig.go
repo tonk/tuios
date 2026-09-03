@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/theme"
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
 )

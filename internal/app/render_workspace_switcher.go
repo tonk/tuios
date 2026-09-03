@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"strconv"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 const (

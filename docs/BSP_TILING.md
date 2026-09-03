@@ -587,4 +587,4 @@ Potential future additions to BSP tiling:
 - Visual split indicators in the terminal
 - Ratio presets (e.g., 30/70 split for sidebar layouts)
 
-Check the [GitHub issues](https://github.com/Gaurav-Gosain/tuios/issues) for tracking and discussion.
+Check the [GitHub issues](https://github.com/tonk/tuios/issues) for tracking and discussion.

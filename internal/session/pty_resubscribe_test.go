@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // A pane the client hides and shows again resubscribes to the same PTY. The

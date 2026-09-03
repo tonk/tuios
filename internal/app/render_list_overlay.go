@@ -8,8 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // listOverlay configures the shared search-and-list overlay used by the command

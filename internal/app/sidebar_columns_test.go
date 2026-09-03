@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/theme"
 	"github.com/charmbracelet/x/ansi"
 )
 

@@ -20,9 +20,9 @@ import (
 	xpty "github.com/charmbracelet/x/xpty"
 	"github.com/creack/pty"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // passThroughCursorStyle detects DECSCUSR (cursor style) sequences in the data

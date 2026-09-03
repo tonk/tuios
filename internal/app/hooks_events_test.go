@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // The hooks system declared eight events and fired three. These tests pin one

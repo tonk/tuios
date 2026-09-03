@@ -7,10 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/pool"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/pool"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {

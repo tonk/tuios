@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // withSidebar sets the sidebar globals for a test and restores them after. It

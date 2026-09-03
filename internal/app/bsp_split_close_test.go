@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/layout"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // splitOS is one tiled BSP pane on workspace 1, the state a fresh session with

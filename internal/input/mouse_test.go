@@ -3,8 +3,8 @@ package input
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // TestMouseForwardingRequiresMouseMode verifies that mouse events are only

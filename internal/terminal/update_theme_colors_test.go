@@ -3,7 +3,7 @@ package terminal
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // TestUpdateThemeColors_InvalidatesCache verifies that pushing a new theme into

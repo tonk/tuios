@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/skills"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/skills"
 )
 
 // A skill that documents a command the binary does not have is worse than no

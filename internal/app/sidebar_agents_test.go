@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // TestAgentsPriorityRankTable pins the section's own ordering against the

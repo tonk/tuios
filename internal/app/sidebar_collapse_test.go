@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestCollapseSurvivesARestart: the collapse is a state the user put the rail

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // Killing a session is the rail's one irreversible action, and it used to be

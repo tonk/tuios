@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // requireLines asserts the three obligations every user-facing failure message

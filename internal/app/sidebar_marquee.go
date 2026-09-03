@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // A hovered sidebar row whose title overflows its columns scrolls the full text

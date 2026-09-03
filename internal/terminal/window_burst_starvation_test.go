@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // burstPayload is line-heavy on purpose. The dominant cost of writing PTY

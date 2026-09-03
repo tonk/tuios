@@ -6,10 +6,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // windowWithScrollback builds a window whose emulator has more history than

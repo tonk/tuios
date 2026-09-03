@@ -3,10 +3,10 @@ package app
 import (
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/sound"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/sound"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Agent alerts run on the client, not the daemon, and that is the design rather

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // createTestWindow creates a minimal window for testing animations.

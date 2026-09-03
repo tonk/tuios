@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestAddWindowAppliesInitialTitleFormat pins appearance.initial_title_format

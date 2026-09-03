@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Search-related functions for copy mode (/, ?, n, N, etc.)

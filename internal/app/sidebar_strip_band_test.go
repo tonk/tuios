@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // bandCells is the set of cells the strip paints in one ground, as

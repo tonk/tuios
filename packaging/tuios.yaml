@@ -8,12 +8,12 @@ platform: "linux"
 version: "${VERSION}"
 section: "utils"
 priority: "optional"
-maintainer: "Gaurav Gosain <me@gaurav.zip>"
+maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   Terminal UI Operating System - a terminal-based window manager with
   tmux-style keybindings.
 vendor: "tuios"
-homepage: "https://github.com/Gaurav-Gosain/tuios"
+homepage: "https://github.com/tonk/tuios"
 license: "MIT"
 
 contents:

@@ -3,9 +3,9 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // The scope of the guest-cells rule, pinned in both directions.

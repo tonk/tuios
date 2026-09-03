@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/tonk/tuios/internal/app"
 	"github.com/spf13/cobra"
 )
 

@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // attentionOS is one session whose four panes cover the whole state ladder, in

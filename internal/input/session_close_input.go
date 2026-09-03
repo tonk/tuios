@@ -2,7 +2,7 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/tonk/tuios/internal/app"
 )
 
 // handleSessionCloseInput drives the close-session confirmation. There is no

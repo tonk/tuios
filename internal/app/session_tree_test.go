@@ -3,9 +3,9 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // TestBuildSessionTreeStandaloneRollsUpAndMarksFocus builds an OS with no

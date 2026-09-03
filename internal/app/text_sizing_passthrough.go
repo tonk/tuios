@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 type textSizingPlacement struct {

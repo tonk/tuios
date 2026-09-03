@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/Gaurav-Gosain/sip"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/tape"
 )
 
 // mobileCommands are the commands the chord row offers, left to right.

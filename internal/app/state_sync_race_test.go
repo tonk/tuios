@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // TestApplyStateSyncResizeRacesOutput is the regression test for daemon windows

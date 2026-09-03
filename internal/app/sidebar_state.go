@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/session"
 	"github.com/adrg/xdg"
 )
 

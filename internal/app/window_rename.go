@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // RenameKind names what an in-progress rename points at. There is one rename

@@ -9,7 +9,7 @@ authors:
     family-names: Gosain
     email: me@gaurav.zip
     affiliation: DMT
-repository-code: 'https://github.com/Gaurav-Gosain/tuios'
+repository-code: 'https://github.com/tonk/tuios'
 abstract: >-
   A terminal-based window manager that provides a modern,
   efficient interface for managing multiple terminal

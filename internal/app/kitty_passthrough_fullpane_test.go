@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // feedTBFrame runs a captured/synthesised kitty graphics stream through the real

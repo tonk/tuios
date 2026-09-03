@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // benchOS builds an OS with n tiled windows filling a 207x55 viewport, each

@@ -7,8 +7,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // dockCrowdedOS is a session with named workspaces and minimized panes, which

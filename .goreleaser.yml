@@ -157,7 +157,7 @@ changelog:
 
 release:
   github:
-    owner: Gaurav-Gosain
+    owner: tonk
     name: tuios
   draft: false
   prerelease: auto
@@ -178,12 +178,12 @@ release:
 
     **Quick Install (Linux/macOS):**
     ```bash
-    curl -sSL https://raw.githubusercontent.com/Gaurav-Gosain/tuios/main/install.sh | bash
+    curl -sSL https://raw.githubusercontent.com/tonk/tuios/main/install.sh | bash
     ```
 
     **Homebrew (macOS/Linux):**
     ```bash
-    brew tap Gaurav-Gosain/tap
+    brew tap tonk/tap
     brew install tuios
     ```
 
@@ -199,7 +199,7 @@ release:
     **Nix:**
     ```bash
     # Run directly
-    nix run github:Gaurav-Gosain/tuios#tuios
+    nix run github:tonk/tuios#tuios
 
     # Or add to your configuration
     nix-shell -p tuios
@@ -207,14 +207,14 @@ release:
 
     **Go Install:**
     ```bash
-    go install github.com/Gaurav-Gosain/tuios/cmd/tuios@{{ .Tag }}
+    go install github.com/tonk/tuios/cmd/tuios@{{ .Tag }}
     ```
 
     #### tuios-web (Web Terminal Server)
 
     **Homebrew (macOS/Linux):**
     ```bash
-    brew tap Gaurav-Gosain/tap
+    brew tap tonk/tap
     brew install tuios-web
     ```
 
@@ -229,7 +229,7 @@ release:
 
     **Go Install:**
     ```bash
-    go install github.com/Gaurav-Gosain/tuios/cmd/tuios-web@{{ .Tag }}
+    go install github.com/tonk/tuios/cmd/tuios-web@{{ .Tag }}
     ```
 
     **Manual Download:**
@@ -237,17 +237,17 @@ release:
   footer: |
     ---
 
-    **Full Changelog**: https://github.com/Gaurav-Gosain/tuios/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/tonk/tuios/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # AUR (Arch User Repository)
 aurs:
   - name: tuios-bin
     ids:
       - tuios-archive
-    homepage: https://github.com/Gaurav-Gosain/tuios
+    homepage: https://github.com/tonk/tuios
     description: "Terminal UI Operating System - A terminal-based window manager with tmux-style keybindings"
     maintainers:
-      - "Gaurav Gosain <itsgauravgosain@gmail.com>"
+      - "Ton Kersten <tonk@smartowl.nl>"
     license: MIT
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/tuios-bin.git"
@@ -268,10 +268,10 @@ aurs:
   - name: tuios-web-bin
     ids:
       - tuios-web-archive
-    homepage: https://github.com/Gaurav-Gosain/tuios
+    homepage: https://github.com/tonk/tuios
     description: "Web terminal server for TUIOS - Serves TUIOS through the browser"
     maintainers:
-      - "Gaurav Gosain <itsgauravgosain@gmail.com>"
+      - "Ton Kersten <tonk@smartowl.nl>"
     license: MIT
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/tuios-web-bin.git"
@@ -295,10 +295,10 @@ homebrew_casks:
     ids:
       - tuios-archive
     repository:
-      owner: Gaurav-Gosain
+      owner: tonk
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/Gaurav-Gosain/tuios
+    homepage: https://github.com/tonk/tuios
     description: "Terminal UI Operating System - A terminal-based window manager with tmux-style keybindings"
     commit_author:
       name: goreleaserbot
@@ -309,10 +309,10 @@ homebrew_casks:
     ids:
       - tuios-web-archive
     repository:
-      owner: Gaurav-Gosain
+      owner: tonk
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: https://github.com/Gaurav-Gosain/tuios
+    homepage: https://github.com/tonk/tuios
     description: "Web terminal server for TUIOS - Serves TUIOS through the browser"
     commit_author:
       name: goreleaserbot
@@ -322,10 +322,10 @@ homebrew_casks:
 # Docker images (optional - uncomment if you want automated Docker builds)
 # dockers:
 #   - image_templates:
-#       - "ghcr.io/gaurav-gosain/tuios:{{ .Tag }}"
-#       - "ghcr.io/gaurav-gosain/tuios:v{{ .Major }}"
-#       - "ghcr.io/gaurav-gosain/tuios:v{{ .Major }}.{{ .Minor }}"
-#       - "ghcr.io/gaurav-gosain/tuios:latest"
+#       - "ghcr.io/tonk/tuios:{{ .Tag }}"
+#       - "ghcr.io/tonk/tuios:v{{ .Major }}"
+#       - "ghcr.io/tonk/tuios:v{{ .Major }}.{{ .Minor }}"
+#       - "ghcr.io/tonk/tuios:latest"
 #     dockerfile: Dockerfile
 #     build_flag_templates:
 #       - "--pull"

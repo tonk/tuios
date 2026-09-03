@@ -2,7 +2,7 @@
 package input
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Character search-related functions for copy mode (f/F/t/T and ;/,)

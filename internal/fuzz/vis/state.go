@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/fuzz"
 )
 
 // The observer half. Everything here runs on the engine's own goroutine, so the

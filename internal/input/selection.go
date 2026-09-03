@@ -4,8 +4,8 @@ package input
 import (
 	"fmt"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // forwardPasteToFocused sends paste text to the focused window's PTY, wrapping it in

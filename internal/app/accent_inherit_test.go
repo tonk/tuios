@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // accentInheritOS is a rail whose attached session has a colour of its own, so

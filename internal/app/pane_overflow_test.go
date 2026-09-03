@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/ui"
 )
 
 // A pane must draw inside its own rectangle and nowhere else.

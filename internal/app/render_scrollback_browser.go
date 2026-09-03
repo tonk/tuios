@@ -7,8 +7,8 @@ import (
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/scrollback"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/scrollback"
 	"github.com/charmbracelet/x/ansi"
 )
 

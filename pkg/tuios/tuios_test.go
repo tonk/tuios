@@ -3,7 +3,7 @@ package tuios_test
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/pkg/tuios"
+	"github.com/tonk/tuios/pkg/tuios"
 )
 
 // =============================================================================

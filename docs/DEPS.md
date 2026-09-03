@@ -23,8 +23,8 @@ click 1 href "https://godoc.org/./cmd/tuios"
 1 --> 12
 1 --> 13
 
-2[github.com/Gaurav-Gosain/tuios/internal/app]
-click 2 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/app"
+2[github.com/tonk/tuios/internal/app]
+click 2 href "https://godoc.org/github.com/tonk/tuios/internal/app"
 2 --> 3
 2 --> 14
 2 --> 15
@@ -41,13 +41,13 @@ click 2 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/app"
 2 --> 22
 2 --> 23
 
-3[github.com/Gaurav-Gosain/tuios/internal/config]
-click 3 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/config"
+3[github.com/tonk/tuios/internal/config]
+click 3 href "https://godoc.org/github.com/tonk/tuios/internal/config"
 3 --> 24
 3 --> 12
 
-4[github.com/Gaurav-Gosain/tuios/internal/input]
-click 4 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/input"
+4[github.com/tonk/tuios/internal/input]
+click 4 href "https://godoc.org/github.com/tonk/tuios/internal/input"
 4 --> 2
 4 --> 3
 4 --> 16
@@ -55,16 +55,16 @@ click 4 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/input"
 4 --> 7
 4 --> 19
 
-14[github.com/Gaurav-Gosain/tuios/internal/layout]
-click 14 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/layout"
+14[github.com/tonk/tuios/internal/layout]
+click 14 href "https://godoc.org/github.com/tonk/tuios/internal/layout"
 14 --> 3
 
-15[github.com/Gaurav-Gosain/tuios/internal/pool]
-click 15 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/pool"
+15[github.com/tonk/tuios/internal/pool]
+click 15 href "https://godoc.org/github.com/tonk/tuios/internal/pool"
 15 --> 9
 
-5[github.com/Gaurav-Gosain/tuios/internal/server]
-click 5 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/server"
+5[github.com/tonk/tuios/internal/server]
+click 5 href "https://godoc.org/github.com/tonk/tuios/internal/server"
 5 --> 2
 5 --> 3
 5 --> 7
@@ -73,8 +73,8 @@ click 5 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/server"
 5 --> 27
 5 --> 28
 
-16[github.com/Gaurav-Gosain/tuios/internal/terminal]
-click 16 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/terminal"
+16[github.com/tonk/tuios/internal/terminal]
+click 16 href "https://godoc.org/github.com/tonk/tuios/internal/terminal"
 16 --> 3
 16 --> 15
 16 --> 6
@@ -84,17 +84,17 @@ click 16 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/termina
 16 --> 19
 16 --> 30
 
-6[github.com/Gaurav-Gosain/tuios/internal/theme]
-click 6 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/theme"
+6[github.com/tonk/tuios/internal/theme]
+click 6 href "https://godoc.org/github.com/tonk/tuios/internal/theme"
 6 --> 9
 6 --> 11
 
-17[github.com/Gaurav-Gosain/tuios/internal/ui]
-click 17 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/ui"
+17[github.com/tonk/tuios/internal/ui]
+click 17 href "https://godoc.org/github.com/tonk/tuios/internal/ui"
 17 --> 16
 
-25[github.com/Gaurav-Gosain/tuios/internal/vt]
-click 25 href "https://godoc.org/github.com/Gaurav-Gosain/tuios/internal/vt"
+25[github.com/tonk/tuios/internal/vt]
+click 25 href "https://godoc.org/github.com/tonk/tuios/internal/vt"
 25 --> 19
 25 --> 31
 25 --> 20

@@ -25,7 +25,7 @@ import (
 	"github.com/creack/pty"
 	"golang.org/x/term"
 
-	"github.com/Gaurav-Gosain/tuios/pam-helper/internal/wire"
+	"github.com/tonk/tuios/pam-helper/internal/wire"
 )
 
 func main() {

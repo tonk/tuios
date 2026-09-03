@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 	"github.com/pelletier/go-toml/v2"
 )
 

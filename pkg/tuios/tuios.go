@@ -38,10 +38,10 @@ package tuios
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/input"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/input"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // Model is the main TUIOS model that implements tea.Model.

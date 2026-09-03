@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // hoverPanel builds one recorded overlay panel with three one-line rows, so

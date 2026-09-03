@@ -3,8 +3,8 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/layout"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // TestDaemonCloseKeepsTheOtherPanesPut is the daemon half of the reported case.

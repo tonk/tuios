@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // MinimizeWindow minimizes the window at the specified index.

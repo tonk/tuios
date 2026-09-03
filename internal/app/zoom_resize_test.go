@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // TestToggleZoomResizesDaemonTerminal is the regression for TASK 3: zoom moved

@@ -244,7 +244,7 @@ server.Serve(ctx, func(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework for Go
 - [Wish](https://github.com/charmbracelet/wish) - SSH server for Bubble Tea apps
 - [xterm.js](https://xtermjs.org/) - Terminal emulator for browsers
-- [TUIOS](https://github.com/Gaurav-Gosain/tuios) - Terminal window manager using sip
+- [TUIOS](https://github.com/tonk/tuios) - Terminal window manager using sip
 
 ## License
 

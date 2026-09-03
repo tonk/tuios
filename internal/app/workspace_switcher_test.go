@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // wsSwitcherOS builds an OS with panes spread over workspaces 1, 2 and 4.

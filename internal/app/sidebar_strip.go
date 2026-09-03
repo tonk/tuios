@@ -8,10 +8,10 @@ import (
 
 	"charm.land/lipgloss/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // The collapsed rail is three columns, and what was wrong with it was the space

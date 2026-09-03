@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/hooks"
 )
 
 // exampleField documents one scalar TOML key for GenerateExampleConfig.

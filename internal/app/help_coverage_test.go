@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 func helpSection(t *testing.T, name string) HelpCategory {

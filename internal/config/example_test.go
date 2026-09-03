@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/hooks"
 	"github.com/pelletier/go-toml/v2"
 )
 

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // TestRenameVerbAddressesTheIdentityAndSendsTheLabel is the contract that keeps

@@ -4,7 +4,7 @@ package layout
 import (
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // nodeIDCounter is used to generate unique node IDs

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pool"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/pool"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 const (

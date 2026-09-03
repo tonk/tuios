@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // The confirmation in front of closing a session.

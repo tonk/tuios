@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // blockingWriter simulates the ssh session output: a writer that accepts a

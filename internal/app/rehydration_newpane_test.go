@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // TestRehydrationAdoptsAPaneCreatedElsewhere is the seventh route: a pane this

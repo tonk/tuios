@@ -439,4 +439,4 @@ Potential future additions:
 - Export keystroke log to file
 - Integration with screen recording tools
 
-Check the [GitHub issues](https://github.com/Gaurav-Gosain/tuios/issues) for feature requests and discussions.
+Check the [GitHub issues](https://github.com/tonk/tuios/issues) for feature requests and discussions.

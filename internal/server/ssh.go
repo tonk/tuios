@@ -17,11 +17,11 @@ import (
 	"charm.land/wish/v2"
 	"charm.land/wish/v2/bubbletea"
 	"charm.land/wish/v2/logging"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/input"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/input"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
 	"github.com/charmbracelet/ssh"
 )
 

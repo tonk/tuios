@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // The rule the whole mirroring pass generalises to: arrows point where the rail

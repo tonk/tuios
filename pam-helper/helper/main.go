@@ -40,7 +40,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/msteinert/pam/v2"
 
-	"github.com/Gaurav-Gosain/tuios/pam-helper/internal/wire"
+	"github.com/tonk/tuios/pam-helper/internal/wire"
 )
 
 // pamService is the PAM service name; /etc/pam.d/tuios-web must exist (see

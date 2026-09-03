@@ -4,8 +4,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // HandleTerminalModeKey handles keyboard input in terminal mode

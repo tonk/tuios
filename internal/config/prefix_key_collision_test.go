@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 	"github.com/adrg/xdg"
 )
 

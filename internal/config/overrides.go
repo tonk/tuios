@@ -3,7 +3,7 @@ package config
 import (
 	"log"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // Overrides contains CLI flag values that can override user config.

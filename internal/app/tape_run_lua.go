@@ -8,9 +8,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
-	"github.com/Gaurav-Gosain/tuios/internal/tape/luascript"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/tape/luascript"
 	lua "github.com/yuin/gopher-lua"
 )
 

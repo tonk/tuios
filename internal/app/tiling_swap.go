@@ -1,9 +1,9 @@
 package app
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/ui"
 )
 
 // SwapWindowsInstant swaps the positions of two windows instantly without animation

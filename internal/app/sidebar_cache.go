@@ -1,6 +1,6 @@
 package app
 
-import "github.com/Gaurav-Gosain/tuios/internal/config"
+import "github.com/tonk/tuios/internal/config"
 
 // sidebarRenderCache holds a fully styled rail so a frame composed for an
 // unrelated reason can reuse it. It is keyed by sidebarSignature, a cheap fold

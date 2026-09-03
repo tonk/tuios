@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // TestIsValidSessionNameChar tests the session name character validation function.

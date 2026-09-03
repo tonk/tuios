@@ -10,7 +10,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // zlibCompress returns the zlib-compressed form of data, or nil on error. Used

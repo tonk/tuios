@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // ConfigReloadedMsg carries a config parsed by the file watcher goroutine so it

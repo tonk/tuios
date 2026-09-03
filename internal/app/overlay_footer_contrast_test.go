@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // inkBefore returns the truecolor foreground and background in force where

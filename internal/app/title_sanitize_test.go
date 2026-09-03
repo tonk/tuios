@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // decorativeTitle carries the junk an agent tends to inject into a terminal

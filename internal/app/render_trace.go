@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // The render trace is a diagnostic for panes that go blank when focus moves to

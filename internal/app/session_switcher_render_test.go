@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // switcherOS builds a session switcher over a fixed item list, with a zero-value

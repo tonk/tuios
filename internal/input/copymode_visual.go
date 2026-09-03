@@ -4,7 +4,7 @@ package input
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/terminal"
 	uv "github.com/charmbracelet/ultraviolet"
 )
 

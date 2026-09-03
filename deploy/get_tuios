@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # get_tuios — download and install the latest tuios and tuios-web releases from GitHub
 #
-# Usage: get_tuios [--force|-f]
+# Usage: get_tuios [--force|-f] [--pam-helper]
 #
 # Must be run as root (needed to write to /usr/local/bin, or to register a
-# package with dpkg/rpm). Installs both binaries in one pass, each compared
+# package with dpkg/rpm). Installs each binary in one pass, each compared
 # against what's already there and skipped unless it's actually behind (or
 # --force is given).
 #
@@ -20,14 +20,18 @@
 #
 # Unlike a service-specific redeploy script, this never stops or starts
 # anything: tuios itself has no service to stop (it's the interactive TUI),
-# and tuios-web's systemd unit (see ../docs/DEPLOYMENT.md) is left for
-# whoever runs this to restart on their own schedule - `systemctl restart
-# tuios-web` once you're ready, not automatically as a side effect of
-# updating the binary out from under a running process.
+# and tuios-web's/tuios-pam-helper's systemd units (see
+# ../docs/DEPLOYMENT.md) are left for whoever runs this to restart on their
+# own schedule - `systemctl restart tuios-web` once you're ready, not
+# automatically as a side effect of updating a binary out from under a
+# running process.
 #
-# tuios-pam-helper is deliberately not handled here, the same way it's kept
-# out of the plain `make install`/`install.sh` path in the repo itself -
-# see install-pam-helper.sh for that one, on purpose separate.
+# tuios-pam-helper is deliberately left out of the default set, the same
+# way it's kept out of the plain `make install`/`install.sh` path in the
+# repo itself - it's a privileged, root-run tool nobody should get without
+# asking for it by name. Pass --pam-helper to also fetch it. Like the repo's
+# Makefile, only linux/amd64 is published for it (see PAM_HELPER_ARCH), so
+# --pam-helper on arm64 is a hard error rather than a silent skip.
 
 set -euo pipefail
 
@@ -39,23 +43,31 @@ set -euo pipefail
 # from here, not upstream.
 readonly REPO="tonk/tuios"
 readonly INSTALL_DIR="/usr/local/bin"
-readonly BINARIES=("tuios" "tuios-web")
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
 FORCE=0
+PAM_HELPER=0
 for arg in "${@}"
 do
     case "${arg}" in
         -f|--force) FORCE=1 ;;
+        --pam-helper) PAM_HELPER=1 ;;
         -h|--help)
-            echo "Usage: $(basename "$0") [--force|-f]"
-            echo "  --force, -f   Install even if already on the latest version"
+            echo "Usage: $(basename "$0") [--force|-f] [--pam-helper]"
+            echo "  --force, -f    Install even if already on the latest version"
+            echo "  --pam-helper   Also install tuios-pam-helper (linux/amd64 only)"
             exit 0 ;;
         *) echo "Unknown option: ${arg}" >&2
-           echo "Usage: $(basename "$0") [--force|-f]" >&2
+           echo "Usage: $(basename "$0") [--force|-f] [--pam-helper]" >&2
            exit 1 ;;
     esac
 done
+
+BINARIES=("tuios" "tuios-web")
+if [[ ${PAM_HELPER} -eq 1 ]]
+then
+    BINARIES+=("tuios-pam-helper")
+fi
 
 # ── Root check ────────────────────────────────────────────────────────────────
 if [[ $(id -u) -ne 0 ]]
@@ -81,6 +93,12 @@ case "$(uname -m)" in
     aarch64) ARCH="arm64";  RPMARCH="aarch64" ;;
     *) echo "Error: unsupported architecture $(uname -m)." >&2; exit 1 ;;
 esac
+
+if [[ ${PAM_HELPER} -eq 1 && "${ARCH}" != "amd64" ]]
+then
+    echo "Error: --pam-helper only publishes linux/amd64 (see PAM_HELPER_ARCH in the repo's Makefile); this host is ${ARCH}." >&2
+    exit 1
+fi
 
 # ── Package format detection ──────────────────────────────────────────────────
 # /etc/os-release's ID/ID_LIKE is the standard, distro-maintained way to ask
@@ -166,11 +184,14 @@ do
 
     if [[ -x "${BINARY}" ]]
     then
-        # First line looks like "tuios version v0.8.23"; the version is
-        # always the last field, so this doesn't care which binary it is -
-        # or which package format installed it: dpkg/rpm still land the
-        # binary at the same path, so this check works unchanged either way.
-        CURRENT="$("${BINARY}" --version 2>/dev/null | head -1 | awk '{print $NF}')"
+        # tuios/tuios-web's first line looks like "tuios version v0.8.23";
+        # tuios-pam-helper's own --version instead prints
+        # "tuios-pam-helper v0.8.23 (commit ..., built ... by ...)" - a
+        # single line with trailing fields of its own. Both shapes put the
+        # version in a "vX.Y.Z" token somewhere on the first line, so pull
+        # that out by pattern instead of assuming a fixed field position -
+        # works unchanged regardless of which package format installed it.
+        CURRENT="$("${BINARY}" --version 2>/dev/null | head -1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
     else
         CURRENT=""
     fi
@@ -252,5 +273,10 @@ else
     then
         echo "Restart tuios-web yourself when you're ready:"
         echo "  systemctl restart tuios-web"
+    fi
+    if [[ " ${UPDATED[*]} " == *" tuios-pam-helper "* ]]
+    then
+        echo "Restart tuios-pam-helper yourself when you're ready:"
+        echo "  systemctl restart tuios-pam-helper"
     fi
 fi

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // Frame captures. The display's own capture round caught two bugs that every

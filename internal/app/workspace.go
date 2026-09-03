@@ -1,11 +1,11 @@
 package app
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/ui"
 )
 
 // Workspace management methods

@@ -24,7 +24,7 @@ First, create a new GitHub repository for your Homebrew tap:
 4. Initialize with a README
 5. Clone it locally (optional, GoReleaser will manage it)
 
-**Repository URL**: `https://github.com/Gaurav-Gosain/homebrew-tap`
+**Repository URL**: `https://github.com/tonk/homebrew-tap`
 
 ### 2. Create GitHub Personal Access Token
 
@@ -43,7 +43,7 @@ You need a GitHub token with `repo` permissions for the Homebrew tap:
 
 Add the token as a repository secret:
 
-1. Go to https://github.com/Gaurav-Gosain/tuios/settings/secrets/actions
+1. Go to https://github.com/tonk/tuios/settings/secrets/actions
 2. Click **New repository secret**
 3. Name: `HOMEBREW_TAP_GITHUB_TOKEN`
 4. Value: Paste the token you created
@@ -71,12 +71,12 @@ The release workflow (`release.yml`) will:
 1. Run GoReleaser
 2. GoReleaser builds all binaries
 3. GoReleaser creates a Homebrew formula in `homebrew-tap/Formula/tuios.rb`
-4. GoReleaser commits and pushes to `Gaurav-Gosain/homebrew-tap`
+4. GoReleaser commits and pushes to `tonk/homebrew-tap`
 
 Users can then install with:
 
 ```bash
-brew tap Gaurav-Gosain/tap
+brew tap tonk/tap
 brew install tuios
 ```
 
@@ -145,7 +145,7 @@ Before creating a new release:
 10.  Verify `tuios.nix` is updated on main branch
 11.  Test installation:
     ```bash
-    brew tap Gaurav-Gosain/tap
+    brew tap tonk/tap
     brew install tuios
     tuios --version
     ```
@@ -200,7 +200,7 @@ If automation fails, you can release manually:
 
 1. Clone the tap repo:
    ```bash
-   git clone https://github.com/Gaurav-Gosain/homebrew-tap
+   git clone https://github.com/tonk/homebrew-tap
    cd homebrew-tap
    ```
 
@@ -208,8 +208,8 @@ If automation fails, you can release manually:
    ```ruby
    class Tuios < Formula
      desc "Terminal UI Operating System"
-     homepage "https://github.com/Gaurav-Gosain/tuios"
-     url "https://github.com/Gaurav-Gosain/tuios/archive/v0.0.24.tar.gz"
+     homepage "https://github.com/tonk/tuios"
+     url "https://github.com/tonk/tuios/archive/v0.0.24.tar.gz"
      sha256 "CHECKSUM"
      license "MIT"
 

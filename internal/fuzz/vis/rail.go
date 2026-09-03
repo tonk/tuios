@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // The instrument rail. Its voice is the rail grammar the app already uses:

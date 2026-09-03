@@ -11,9 +11,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/colorprofile"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // rgb is a truecolor foreground, or ok false for any other foreground.

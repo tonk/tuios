@@ -18,7 +18,7 @@ As there is no stable release yet, users are encouraged to always update to the 
 If you discover a potential security issue in **TUIOS**, please **do not open a public issue**.  
 Instead, report it privately by emailing:
 
-📧 **[me@gaurav.zip](mailto:me@gaurav.zip?subject=TUIOS%3A%20Potential%20Security%20Issue)**
+📧 **[tonk@smartowl.nl](mailto:tonk@smartowl.nl?subject=TUIOS%3A%20Potential%20Security%20Issue)**
 
 When reporting, please include:
 - A clear description of the vulnerability.

@@ -2,8 +2,8 @@ package app
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // The dock's session controls are a glyph each, so the words that used to sit

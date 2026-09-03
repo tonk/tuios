@@ -2,8 +2,8 @@ package app
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // renameDialogWidth is the micro-dialog's preferred inner width: a name and a

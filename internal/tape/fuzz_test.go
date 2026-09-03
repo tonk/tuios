@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/tape"
 )
 
 // tapeSeeds are hand-written shapes covering each command form plus the

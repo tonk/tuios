@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/sound"
+	"github.com/tonk/tuios/internal/sound"
 	"github.com/adrg/xdg"
 )
 

@@ -26,7 +26,7 @@ TUIOS can be accessed through any modern web browser using the `tuios-web` binar
 
 ```bash
 # Homebrew (macOS/Linux) - ships via the maintainer's tap
-brew tap Gaurav-Gosain/tap
+brew tap tonk/tap
 brew install tuios-web
 
 # Arch Linux (AUR)
@@ -35,7 +35,7 @@ yay -S tuios-web-bin
 paru -S tuios-web-bin
 
 # Go Install
-go install github.com/Gaurav-Gosain/tuios/cmd/tuios-web@latest
+go install github.com/tonk/tuios/cmd/tuios-web@latest
 
 # From GitHub Releases
 # Download tuios-web_*_<platform>_<arch>.tar.gz

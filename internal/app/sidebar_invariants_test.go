@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/sessiontree"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/sessiontree"
 )
 
 // Three sections with a filter, a sort, a peek and two rail states make the

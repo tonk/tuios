@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz/apptarget"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz/vis"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/fuzz/apptarget"
+	"github.com/tonk/tuios/internal/fuzz/vis"
 )
 
 // The gate the whole display rests on: attaching one must not change what the

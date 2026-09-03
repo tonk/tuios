@@ -5,7 +5,7 @@ TUIOS can be imported and used as a library in your own Go applications. This al
 ## Installation
 
 ```bash
-go get github.com/Gaurav-Gosain/tuios/pkg/tuios
+go get github.com/tonk/tuios/pkg/tuios
 ```
 
 ## Quick Start
@@ -18,7 +18,7 @@ package main
 import (
     "log"
 
-    "github.com/Gaurav-Gosain/tuios/pkg/tuios"
+    "github.com/tonk/tuios/pkg/tuios"
     tea "github.com/charmbracelet/bubbletea/v2"
 )
 
@@ -184,7 +184,7 @@ import (
     "log"
 
     "github.com/Gaurav-Gosain/sip"
-    "github.com/Gaurav-Gosain/tuios/pkg/tuios"
+    "github.com/tonk/tuios/pkg/tuios"
     tea "github.com/charmbracelet/bubbletea/v2"
 )
 
@@ -219,7 +219,7 @@ package main
 import (
     "context"
 
-    "github.com/Gaurav-Gosain/tuios/pkg/tuios"
+    "github.com/tonk/tuios/pkg/tuios"
     tea "github.com/charmbracelet/bubbletea/v2"
     "github.com/charmbracelet/wish/v2"
     "github.com/charmbracelet/wish/v2/bubbletea"

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // dockTooltipAt hovers a session control and returns the label layer it drew.

@@ -4,8 +4,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz/apptarget"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/fuzz/apptarget"
 )
 
 // The app viewport's plumbing, and the only place the display touches the

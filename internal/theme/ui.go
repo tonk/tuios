@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/overlay"
 	"github.com/charmbracelet/x/exp/charmtone"
 )
 

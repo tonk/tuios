@@ -37,8 +37,8 @@ import (
 	"github.com/Gaurav-Gosain/sip"
 	"github.com/lrstanley/bubbletint/v2"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 const sidCookieName = "tuios_sid"
@@ -347,42 +347,42 @@ func settingsInjectHead(bgHex string) string {
     <style>
     @font-face {
         font-family: 'SauceCodePro NFM';
-        src: url('/tuios-settings/fonts/saucecodepro.ttf');
+        src: url('tuios-settings/fonts/saucecodepro.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'SauceCodePro NFM SemiBold';
-        src: url('/tuios-settings/fonts/saucecodepro-semibold.ttf');
+        src: url('tuios-settings/fonts/saucecodepro-semibold.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'FreeMono';
-        src: url('/tuios-settings/fonts/freemono.ttf');
+        src: url('tuios-settings/fonts/freemono.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'FreeMono Bold';
-        src: url('/tuios-settings/fonts/freemono-bold.ttf');
+        src: url('tuios-settings/fonts/freemono-bold.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'Source Code Pro';
-        src: url('/tuios-settings/fonts/sourcecodepro.ttf');
+        src: url('tuios-settings/fonts/sourcecodepro.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'Source Code Pro Bold';
-        src: url('/tuios-settings/fonts/sourcecodepro-bold.ttf');
+        src: url('tuios-settings/fonts/sourcecodepro-bold.ttf');
         font-weight: 100 900;
         font-style: normal;
         font-display: swap;
@@ -507,7 +507,15 @@ func settingsInjectFooter(initialTheme string) string {
             var fontSelect = document.getElementById('tuios-font-select');
             if (!themeSelect || !fontSelect) { return; }
 
-            fetch('/tuios-settings/themes')
+            // Document-relative, not a leading-slash absolute path: sip's
+            // own static assets (see its index.html: 'static/webterm.js',
+            // not '/static/webterm.js') already resolve this way so the
+            // whole app still works when a reverse proxy mounts it under a
+            // subpath instead of a domain root (e.g. https://host/tuios/
+            // rather than https://tuios.example.com/) - an absolute path
+            // here would resolve to the proxy's own root and 404, even
+            // though every other asset on the page loaded fine.
+            fetch('tuios-settings/themes')
                 .then(function(r) { return r.json(); })
                 .then(function(themes) {
                     themeSelect.innerHTML = '<option value="">Unchanged</option>';
@@ -524,7 +532,7 @@ func settingsInjectFooter(initialTheme string) string {
 
             themeSelect.addEventListener('change', function() {
                 if (!themeSelect.value) { return; }
-                fetch('/tuios-settings/theme', {
+                fetch('tuios-settings/theme', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ theme: themeSelect.value })

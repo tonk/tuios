@@ -3,8 +3,8 @@ package server
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/session"
 	"github.com/charmbracelet/ssh"
 )
 

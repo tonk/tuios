@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/tape/trust"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/tape/trust"
 )
 
 // luaTapeContent is a Lua project tape body that touches no tuios.* API. Every

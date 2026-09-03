@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // A message about a pane is a pointer to that pane, so it may as well be

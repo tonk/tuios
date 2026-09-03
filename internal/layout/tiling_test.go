@@ -3,7 +3,7 @@ package layout
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestCalculateTilingLayout_SingleWindow tests layout with one window

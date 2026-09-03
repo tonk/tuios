@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/vt"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 func sixelPassthroughLog(format string, args ...any) {

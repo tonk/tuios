@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
-	"github.com/Gaurav-Gosain/tuios/internal/tape/trust"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/tape/trust"
 )
 
 // tapeSeedSettle is how long the seeded window in a freshly created project

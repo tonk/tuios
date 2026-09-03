@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // TestAccentPickerOpensOnOneAnswer pins the state the audit found incoherent:

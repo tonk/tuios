@@ -14,9 +14,9 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/harness"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/tape"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )

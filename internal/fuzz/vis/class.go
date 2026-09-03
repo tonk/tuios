@@ -1,6 +1,6 @@
 package vis
 
-import "github.com/Gaurav-Gosain/tuios/internal/fuzz"
+import "github.com/tonk/tuios/internal/fuzz"
 
 // The tape shows one cell per action and the cell has one glyph, so the
 // alphabet has to collapse to a handful of classes. The grouping is by what the

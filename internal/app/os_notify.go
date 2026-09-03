@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/hooks"
 )
 
 // Log adds a new log message to the log buffer.

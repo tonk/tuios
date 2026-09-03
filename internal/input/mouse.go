@@ -2,8 +2,8 @@
 package input
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/terminal"
 	uv "github.com/charmbracelet/ultraviolet"
 )
 

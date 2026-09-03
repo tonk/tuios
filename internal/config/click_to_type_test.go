@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // withClickToType restores the global after a test that moves it, since it is

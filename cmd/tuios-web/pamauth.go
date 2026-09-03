@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Gaurav-Gosain/sip"
-	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
+	"github.com/tonk/tuios/internal/pamauth"
 )
 
 // pamAuthMiddleware gates every connection behind an HTTP Basic Auth prompt,

@@ -3,7 +3,7 @@ package app
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // ContextMenuTarget names the thing a context menu was opened on. What is under

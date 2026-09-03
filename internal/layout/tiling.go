@@ -2,7 +2,7 @@
 package layout
 
 import (
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TileLayout represents the position and size for a tiled window

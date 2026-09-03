@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/theme"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 )

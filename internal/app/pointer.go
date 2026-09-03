@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // PointerShape represents a CSS cursor shape name for OSC 22.

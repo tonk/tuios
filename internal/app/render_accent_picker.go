@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // accentPickerInnerWidth is the compact dialog's preferred inner width. It is

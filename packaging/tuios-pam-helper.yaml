@@ -11,7 +11,7 @@ platform: "linux"
 version: "${VERSION}"
 section: "utils"
 priority: "optional"
-maintainer: "Gaurav Gosain <me@gaurav.zip>"
+maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   Privileged PAM authentication helper for tuios-web's optional --pam-auth
   mode: authenticates a trainee against PAM and spawns their shells as
@@ -21,7 +21,7 @@ description: |
   (/usr/lib/systemd/system/tuios-pam-helper.service) - it does not enable
   or start the service for you.
 vendor: "tuios"
-homepage: "https://github.com/Gaurav-Gosain/tuios"
+homepage: "https://github.com/tonk/tuios"
 license: "MIT"
 
 contents:

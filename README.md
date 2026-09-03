@@ -1,4 +1,4 @@
-This started as a clone from https://github.com/Gaurav-Gosain/tuios,
+This started as a clone from https://github.com/tonk/tuios,
 but I have changed it a lot, to make it exactly work the way I want it.
 That's probably not the way it was intended to work and surely not
 something to be merged into the upstream project.
@@ -17,7 +17,7 @@ Built on the Charm stack (Bubble Tea v2, Lipgloss v2), TUIOS features event-driv
 
 ## Documentation
 
-Full documentation is available at **[tuios-docs](https://tuios.gaurav.zip)** (hosted) or in the [`docs/`](./docs/) folder.
+Full documentation is available in the [`docs/`](./docs/) folder.
 
 ### Quick Links
 - **[Getting Started](docs/KEYBINDINGS.md)** - Keybindings and quick reference
@@ -65,7 +65,7 @@ yay -S tuios-bin
 
 **Nix:**
 ```bash
-nix run github:Gaurav-Gosain/tuios#tuios
+nix run github:tonk/tuios#tuios
 ```
 
 ### Other Methods
@@ -75,10 +75,10 @@ nix run github:Gaurav-Gosain/tuios#tuios
 curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install.sh | bash
 
 # Go install
-go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
+go install github.com/tonk/tuios/cmd/tuios@latest
 
 # Docker
-docker run -it --rm ghcr.io/gaurav-gosain/tuios:latest
+docker run -it --rm ghcr.io/tonk/tuios:latest
 ```
 
 **[GitHub Releases](https://github.com/tonk/tuios/releases)** - Pre-built binaries for all platforms.
@@ -280,7 +280,7 @@ TUIOS follows the Model-View-Update pattern on Bubble Tea v2. For details, see [
 ## Development
 
 ```bash
-git clone https://github.com/gaurav-gosain/tuios.git
+git clone https://github.com/tonk/tuios.git
 cd tuios
 go build -o tuios ./cmd/tuios
 ./tuios
@@ -296,19 +296,19 @@ staticcheck ./...          # Static analysis
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Gaurav-Gosain/tuios&type=Date&theme=dark)](https://star-history.com/#Gaurav-Gosain/tuios&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=tonk/tuios&type=Date&theme=dark)](https://star-history.com/#tonk/tuios&Date)
 
 <p style="display:flex;flex-wrap:wrap;">
-<img alt="GitHub Language Count" src="https://img.shields.io/github/languages/count/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Top Language" src="https://img.shields.io/github/languages/top/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="Repo Size" src="https://img.shields.io/github/repo-size/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Issues" src="https://img.shields.io/github/issues/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Closed Issues" src="https://img.shields.io/github/issues-closed/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Pull Requests" src="https://img.shields.io/github/issues-pr/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Closed Pull Requests" src="https://img.shields.io/github/issues-pr-closed/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Last Commit" src="https://img.shields.io/github/last-commit/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
-<img alt="GitHub Commit Activity (Week)" src="https://img.shields.io/github/commit-activity/w/Gaurav-Gosain/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Language Count" src="https://img.shields.io/github/languages/count/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Top Language" src="https://img.shields.io/github/languages/top/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="Repo Size" src="https://img.shields.io/github/repo-size/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Issues" src="https://img.shields.io/github/issues/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Closed Issues" src="https://img.shields.io/github/issues-closed/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Pull Requests" src="https://img.shields.io/github/issues-pr/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Closed Pull Requests" src="https://img.shields.io/github/issues-pr-closed/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Contributors" src="https://img.shields.io/github/contributors/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Last Commit" src="https://img.shields.io/github/last-commit/tonk/tuios" style="padding:5px;margin:5px;" />
+<img alt="GitHub Commit Activity (Week)" src="https://img.shields.io/github/commit-activity/w/tonk/tuios" style="padding:5px;margin:5px;" />
 </p>
 
 ## License
@@ -317,6 +317,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
+- [Gaurav Gosain](https://github.com/Gaurav-Gosain) for creating the original [tuios](https://github.com/Gaurav-Gosain/tuios) this fork is built on - see the top of this file for the full story
 - The [Charm](https://charm.sh) team for Bubble Tea, Lipgloss, and the Go terminal ecosystem
 - The vim, tmux, and i3 communities for interface design inspiration
 - [Ghostty](https://ghostty.org), [Kitty](https://sw.kovidgoyal.net/kitty/), and [WezTerm](https://wezfurlong.org/wezterm/) for excellent terminal emulators with graphics support

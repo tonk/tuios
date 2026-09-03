@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/session"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // daemonStartTimeout is how long a client waits for a spawned daemon to be

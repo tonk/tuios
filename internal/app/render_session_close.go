@@ -3,8 +3,8 @@ package app
 import (
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // sessionCloseInnerWidth is the dialog's preferred inner width, sized so the

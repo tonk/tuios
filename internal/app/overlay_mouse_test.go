@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/overlay"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // renderSettingsHit renders the settings panel and records its hit geometry the

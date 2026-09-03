@@ -3,8 +3,8 @@ package input
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestRequestQuitConfirmsOnlyWhenThereIsSomethingToLose pins the rule the three

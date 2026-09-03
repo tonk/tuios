@@ -10,8 +10,8 @@ import (
 
 	"github.com/charmbracelet/colorprofile"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/guestenv"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/guestenv"
 )
 
 // Graphics capabilities of the host terminal, set by the app once passthrough

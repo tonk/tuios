@@ -8,14 +8,14 @@ platform: "linux"
 version: "${VERSION}"
 section: "utils"
 priority: "optional"
-maintainer: "Gaurav Gosain <me@gaurav.zip>"
+maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   tuios-web - the web terminal server companion to tuios, TUIOS's
   terminal-based window manager. This package installs the binary and a
   systemd unit (/usr/lib/systemd/system/tuios-web.service) - it does not
   enable or start the service for you; see docs/DEPLOYMENT.md.
 vendor: "tuios"
-homepage: "https://github.com/Gaurav-Gosain/tuios"
+homepage: "https://github.com/tonk/tuios"
 license: "MIT"
 
 contents:

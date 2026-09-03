@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/tonk/tuios/internal/harness"
 	"github.com/google/uuid"
 )
 

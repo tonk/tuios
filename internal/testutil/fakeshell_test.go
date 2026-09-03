@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/testutil"
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // =============================================================================

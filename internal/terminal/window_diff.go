@@ -5,7 +5,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // DiffCell is a minimal cell representation for the screen diff protocol.

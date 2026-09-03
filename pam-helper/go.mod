@@ -1,4 +1,4 @@
-module github.com/Gaurav-Gosain/tuios/pam-helper
+module github.com/tonk/tuios/pam-helper
 
 go 1.25.9
 

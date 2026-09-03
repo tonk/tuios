@@ -5,7 +5,7 @@ import (
 
 	"github.com/adrg/xdg"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestLoadAndApplyConfigHonorsConfirmQuit proves the one shared bootstrap applies

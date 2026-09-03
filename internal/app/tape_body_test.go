@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/tape"
 )
 
 // findCmd returns the indices of commands of the given type.

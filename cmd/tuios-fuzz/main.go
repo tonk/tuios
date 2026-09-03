@@ -23,9 +23,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz/apptarget"
-	"github.com/Gaurav-Gosain/tuios/internal/fuzz/vis"
+	"github.com/tonk/tuios/internal/fuzz"
+	"github.com/tonk/tuios/internal/fuzz/apptarget"
+	"github.com/tonk/tuios/internal/fuzz/vis"
 	"golang.org/x/term"
 )
 

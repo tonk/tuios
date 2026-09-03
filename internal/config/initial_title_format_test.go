@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestFormatInitialTitle covers appearance.initial_title_format: the

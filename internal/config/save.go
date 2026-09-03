@@ -19,7 +19,7 @@ func configFileHeader(configPath string) string {
 	sb.WriteString("# This file allows you to customize appearance and keybindings\n")
 	sb.WriteString("#\n")
 	sb.WriteString("# Configuration location: " + configPath + "\n")
-	sb.WriteString("# Documentation: https://github.com/Gaurav-Gosain/tuios\n")
+	sb.WriteString("# Documentation: https://github.com/tonk/tuios\n")
 	sb.WriteString("# For keybindings documentation, run: tuios keybinds list\n\n")
 
 	sb.WriteString("# ============================================================================\n")

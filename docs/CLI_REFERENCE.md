@@ -44,7 +44,7 @@ TUIOS uses a modern command-line interface built with Cobra and Fang, providing:
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew tap Gaurav-Gosain/tap
+brew tap tonk/tap
 brew install tuios
 ```
 
@@ -62,7 +62,7 @@ paru -S tuios-bin
 
 ```bash
 # Run directly
-nix run github:Gaurav-Gosain/tuios#tuios
+nix run github:tonk/tuios#tuios
 
 # Or add to your configuration
 nix-shell -p tuios
@@ -77,7 +77,7 @@ curl -fsSL https://raw.githubusercontent.com/tonk/tuios/main/install.sh | bash
 ### Go Install
 
 ```bash
-go install github.com/Gaurav-Gosain/tuios/cmd/tuios@latest
+go install github.com/tonk/tuios/cmd/tuios@latest
 ```
 
 ### Pre-built Binaries
@@ -1320,7 +1320,7 @@ brew install tuios-web
 yay -S tuios-web-bin
 
 # Go install
-go install github.com/Gaurav-Gosain/tuios/cmd/tuios-web@latest
+go install github.com/tonk/tuios/cmd/tuios-web@latest
 ```
 
 **Usage:**

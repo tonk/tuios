@@ -2,7 +2,7 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/tonk/tuios/internal/app"
 )
 
 // handleCommandPaletteInput handles keyboard input when the command palette is open.

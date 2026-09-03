@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/tape"
+	"github.com/tonk/tuios/internal/tape"
 	lua "github.com/yuin/gopher-lua"
 )
 

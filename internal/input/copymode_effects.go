@@ -4,8 +4,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // copyModeEffects records the side effects a copy-mode key handler wants to

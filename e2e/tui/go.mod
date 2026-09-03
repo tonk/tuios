@@ -1,11 +1,11 @@
-module github.com/Gaurav-Gosain/tuios/e2e/tui
+module github.com/tonk/tuios/e2e/tui
 
 go 1.26.5
 
 require github.com/Gaurav-Gosain/tuitest v0.0.0-20260718154210-22f65ef6b266
 
 require (
-	github.com/Gaurav-Gosain/tuios v0.0.0
+	github.com/tonk/tuios v0.0.0
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
@@ -26,4 +26,4 @@ require (
 	golang.org/x/sys v0.46.0 // indirect
 )
 
-replace github.com/Gaurav-Gosain/tuios => ../..
+replace github.com/tonk/tuios => ../..

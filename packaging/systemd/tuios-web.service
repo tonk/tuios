@@ -1,7 +1,7 @@
 [Unit]
 Description=tuios-web - browser-accessible TUIOS session server
-Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/WEB.md
-Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/DEPLOYMENT.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/WEB.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
 After=network.target
 # Only relevant if ExecStart below is edited to add --pam-auth (see
 # docs/DEPLOYMENT.md, "PAM multi-tenant mode"). Uncomment both lines then:

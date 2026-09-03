@@ -4,13 +4,13 @@ Thank you for considering contributing to TUIOS! This guide will help you get st
 
 ## Ways to Contribute
 
-- **Bug Reports**: Use the [bug report template](https://github.com/Gaurav-Gosain/tuios/issues/new?template=bug_report.yml)
-- **Feature Requests**: Use the [feature request template](https://github.com/Gaurav-Gosain/tuios/issues/new?template=feature_request.yml)
+- **Bug Reports**: Use the [bug report template](https://github.com/tonk/tuios/issues/new?template=bug_report.yml)
+- **Feature Requests**: Use the [feature request template](https://github.com/tonk/tuios/issues/new?template=feature_request.yml)
 - **Code Contributions**: Submit pull requests for bug fixes, features, or improvements
 - **Documentation**: Improve or expand documentation in `docs/` or README
 - **Testing**: Test on different platforms and report issues
 
-**Have questions?** Use [GitHub Discussions](https://github.com/Gaurav-Gosain/tuios/discussions).
+**Have questions?** Use [GitHub Discussions](https://github.com/tonk/tuios/discussions).
 
 ---
 
@@ -26,7 +26,7 @@ Thank you for considering contributing to TUIOS! This guide will help you get st
 
 ```bash
 # Clone the repository
-git clone https://github.com/Gaurav-Gosain/tuios.git
+git clone https://github.com/tonk/tuios.git
 cd tuios
 
 # Build from source
@@ -203,7 +203,7 @@ When contributing, consider updating:
 
 ## Code Review Process
 
-1. Maintainer (@Gaurav-Gosain) will review your PR
+1. Maintainer (@tonk) will review your PR
 2. Address any requested changes
 3. Once approved, your PR will be merged
 4. Your contribution will be included in the next release
@@ -224,9 +224,9 @@ You don't need to worry about this as a contributor - the maintainer handles rel
 
 ## Getting Help
 
-- **Questions**: [GitHub Discussions](https://github.com/Gaurav-Gosain/tuios/discussions)
-- **Bugs**: [Bug Report Template](https://github.com/Gaurav-Gosain/tuios/issues/new?template=bug_report.yml)
-- **Features**: [Feature Request Template](https://github.com/Gaurav-Gosain/tuios/issues/new?template=feature_request.yml)
+- **Questions**: [GitHub Discussions](https://github.com/tonk/tuios/discussions)
+- **Bugs**: [Bug Report Template](https://github.com/tonk/tuios/issues/new?template=bug_report.yml)
+- **Features**: [Feature Request Template](https://github.com/tonk/tuios/issues/new?template=feature_request.yml)
 - **Security**: See [SECURITY.md](SECURITY.md)
 
 ---

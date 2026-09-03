@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/session"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
-	"github.com/Gaurav-Gosain/tuios/internal/ui"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/layout"
+	"github.com/tonk/tuios/internal/session"
+	"github.com/tonk/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/ui"
 )
 
 // passThroughCursorStyle detects DECSCUSR (cursor style) sequences in the data

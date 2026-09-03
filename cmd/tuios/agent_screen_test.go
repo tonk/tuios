@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/harness"
+	"github.com/tonk/tuios/internal/harness"
 )
 
 // TestScreenExplanationNamesTheRuleAndTheReason is the whole point of the

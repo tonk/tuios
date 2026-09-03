@@ -3,7 +3,7 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/Gaurav-Gosain/tuios/internal/app"
+	"github.com/tonk/tuios/internal/app"
 )
 
 // handleNumberKey runs the select_window_N action for the given 1-9 number.

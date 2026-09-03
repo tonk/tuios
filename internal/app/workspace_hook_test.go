@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/hooks"
 )
 
 // after-workspace-switch was a valid, documented hook event that config

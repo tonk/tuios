@@ -1,7 +1,7 @@
 [Unit]
 Description=tuios-pam-helper - privileged PAM auth/spawn helper for tuios-web
-Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/pam-helper/README.md
-Documentation=https://github.com/Gaurav-Gosain/tuios/blob/main/docs/DEPLOYMENT.md
+Documentation=https://github.com/tonk/tuios/blob/main/pam-helper/README.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
 After=network.target
 
 [Service]

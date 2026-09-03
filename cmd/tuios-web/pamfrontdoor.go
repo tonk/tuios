@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Gaurav-Gosain/tuios/internal/pamauth"
-	"github.com/Gaurav-Gosain/tuios/internal/theme"
+	"github.com/tonk/tuios/internal/pamauth"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // newFrontDoor builds the public-facing HTTP(S) server used whenever

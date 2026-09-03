@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
-	"github.com/Gaurav-Gosain/tuios/internal/hooks"
-	"github.com/Gaurav-Gosain/tuios/internal/layout"
-	"github.com/Gaurav-Gosain/tuios/internal/terminal"
+	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/hooks"
+	"github.com/tonk/tuios/internal/layout"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // RebuildBSPTreeFromPositions rebuilds the BSP tree from current window positions.

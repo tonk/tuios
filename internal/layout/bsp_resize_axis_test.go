@@ -4,7 +4,7 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/Gaurav-Gosain/tuios/internal/config"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // edge identifies which side of a pane a resize drags.

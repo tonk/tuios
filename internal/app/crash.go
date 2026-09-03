@@ -41,7 +41,7 @@ func WriteCrashLog(panicValue any, stack []byte) string {
 	content += fmt.Sprintf("\nPanic:   %v\n\n", panicValue)
 	content += fmt.Sprintf("Stack trace:\n%s\n", stack)
 	content += "\n---\nPlease report this issue at:\n"
-	content += fmt.Sprintf("https://github.com/Gaurav-Gosain/tuios/issues/new?title=Crash%%3A+%v\n", panicValue)
+	content += fmt.Sprintf("https://github.com/tonk/tuios/issues/new?title=Crash%%3A+%v\n", panicValue)
 
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		return ""
