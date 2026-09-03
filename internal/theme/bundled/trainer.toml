@@ -1,15 +1,17 @@
-# Training - a light, high-contrast theme for teaching or presenting from a
+# Trainer - a light, high-contrast theme for teaching or presenting from a
 # projector or a shared screen, where a dark background and thin strokes are
 # hard to read from the back of the room. Converted from a real kitty config
-# built for exactly that.
+# built for exactly that. Formerly named "training"; the id changed to
+# "trainer" to pair with the "trainee" theme (see trainee.toml) - the
+# operator's own screen vs. what a trainee's own browser session shows.
 #
 # The source kitty config only set foreground/background/cursor/selection/
 # border/tab colors, not the 16 ANSI colors - kitty falls back to its own
 # built-in default palette for those, so the black/red/green/... below are
 # kitty's actual documented defaults, not a guess, to keep ANSI-colored
 # output looking the same as it did under the original config.
-id           = "training"
-display_name = "Training"
+id           = "trainer"
+display_name = "Trainer"
 dark         = false
 fg           = "#000000"
 bg           = "#ffffff"
@@ -46,13 +48,23 @@ border_unfocused        = "#665c54"
 # terminal background under the cursor block"), which is bg (#ffffff) here.
 terminal_cursor_fg = "#ffffff"
 
-# kitty's active_tab_background/foreground and inactive_tab_background/
-# foreground - tuios's closest equivalent to a tab bar is the workspace
-# pill strip.
-workspace_pill_active_bg   = "#665c54"
-workspace_pill_active_fg   = "#fbf1c7"
-workspace_pill_inactive_bg = "#3c3836"
-workspace_pill_inactive_fg = "#a89984"
+# Statusbar/dock colors matched to ~/.config/tuios/themes/midnight.toml,
+# not derived from the source kitty config, so the dock row looks the same
+# regardless of which theme (this one or midnight) is active.
+dock_bg       = "#0087d7"
+dock_trail_fg = "#1d1f21"
+
+workspace_pill_active_bg   = "#ff0000"
+workspace_pill_active_fg   = "#ffff00"
+workspace_pill_inactive_bg = "#047562"
+workspace_pill_inactive_fg = "#ffffff"
+
+dock_indicator_mouse_active_fg                 = "#7ef7a3"
+dock_indicator_mouse_inactive_fg               = "#605f6b"
+dock_indicator_tiling_active_fg                = "#7ef7a3"
+dock_indicator_tiling_inactive_fg              = "#605f6b"
+dock_indicator_focus_follows_mouse_active_fg   = "#7ef7a3"
+dock_indicator_focus_follows_mouse_inactive_fg = "#605f6b"
 
 # kitty's url_color (the underline color for hyperlinks): closest tuios
 # equivalent is the overlay's informational accent.
@@ -63,7 +75,7 @@ info = "#83a598"
 success = "#8ec07c"
 
 # tuios-web only: switches the browser terminal to this font/size when
-# Training is picked from the web settings panel - a larger, heavier weight
+# Trainer is picked from the web settings panel - a larger, heavier weight
 # for reading from the back of a room or a shared screen. See
 # internal/theme/webpreset.go; "font" is a bundled font alias tuios-web
 # resolves itself, not a color.

@@ -48,15 +48,19 @@ Alongside bubbletint's own large built-in catalog, tuios ships a handful of
 its own themes directly in the binary - no file to create, nothing to
 install, always there. Currently:
 
-- **`training`** - a light, high-contrast theme built for reading a
+- **`trainer`** - a light, high-contrast theme built for reading a
   projected or shared screen from a distance (a classroom's back row, say),
   where a typical dark background and thin strokes are hard to make out.
   Pairs well with `--font-family saucecodeprosemibold` in `tuios-web` for
   the same reason - see [Web Terminal Mode](WEB.md#features).
+- **`trainee`** - the same palette as `trainer`, at a font/size suited to a
+  trainee's own monitor rather than the back of a room. `tuios-web` picks
+  it automatically when neither `--theme` nor `[appearance] theme` in
+  config.toml says otherwise.
 
-Select it the same way as any other theme: `theme = "training"`,
-`--theme training`, or from the picker. Its source lives at
-`internal/theme/bundled/training.toml` in the repo, in the exact same
+Select one the same way as any other theme: `theme = "trainer"`,
+`--theme trainer`, or from the picker. Its source lives at
+`internal/theme/bundled/trainer.toml` in the repo, in the exact same
 format as a [custom theme](#custom-themes) below - a file you drop in your
 own themes directory under the same id still wins over the bundled one.
 

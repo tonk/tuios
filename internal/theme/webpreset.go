@@ -2,7 +2,7 @@ package theme
 
 // WebPreset is the optional "web" table/object a theme file can carry: a
 // font (and/or point size) tuios-web should switch the browser terminal to
-// when this theme is selected, letting a theme like "Training" bundle a
+// when this theme is selected, letting a theme like "Trainer" bundle a
 // larger, more legible face for a projector or a shared screen instead of
 // leaving the operator to pick a matching font by hand every time the theme
 // is picked. The TUI itself has no browser font to switch, so only

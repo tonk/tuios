@@ -232,7 +232,7 @@ func webTermThemeFor(t *tint.Tint) webTermTheme {
 // setThemeResponse is what handleSetTheme sends back: the webTermTheme JSON
 // shape it always sent, plus an optional font/fontSize pair when the newly
 // selected theme carries a "web" preset (see internal/theme.WebPreset) - a
-// theme like "training" pairing a larger, heavier font with its color
+// theme like "trainer" pairing a larger, heavier font with its color
 // palette. Both are omitted entirely when the theme has no preset, so the
 // injected JS's `if (resp.font)`/`if (resp.fontSize)` checks leave the
 // operator's own font choice alone.
@@ -542,7 +542,7 @@ func settingsInjectFooter(initialTheme string) string {
                         applyTheme(resp);
                         // resp.font/resp.fontSize are only set when the
                         // theme just selected carries a "web" preset (see
-                        // setThemeResponse) - a theme like "training"
+                        // setThemeResponse) - a theme like "trainer"
                         // pairing a larger, heavier font with its palette.
                         // Sync the font dropdown and its cookie so the
                         // preset persists across a reload exactly like a

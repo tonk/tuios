@@ -1,5 +1,5 @@
-# Trainee - a copy of the Training theme (see training.toml) for tuios-web's
-# own default: the operator's session picks Training deliberately for a
+# Trainee - a copy of the Trainer theme (see trainer.toml) for tuios-web's
+# own default: the operator's session picks Trainer deliberately for a
 # projector, while a trainee's own browser session should already look right
 # without them having to pick it, in a lighter/smaller face suited to a
 # regular monitor rather than the back of a room.
@@ -36,17 +36,30 @@ border_unfocused        = "#665c54"
 
 terminal_cursor_fg = "#ffffff"
 
-workspace_pill_active_bg   = "#665c54"
-workspace_pill_active_fg   = "#fbf1c7"
-workspace_pill_inactive_bg = "#3c3836"
-workspace_pill_inactive_fg = "#a89984"
+# Statusbar/dock colors matched to ~/.config/tuios/themes/midnight.toml,
+# not derived from trainer.toml, so the dock row looks the same regardless
+# of which theme (this one or midnight) is active.
+dock_bg       = "#0087d7"
+dock_trail_fg = "#1d1f21"
+
+workspace_pill_active_bg   = "#ff0000"
+workspace_pill_active_fg   = "#ffff00"
+workspace_pill_inactive_bg = "#047562"
+workspace_pill_inactive_fg = "#ffffff"
+
+dock_indicator_mouse_active_fg                 = "#7ef7a3"
+dock_indicator_mouse_inactive_fg               = "#605f6b"
+dock_indicator_tiling_active_fg                = "#7ef7a3"
+dock_indicator_tiling_inactive_fg              = "#605f6b"
+dock_indicator_focus_follows_mouse_active_fg   = "#7ef7a3"
+dock_indicator_focus_follows_mouse_inactive_fg = "#605f6b"
 
 info = "#83a598"
 
 success = "#8ec07c"
 
 # tuios-web only: switches the browser terminal to this font/size. Unlike
-# Training's larger presenter-facing size, this is sized for a trainee's own
+# Trainer's larger presenter-facing size, this is sized for a trainee's own
 # regular monitor. See internal/theme/webpreset.go.
 [web]
 font      = "saucecodepro nfm"

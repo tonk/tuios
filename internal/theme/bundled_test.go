@@ -6,23 +6,23 @@ import (
 	tint "github.com/lrstanley/bubbletint/v2"
 )
 
-// TestRegisterBundledThemesIncludesTraining pins tuios's own bundled
-// "training" theme (internal/theme/bundled/training.toml) actually reaching
+// TestRegisterBundledThemesIncludesTrainer pins tuios's own bundled
+// "trainer" theme (internal/theme/bundled/trainer.toml) actually reaching
 // the tint registry - the whole point of shipping it in the binary is that
 // it needs no ~/.config/tuios/themes/ file to show up.
-func TestRegisterBundledThemesIncludesTraining(t *testing.T) {
+func TestRegisterBundledThemesIncludesTrainer(t *testing.T) {
 	tint.NewDefaultRegistry()
 	registerBundledThemes()
 
-	tn, ok := tint.GetTint("training")
+	tn, ok := tint.GetTint("trainer")
 	if !ok {
-		t.Fatal(`registerBundledThemes did not register "training"`)
+		t.Fatal(`registerBundledThemes did not register "trainer"`)
 	}
-	if tn.DisplayName != "Training" {
-		t.Errorf("DisplayName = %q, want %q", tn.DisplayName, "Training")
+	if tn.DisplayName != "Trainer" {
+		t.Errorf("DisplayName = %q, want %q", tn.DisplayName, "Trainer")
 	}
 	if tn.Dark {
-		t.Error("Dark = true, want false (training is a light theme)")
+		t.Error("Dark = true, want false (trainer is a light theme)")
 	}
 	if got := tn.Bg.Hex(); got != "#ffffff" {
 		t.Errorf("Bg = %q, want #ffffff", got)
@@ -31,9 +31,9 @@ func TestRegisterBundledThemesIncludesTraining(t *testing.T) {
 		t.Errorf("Fg = %q, want #000000", got)
 	}
 
-	wp := WebPresetForID("training")
+	wp := WebPresetForID("trainer")
 	if wp == nil {
-		t.Fatal(`expected a [web] preset for "training", got none`)
+		t.Fatal(`expected a [web] preset for "trainer", got none`)
 	}
 	if wp.Font != "saucecodepro nfm semibold" {
 		t.Errorf("web preset font = %q, want %q", wp.Font, "saucecodepro nfm semibold")
