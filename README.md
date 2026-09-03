@@ -1,19 +1,24 @@
-This started as a clone from https://github.com/tonk/tuios,
+This started as a clone from https://github.com/Gaurav-Gosain/tuios,
 but I have changed it a lot, to make it exactly work the way I want it.
 That's probably not the way it was intended to work and surely not
 something to be merged into the upstream project.
 
 If you think parts of my changes are worthwhile, please do not hesitate
 to use them in your own project. But do *not* forget to mention the
-original author of tuios, Gaurav Gosain , whom I owe many thanks for
+original author of tuios, Gaurav Gosain, whom I owe many thanks for
 starting this.
 
 ======
 
 
-TUIOS is a modern terminal multiplexer and window manager built with Go. It provides a vim-like modal interface with multiple terminal panes, workspaces, BSP tiling, kitty graphics protocol support, and a command palette - all running inside your existing terminal.
+TUIOS is a modern terminal multiplexer and window manager built with Go.
+It provides a vim-like modal interface with multiple terminal panes,
+workspaces, BSP tiling, kitty graphics protocol support, and a command
+palette - all running inside your existing terminal.
 
-Built on the Charm stack (Bubble Tea v2, Lipgloss v2), TUIOS features event-driven rendering for near-zero idle CPU usage, flicker-free kitty image passthrough, and comprehensive keyboard/mouse interaction.
+Built on the Charm stack (Bubble Tea v2, Lipgloss v2), TUIOS features
+event-driven rendering for near-zero idle CPU usage, flicker-free kitty
+image passthrough, and comprehensive keyboard/mouse interaction.
 
 ## Documentation
 
