@@ -1,0 +1,55 @@
+[Unit]
+Description=tuios-web-mirror - shared presenter/projector mirror session
+Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
+After=network.target tuios-web.service
+
+[Service]
+Type=simple
+
+# Optional companion to tuios-web.service (docs/DEPLOYMENT.md, "Presenter
+# mirror session"): a second, ordinary (non-PAM) instance whose whole point
+# is --default-session below - every connection to it shares one session,
+# so a presenter's laptop and a projector machine both attaching here show
+# the same thing live. A --pam-auth session can't do this on its own; each
+# login is deliberately its own isolated, non-daemon instance.
+#
+# Run as whichever account should own the spawned shells - the tuios-web
+# service account (the default here) is fine, or a specific presenter's
+# own account if you want their dotfiles/tools available in the mirrored
+# session (see docs/DEPLOYMENT.md for what else needs to change if so:
+# HOME, WorkingDirectory, and read access to XDG_CONFIG_HOME below all
+# assume this account).
+User=tuios-web
+Group=tuios-web
+
+# Binds loopback only, same as tuios-web.service - this has no auth of its
+# own (see docs/DEPLOYMENT.md for why, and how to gate it at the reverse
+# proxy instead). A different --port than tuios-web.service's own is the
+# only thing that lets both run at once; edit both this and the matching
+# nginx location if you change it.
+ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7682 --config /etc/tuios-web/mirror-config.toml --default-session mirror --web-settings
+Restart=on-failure
+RestartSec=2
+
+# A copy of config.toml (not the same file) with a distinct [daemon]
+# socket_path - see mirror-config.toml's own comment in docs/DEPLOYMENT.md
+# for why: this instance and tuios-web.service must never share a daemon
+# socket, even though PrivateTmp below already keeps their default
+# per-uid socket paths from colliding in practice when User= matches.
+Environment=HOME=/var/lib/tuios-web
+
+# Shares tuios-web.service's own XDG_CONFIG_HOME on purpose, so this
+# instance sees the same themes/layouts/tapes - read access is all it
+# needs for mirroring. Give StateDirectory its own name, though: reusing
+# tuios-web.service's own here would have systemd rechown
+# /var/lib/tuios-web to this unit's User= on every start if it ever
+# differs from tuios-web.service's, breaking that unit's own access to it.
+Environment=XDG_CONFIG_HOME=/etc/tuios-web
+StateDirectory=tuios-web-mirror
+WorkingDirectory=/var/lib/tuios-web
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

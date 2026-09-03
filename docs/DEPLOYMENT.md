@@ -320,42 +320,42 @@ connections. The fix is a second, ordinary (non-PAM) `tuios-web` instance
 serving one shared daemon session that both your laptop and the projector
 machine attach to.
 
-1. **A second unit**, differing from the main one (step 5) only in port,
-   config, and dropping `--pam-auth`:
+1. **A second config and unit**, differing from the main ones (steps 3 and
+   5) only in port, session name, and dropping `--pam-auth`:
 
-   ```ini
-   # /etc/systemd/system/tuios-web-mirror.service
-   [Service]
-   Type=simple
-   # Run as whichever account should own the spawned shells - the
-   # tuios-web service account is fine, or your own presenter account if
-   # you want its dotfiles/tools available in the mirrored session.
-   User=tuios-web
-   Group=tuios-web
-   ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7682 \
-       --config /etc/tuios-web/config.toml --default-session mirror --web-settings
-   Restart=on-failure
-   RestartSec=2
-   Environment=HOME=/var/lib/tuios-web
-   Environment=XDG_CONFIG_HOME=/etc/tuios-web
-   StateDirectory=tuios-web-mirror
-   WorkingDirectory=/var/lib/tuios-web
-   NoNewPrivileges=true
-   PrivateTmp=true
-
-   [Install]
-   WantedBy=multi-user.target
+   ```bash
+   sudo cp /etc/tuios-web/config.toml /etc/tuios-web/mirror-config.toml
+   sudo -e /etc/tuios-web/mirror-config.toml
    ```
 
-   `--default-session mirror` is what makes this shared: every connection
-   to this instance attaches to the same daemon-backed session by name
-   (see [Daemon Mode](WEB.md#daemon-mode-default)), the same feature
-   [docs/MULTI_CLIENT.md](MULTI_CLIENT.md) covers for any other purpose. A
-   dedicated `StateDirectory=` (not the main unit's `tuios-web`) matters if
-   `User=` differs from the main instance - otherwise systemd rechowns the
-   shared one out from under it on every start.
+   Give it its own `[daemon] socket_path` (e.g.
+   `/run/tuios-web-mirror/tuios.sock`) - this instance and `tuios-web.service`
+   must never share a daemon socket, even though `PrivateTmp` on both units
+   already keeps their *default* per-uid socket paths from colliding in
+   practice when `User=` matches on both.
 
-2. **Gate it, since PAM isn't gating this one.** `tuios-web` has no
+   ```bash
+   sudo cp packaging/systemd/tuios-web-mirror.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   ```
+
+   `--default-session mirror` in that unit's `ExecStart=` is what makes
+   this shared: every connection to this instance attaches to the same
+   daemon-backed session by name (see
+   [Daemon Mode](WEB.md#daemon-mode-default)), the same feature
+   [docs/MULTI_CLIENT.md](MULTI_CLIENT.md) covers for any other purpose. Its
+   `StateDirectory=` is its own (`tuios-web-mirror`, not the main unit's
+   `tuios-web`) so that changing its `User=` away from the main instance's
+   never has systemd rechown the main instance's own `/var/lib/tuios-web`
+   out from under it.
+
+2. **Start it:**
+
+   ```bash
+   sudo systemctl enable --now tuios-web-mirror.service
+   ```
+
+3. **Gate it, since PAM isn't gating this one.** `tuios-web` has no
    CLI-exposed HTTP Basic Auth of its own (sip's `Config.BasicUsername`/
    `BasicPassword` support a single fixed pair, but nothing in `tuios-web`
    wires them up) - use nginx's instead, on a route separate from the main
@@ -382,7 +382,7 @@ machine attach to.
    openssl passwd -apr1 | sudo tee -a /etc/nginx/.htpasswd-mirror
    ```
 
-3. **Open the same URL and credentials on both machines** - your laptop and
+4. **Open the same URL and credentials on both machines** - your laptop and
    whatever drives the projector. Anything typed on one appears on the
    other, live.
 
