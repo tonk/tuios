@@ -286,6 +286,15 @@ func runWebServer() error {
 		userConfig = config.DefaultConfig()
 	}
 
+	// tuios-web's own default theme, distinct from native tuios's "no theme"
+	// default: a trainee opening the page cold should already get a legible
+	// palette/font instead of raw terminal colors. Only applies when neither
+	// --theme nor config.toml's [appearance] theme said otherwise - both
+	// still win, same precedence config.ApplyOverrides applies below.
+	if themeName == "" && userConfig.Appearance.Theme == "" {
+		themeName = "trainee"
+	}
+
 	// Appearance globals are the baseline; CLI flags win. This must run before
 	// ApplyOverrides. Without it, config.toml's [appearance] section (clock,
 	// sidebar, dock, scrollbar, cursor blink, leader key, etc.) never reaches

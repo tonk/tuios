@@ -1,0 +1,53 @@
+# Trainee - a copy of the Training theme (see training.toml) for tuios-web's
+# own default: the operator's session picks Training deliberately for a
+# projector, while a trainee's own browser session should already look right
+# without them having to pick it, in a lighter/smaller face suited to a
+# regular monitor rather than the back of a room.
+id           = "trainee"
+display_name = "Trainee"
+dark         = false
+fg           = "#000000"
+bg           = "#ffffff"
+cursor       = "#008800"
+selection_bg = "#5b1b52"
+
+black  = "#000000"
+red    = "#cc0403"
+green  = "#19cb00"
+yellow = "#cecb00"
+blue   = "#0d73cc"
+purple = "#cb1ed1"
+cyan   = "#0dcdcd"
+white  = "#dddddd"
+
+bright_black  = "#767676"
+bright_red    = "#f2201f"
+bright_green  = "#23fd00"
+bright_yellow = "#fffd00"
+bright_blue   = "#1a8fff"
+bright_purple = "#fd28ff"
+bright_cyan   = "#14ffff"
+bright_white  = "#ffffff"
+
+[ui]
+border_focused_window   = "#d3869b"
+border_focused_terminal = "#d3869b"
+border_unfocused        = "#665c54"
+
+terminal_cursor_fg = "#ffffff"
+
+workspace_pill_active_bg   = "#665c54"
+workspace_pill_active_fg   = "#fbf1c7"
+workspace_pill_inactive_bg = "#3c3836"
+workspace_pill_inactive_fg = "#a89984"
+
+info = "#83a598"
+
+success = "#8ec07c"
+
+# tuios-web only: switches the browser terminal to this font/size. Unlike
+# Training's larger presenter-facing size, this is sized for a trainee's own
+# regular monitor. See internal/theme/webpreset.go.
+[web]
+font      = "saucecodepro nfm"
+font_size = 14
