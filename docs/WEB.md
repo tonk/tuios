@@ -82,6 +82,24 @@ tuios-web --theme dracula --show-keys
 - **Mouse Support**: Full mouse interaction with cell-based optimization
 - **Auto-Reconnect**: Automatic reconnection with exponential backoff
 - **Read-Only Mode**: View-only sessions for demonstrations
+- **Kitty & Sixel Graphics**: Image passthrough works the same as in the
+  native TUI - see [Graphics](#graphics) below
+
+### Graphics
+
+`tuios-web` forces Kitty and Sixel graphics passthrough on for every
+session it serves - ephemeral, daemon-backed, and `--pam-auth` sessions
+alike - and routes the APC/DCS sequences a child process emits (`kitten
+icat`, `chafa -f kitty`, `yazi`'s image preview, `mpv --vo=kitty`, ...)
+straight through to the browser. Rendering itself happens client-side: sip
+bundles xterm.js's `@xterm/addon-image` with `kittySupport`/`sixelSupport`
+enabled, so the browser's own terminal widget draws the image, the same
+way it draws text.
+
+`tuios-web` also sets `TERM=xterm-kitty` and `COLORTERM=truecolor` for
+every process it spawns - most graphics-capable tools refuse to emit
+anything unless `$TERM` already looks kitty-aware, so without this
+they'd silently fall back to ASCII art or nothing at all.
 
 ## Architecture
 
