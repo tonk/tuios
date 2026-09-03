@@ -397,6 +397,23 @@ func settingsInjectHead(bgHex string) string {
         overflow-y: auto;
     }
     ` + bgRule + `</style>
+    <script>
+    // sip's terminal.js defaults cursorBlink/copyOnSelect to false, and -
+    // unlike fontFamily/renderer - has no window.__sipConfig hook to steer
+    // them (see static/terminal.js's DEFAULT_SETTINGS/loadSettings): the
+    // only way in is pre-seeding the same localStorage key it reads on
+    // first load, and only when nothing is stored there yet, so a
+    // returning visitor's own choice - including deliberately turning
+    // either back off - is never overwritten. Runs in <head>, so this
+    // always lands before terminal.js's own body script reads it.
+    (function() {
+        try {
+            if (!localStorage.getItem('sip-web-settings')) {
+                localStorage.setItem('sip-web-settings', JSON.stringify({ cursorBlink: true, copyOnSelect: true }));
+            }
+        } catch (e) {}
+    })();
+    </script>
 `
 }
 
