@@ -409,6 +409,13 @@ func buildEnv(u *user.User, shell string, tx *pam.Transaction) []string {
 	env["SHELL"] = shell
 	env["PATH"] = "/usr/local/bin:/usr/bin:/bin"
 	env["TERM"] = "xterm-256color"
+	// TUIOS_ENV marks a process as running under tuios, mirroring the local
+	// (internal/terminal/window.go) and daemon (internal/session/session.go)
+	// spawn paths - a script can check for it the same way it would check
+	// TMUX or KITTY_WINDOW_ID. TUIOS_SOCKET is deliberately not set here:
+	// that's the daemon's own wire protocol, which a PAM-authenticated
+	// session never goes through (see pam-helper/README.md).
+	env["TUIOS_ENV"] = "1"
 
 	out := make([]string, 0, len(env))
 	for k, v := range env {
