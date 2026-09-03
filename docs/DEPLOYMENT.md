@@ -102,7 +102,14 @@ account rather than running it as your own user or as root:
 sudo useradd --system --create-home --home-dir /var/lib/tuios-web \
     --shell /usr/sbin/nologin tuios-web
 sudo mkdir -p /etc/tuios-web
+sudo chown tuios-web:tuios-web /etc/tuios-web
 ```
+
+Owned by `tuios-web`, not just its contents: the unit file (step 5) pins
+`XDG_CONFIG_HOME=/etc/tuios-web`, and `tuios-web` creates
+`tuios/{themes,layouts,tapes}/` under it itself the first time each is
+needed - it needs write access to the directory itself for that, not just
+to files already in it.
 
 `packaging/systemd/tuios-web.service` (installed in step 5) also declares
 `StateDirectory=tuios-web`, which makes systemd create and own
@@ -135,11 +142,14 @@ knowing about for a shared/public deployment specifically:
   [docs/CONFIGURATION.md](CONFIGURATION.md#lock_titles) - stop a guest shell
   from renaming its own pane, useful when several people are looking at the
   same screen or a recording.
-- Any theme referenced by `theme = "..."` (including a custom one dropped in
-  `~/.config/tuios/themes/` - which for this service account means
-  `/var/lib/tuios-web/.config/tuios/themes/`, not `/etc/tuios-web/`) needs
-  to exist before `tuios-web` starts, or it falls back to the default with
-  a logged warning.
+- Any theme referenced by `theme = "..."` (including a custom one) needs to
+  exist before `tuios-web` starts, or it falls back to the default with a
+  logged warning. A custom theme is a `.toml`/`.json` file in
+  `packaging/systemd/tuios-web.service`'s `XDG_CONFIG_HOME` - by default
+  `/etc/tuios-web/tuios/themes/`, next to `config.toml` (not
+  `~/.config/tuios/themes/`; that would only apply if this unit didn't pin
+  `XDG_CONFIG_HOME`, and would then depend on whatever `HOME` happens to be
+  for this service account).
 
 ## 4. PAM multi-tenant mode only: set up tuios-pam-helper
 

@@ -32,6 +32,17 @@ RestartSec=2
 # under a service account's otherwise-empty $HOME. StateDirectory=tuios-web
 # creates and owns /var/lib/tuios-web (mode 0750) before every start.
 Environment=HOME=/var/lib/tuios-web
+
+# Custom themes (internal/theme.GetThemesDir), layout templates and tapes
+# are all XDG *config*-scoped (xdg.ConfigHome), which would otherwise
+# follow HOME above into /var/lib/tuios-web/.config/tuios/ - a path with
+# no visible connection to this unit's own --config flag. Pinning
+# XDG_CONFIG_HOME here instead puts them at
+# /etc/tuios-web/tuios/{themes,layouts,tapes}, next to config.toml, so an
+# admin managing this deployment finds everything in one place. Session
+# state (StateDirectory below) is a separate XDG scope and stays under
+# HOME - only config-scoped resources move.
+Environment=XDG_CONFIG_HOME=/etc/tuios-web
 StateDirectory=tuios-web
 WorkingDirectory=/var/lib/tuios-web
 
