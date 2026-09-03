@@ -12,7 +12,7 @@ maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   tuios-web - the web terminal server companion to tuios, TUIOS's
   terminal-based window manager. This package installs the binary and a
-  systemd unit (/usr/lib/systemd/system/tuios-web.service) - it does not
+  systemd unit (/etc/systemd/system/tuios-web.service) - it does not
   enable or start the service for you; see docs/DEPLOYMENT.md.
 vendor: "tuios"
 homepage: "https://github.com/tonk/tuios"
@@ -25,7 +25,7 @@ contents:
     file_info:
       mode: 0755
   - src: "packaging/systemd/tuios-web.service"
-    dst: "/usr/lib/systemd/system/tuios-web.service"
+    dst: "/etc/systemd/system/tuios-web.service"
     type: "config|noreplace"
     file_info:
       mode: 0644

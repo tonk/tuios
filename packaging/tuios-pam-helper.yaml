@@ -18,7 +18,7 @@ description: |
   their own Unix account. Must run as root; see docs/DEPLOYMENT.md before
   deploying. This package installs the binary, a starter
   /etc/pam.d/tuios-web, and a systemd unit
-  (/usr/lib/systemd/system/tuios-pam-helper.service) - it does not enable
+  (/etc/systemd/system/tuios-pam-helper.service) - it does not enable
   or start the service for you.
 vendor: "tuios"
 homepage: "https://github.com/tonk/tuios"
@@ -37,7 +37,7 @@ contents:
     file_info:
       mode: 0644
   - src: "packaging/systemd/tuios-pam-helper.service"
-    dst: "/usr/lib/systemd/system/tuios-pam-helper.service"
+    dst: "/etc/systemd/system/tuios-pam-helper.service"
     type: "config|noreplace"
     file_info:
       mode: 0644
