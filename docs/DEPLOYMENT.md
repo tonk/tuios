@@ -21,6 +21,7 @@ that. This doc is the "how do I actually keep this running" half.
 - [5. Install and start the systemd services](#5-install-and-start-the-systemd-services)
 - [6. nginx reverse proxy and TLS](#6-nginx-reverse-proxy-and-tls)
 - [7. Verifying the deployment](#7-verifying-the-deployment)
+- [Presenter mirror session (optional)](#presenter-mirror-session-optional)
 - [Hardening notes](#hardening-notes)
 - [Troubleshooting](#troubleshooting)
 - [Related Documentation](#related-documentation)
@@ -307,6 +308,89 @@ or the `tuios-web` service account otherwise.
 journalctl -u tuios-web.service -f            # tail logs live
 journalctl -u tuios-pam-helper.service -f     # PAM mode only
 ```
+
+## Presenter mirror session (optional)
+
+PAM multi-tenant mode only: type on your laptop, show the same thing on a
+projector via a second machine/tab, without giving that second tab any
+input of its own. `--pam-auth` sessions can't do this by themselves - each
+login is deliberately its own isolated, non-daemon `OS` instance
+(`createPAMTUIOSInstance`'s own doc comment), never shared between
+connections. The fix is a second, ordinary (non-PAM) `tuios-web` instance
+serving one shared daemon session that both your laptop and the projector
+machine attach to.
+
+1. **A second unit**, differing from the main one (step 5) only in port,
+   config, and dropping `--pam-auth`:
+
+   ```ini
+   # /etc/systemd/system/tuios-web-mirror.service
+   [Service]
+   Type=simple
+   # Run as whichever account should own the spawned shells - the
+   # tuios-web service account is fine, or your own presenter account if
+   # you want its dotfiles/tools available in the mirrored session.
+   User=tuios-web
+   Group=tuios-web
+   ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7682 \
+       --config /etc/tuios-web/config.toml --default-session mirror --web-settings
+   Restart=on-failure
+   RestartSec=2
+   Environment=HOME=/var/lib/tuios-web
+   Environment=XDG_CONFIG_HOME=/etc/tuios-web
+   StateDirectory=tuios-web-mirror
+   WorkingDirectory=/var/lib/tuios-web
+   NoNewPrivileges=true
+   PrivateTmp=true
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   `--default-session mirror` is what makes this shared: every connection
+   to this instance attaches to the same daemon-backed session by name
+   (see [Daemon Mode](WEB.md#daemon-mode-default)), the same feature
+   [docs/MULTI_CLIENT.md](MULTI_CLIENT.md) covers for any other purpose. A
+   dedicated `StateDirectory=` (not the main unit's `tuios-web`) matters if
+   `User=` differs from the main instance - otherwise systemd rechowns the
+   shared one out from under it on every start.
+
+2. **Gate it, since PAM isn't gating this one.** `tuios-web` has no
+   CLI-exposed HTTP Basic Auth of its own (sip's `Config.BasicUsername`/
+   `BasicPassword` support a single fixed pair, but nothing in `tuios-web`
+   wires them up) - use nginx's instead, on a route separate from the main
+   `location /` (step 6):
+
+   ```nginx
+   location /mirror/ {
+       auth_basic           "presenter mirror";
+       auth_basic_user_file /etc/nginx/.htpasswd-mirror;
+       proxy_read_timeout   1d;
+       proxy_send_timeout   1d;
+       proxy_set_header     Upgrade $http_upgrade;
+       proxy_set_header     Connection "upgrade";
+       proxy_set_header     Host $http_host;
+       rewrite ^/mirror/?$    / break;
+       rewrite ^/mirror/(.*)$ /$1 break;
+       proxy_pass            http://127.0.0.1:7682;
+       proxy_http_version    1.1;
+   }
+   ```
+
+   ```bash
+   sudo sh -c 'echo -n "presenter:" >> /etc/nginx/.htpasswd-mirror'
+   openssl passwd -apr1 | sudo tee -a /etc/nginx/.htpasswd-mirror
+   ```
+
+3. **Open the same URL and credentials on both machines** - your laptop and
+   whatever drives the projector. Anything typed on one appears on the
+   other, live.
+
+There is no per-connection read-only in `tuios-web` - `--read-only`
+disables input for every client of an instance, not just some, so it can't
+single out the projector tab while leaving your laptop interactive.
+Simplest mitigation: don't let anyone touch the projector machine's
+keyboard.
 
 ## Hardening notes
 
