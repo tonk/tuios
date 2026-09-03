@@ -125,8 +125,24 @@ rather than relying on XDG defaults under the service account's `$HOME` -
 easier to find, easier to keep under version control alongside the rest of
 your infrastructure config. `tuios-web` reads the same `config.toml` format
 as the main `tuios` binary - there's no separate `tuios-web config`
-command; `tuios`'s own `config example` subcommand is what generates the
-reference. Generate a starting point and edit it:
+command.
+
+Installed via the `.deb`/`.rpm` package instead of step 1's `make
+install`/`install-web.sh` (grab one from the releases page and `dpkg -i`/
+`rpm -i` it)? It already shipped an annotated
+`/etc/tuios-web/config.toml.example` - never read by `tuios-web` itself,
+just a reference to copy from:
+
+```bash
+sudo cp /etc/tuios-web/config.toml.example /etc/tuios-web/config.toml
+sudo chown tuios-web:tuios-web /etc/tuios-web/config.toml
+sudo -e /etc/tuios-web/config.toml
+```
+
+Otherwise there's no packaged example to copy - generate the same
+reference yourself with `tuios`'s own `config example` subcommand (this is
+exactly what the package generates at build time, so the result is
+identical):
 
 ```bash
 tuios config example > /tmp/config.toml.example

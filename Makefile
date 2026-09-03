@@ -61,15 +61,25 @@ dist:
 			-o $(DIST)/tuios-web_$(VERSION)_linux_$$arch ./cmd/tuios-web || exit 1; \
 	done
 
+# tuios-web.yaml ships this as /etc/tuios-web/config.toml.example. Generated
+# via `go run`, not one of the cross-compiled dist/ binaries: config example
+# output is pure Go logic with nothing arch-specific in it, and dist/'s
+# linux/arm64 binary can't run on the (likely amd64) host doing the
+# packaging anyway.
+$(DIST)/tuios-web-config.toml.example:
+	mkdir -p $(DIST)
+	go run ./cmd/tuios config example > $@
+
 # package builds .deb and .rpm for each binary/arch out of the dist/ binaries,
 # via nfpm (github.com/goreleaser/nfpm) - a pure-Go packager, so no dpkg-deb or
 # rpmbuild needs to be installed on the machine that runs this.
-package: dist
+package: dist $(DIST)/tuios-web-config.toml.example
 	@for arch in $(LINUX_ARCHES); do \
 		for bin in tuios tuios-web; do \
 			for fmt in deb rpm; do \
 				echo "==> $$bin linux/$$arch ($$fmt)"; \
 				VERSION=$(VERSION) ARCH=$$arch BIN_PATH=$(DIST)/$${bin}_$(VERSION)_linux_$$arch \
+					CONFIG_EXAMPLE_PATH=$(DIST)/tuios-web-config.toml.example \
 					nfpm package --config $(PACKAGING)/$$bin.yaml --packager $$fmt --target $(DIST)/ || exit 1; \
 			done; \
 		done; \

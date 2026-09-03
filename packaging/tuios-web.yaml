@@ -1,7 +1,8 @@
 # nfpm package spec for tuios-web (github.com/goreleaser/nfpm).
 #
-# ARCH, VERSION and BIN_PATH are supplied as environment variables by
-# `make package` (see Makefile) - one invocation of nfpm per (arch, format).
+# ARCH, VERSION, BIN_PATH and CONFIG_EXAMPLE_PATH are supplied as
+# environment variables by `make package` (see Makefile) - one invocation
+# of nfpm per (arch, format).
 name: "tuios-web"
 arch: "${ARCH}"
 platform: "linux"
@@ -11,9 +12,11 @@ priority: "optional"
 maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   tuios-web - the web terminal server companion to tuios, TUIOS's
-  terminal-based window manager. This package installs the binary and a
-  systemd unit (/etc/systemd/system/tuios-web.service) - it does not
-  enable or start the service for you; see docs/DEPLOYMENT.md.
+  terminal-based window manager. This package installs the binary, a
+  systemd unit (/etc/systemd/system/tuios-web.service) and an annotated
+  example config (/etc/tuios-web/config.toml.example) - it does not enable
+  or start the service, or write a live config.toml, for you; see
+  docs/DEPLOYMENT.md.
 vendor: "tuios"
 homepage: "https://github.com/tonk/tuios"
 license: "MIT"
@@ -27,5 +30,16 @@ contents:
   - src: "packaging/systemd/tuios-web.service"
     dst: "/etc/systemd/system/tuios-web.service"
     type: "config|noreplace"
+    file_info:
+      mode: 0644
+  # A reference, not a live config - tuios-web is only ever pointed at
+  # config.toml (no .example suffix) by --config, so this is never read.
+  # Always overwritten on upgrade (no "config|noreplace") since, unlike a
+  # live config, it should track the version it shipped with, not survive
+  # untouched across upgrades. Creates /etc/tuios-web/ as a side effect;
+  # see docs/DEPLOYMENT.md for chowning it to the service account.
+  - src: "${CONFIG_EXAMPLE_PATH}"
+    dst: "/etc/tuios-web/config.toml.example"
+    expand: true
     file_info:
       mode: 0644
