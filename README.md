@@ -37,6 +37,7 @@ Full documentation is available in the [`docs/`](./docs/) folder.
 - **[Multi-Client](docs/MULTI_CLIENT.md)** - Several clients on one session
 - **[Control Protocol](docs/protocol.md)** - JSON verb protocol for driving the daemon
 - **[Architecture](docs/ARCHITECTURE.md)** - Technical design
+- **[Changes Since the Fork](docs/FORK_CHANGES.md)** - Everything added or changed in this fork, by theme
 
 <details>
 <summary>Table of Contents</summary>
