@@ -120,6 +120,68 @@ func TestNewWindowPTYMatchesPaneAfterRepeatedUnplacedSync(t *testing.T) {
 	}
 }
 
+// TestRestoreFromStatePlacesSoloWindowFullSize is the regression test for a
+// real bug confirmed live: a classroom trainer-console session's first-ever
+// window (created via a login handoff with no client attached yet, so the
+// daemon marks it Unplaced with a nominal full-size box) rendered at only
+// half the browser's width and height, permanently, across every later
+// reload - because RestoreFromState (the path a brand-new attach takes,
+// distinct from ApplyStateSync's live-sync path) called placeUnplacedWindows
+// but discarded the bool it returns, so the half-workspace box
+// NewWindowPlacement hands a newly-placed window (sized to share space with a
+// second tiled window that, for a solo window, never arrives) was never
+// folded back into a full retile the way ApplyStateSync's own placed-triggered
+// TileAllWindows already does. The result got persisted as the window's
+// permanent size, so it stayed stuck at half size on every subsequent reload
+// even after restarting every service and killing the trainee's own shell.
+func TestRestoreFromStatePlacesSoloWindowFullSize(t *testing.T) {
+	prevAnim := config.AnimationsEnabled
+	config.AnimationsEnabled = false
+	t.Cleanup(func() { config.AnimationsEnabled = prevAnim })
+
+	const width, height = 130, 55
+
+	// Two identically-configured clients see the exact same daemon state -
+	// one through the already-correct live-sync path (ApplyStateSync, which
+	// retiles on a placed Unplaced window), the other through the path a
+	// brand-new attach actually takes (RestoreFromState). Comparing their
+	// results directly proves parity without hardcoding border/gap
+	// arithmetic of its own.
+	daemonState := &session.SessionState{
+		Name:             "guru01",
+		CurrentWorkspace: 1,
+		AutoTiling:       true,
+		WorkspaceFocus:   map[int]string{},
+		Version:          1,
+	}
+	daemonNewWindow(daemonState, "win-00000000000000000000000000000001", width, height, 1)
+
+	synced := newTilingClient(width, height, 1)
+	if err := synced.ApplyStateSync(daemonState); err != nil {
+		t.Fatalf("ApplyStateSync: %v", err)
+	}
+	if len(synced.Windows) != 1 {
+		t.Fatalf("synced client holds %d windows, want 1", len(synced.Windows))
+	}
+	wantW, wantH := synced.Windows[0].ContentWidth(), synced.Windows[0].ContentHeight()
+
+	restored := newTilingClient(width, height, 1)
+	if err := restored.RestoreFromState(daemonState); err != nil {
+		t.Fatalf("RestoreFromState: %v", err)
+	}
+	if len(restored.Windows) != 1 {
+		t.Fatalf("restored client holds %d windows, want 1", len(restored.Windows))
+	}
+
+	win := restored.Windows[0]
+	if got := win.ContentWidth(); got != wantW {
+		t.Errorf("solo window content width = %d, want %d (same as ApplyStateSync's already-correct retile; half-size placement was never retiled)", got, wantW)
+	}
+	if got := win.ContentHeight(); got != wantH {
+		t.Errorf("solo window content height = %d, want %d (same as ApplyStateSync's already-correct retile; half-size placement was never retiled)", got, wantH)
+	}
+}
+
 // TestNewWindowOnNewWorkspacePTYSize is the user-facing shape of the same bug:
 // switch to an empty workspace, create a window there, and the pane's shell must
 // be the size of the pane.

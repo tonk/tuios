@@ -346,7 +346,22 @@ func (m *OS) RestoreFromState(state *session.SessionState) error {
 	// A window created while nothing was attached has never been placed by
 	// anyone, and RestoredFromState below suppresses the first retile, so without
 	// this it would render as a full-size box over the restored layout.
-	m.placeUnplacedWindows(state)
+	//
+	// placeUnplacedWindows alone only shrinks such a window to
+	// NewWindowPlacement's raw placement box (half the workspace, the size a
+	// second/subsequent tiled window would want to share space with a first) -
+	// it does not fold the result back into the tiling layout the way
+	// adoptSyncedWindows's own placed-triggered retile does for the live-sync
+	// case. For the common case here - a session with only ever this one
+	// window, e.g. every classroom login-handoff session's initial window -
+	// nothing else exists to tile against, so that half-size box is never
+	// corrected and gets persisted as this window's permanent size: every
+	// later reload restores the same stuck half-width/half-height window.
+	// Retiling here, exactly when placeUnplacedWindows actually placed
+	// something, closes that gap the same way the sync path already does.
+	if m.placeUnplacedWindows(state) {
+		m.TileAllWindows()
+	}
 
 	m.MarkAllDirty()
 	m.LogInfo("[RESTORE] Restored session state: %d windows, FocusedWindow=%d, AutoTiling=%v, Workspace=%d", len(m.Windows), m.FocusedWindow, m.AutoTiling, m.CurrentWorkspace)
