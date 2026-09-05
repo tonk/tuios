@@ -109,6 +109,10 @@ func ValidateConfig(cfg *UserConfig) *ValidationResult {
 	// POSIX environment variable)
 	validateEnvConfig(cfg, result)
 
+	// Validate the classroom section (warn on a config that turns the
+	// trainer console on but can't actually let anyone use it)
+	validateClassroomConfig(cfg, result)
+
 	// Check for keybinding conflicts (same key bound to multiple actions)
 	conflicts := findConflicts(cfg, normalizer)
 	for key, actions := range conflicts {
@@ -271,6 +275,45 @@ func validateEnvConfig(cfg *UserConfig, result *ValidationResult) {
 			Field:   "env",
 			Key:     key,
 			Message: fmt.Sprintf("%q is not a standard environment variable name (letters, digits, underscore, not starting with a digit); it is still exported as written", key),
+		})
+	}
+}
+
+// validateClassroomConfig warns when [classroom] is configured in a way that
+// can't do anything: trainer_console on with no trainer_users to grant it to,
+// or with no trainee_pattern to match any session against, and when
+// trainee_pattern doesn't compile as a regular expression at all. None of
+// these are treated as hard errors - an inert or malformed [classroom]
+// section fails safe (nobody can cross-attach) rather than refusing to start
+// the whole config.
+func validateClassroomConfig(cfg *UserConfig, result *ValidationResult) {
+	c := &cfg.Classroom
+
+	if c.TraineePattern != "" {
+		if _, err := regexp.Compile(c.TraineePattern); err != nil {
+			result.Warnings = append(result.Warnings, ValidationError{
+				Field:   "classroom",
+				Key:     "trainee_pattern",
+				Message: fmt.Sprintf("%q is not a valid regular expression: %v; the trainer console will match nothing", c.TraineePattern, err),
+			})
+		}
+	}
+
+	if !c.TrainerConsole {
+		return
+	}
+	if len(c.TrainerUsers) == 0 {
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field:   "classroom",
+			Key:     "trainer_users",
+			Message: "trainer_console is enabled but trainer_users is empty; nobody is allowed to use the trainer console",
+		})
+	}
+	if c.TraineePattern == "" {
+		result.Warnings = append(result.Warnings, ValidationError{
+			Field:   "classroom",
+			Key:     "trainee_pattern",
+			Message: "trainer_console is enabled but trainee_pattern is empty; the trainer console will list no sessions",
 		})
 	}
 }

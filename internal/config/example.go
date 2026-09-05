@@ -186,6 +186,14 @@ var exampleTables = []exampleTable{
 		},
 	},
 	{
+		Path: "classroom",
+		Fields: []exampleField{
+			{"trainer_console", "false", "Enable the trainer console (tuios-web PAM classroom mode only): a cross-user picker letting trainer_users attach to another trainee's live session by name."},
+			{"trainer_users", "[]", "Exact usernames allowed to open the trainer console and attach to another user's session. This is the actual access gate - empty means nobody, even with trainer_console set."},
+			{"trainee_pattern", `""`, `Go regular expression matched against a session's name (the trainee's own username) to decide what appears in the picker, e.g. "^guru[0-9]{2}$". Required non-empty for the console to list anything.`},
+		},
+	},
+	{
 		Path: "keybindings",
 		Fields: []exampleField{
 			{"leader_key", `"ctrl+b"`, "Prefix key for leader-based (tmux-style) commands."},

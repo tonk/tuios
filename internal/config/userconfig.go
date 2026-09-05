@@ -25,6 +25,7 @@ type UserConfig struct {
 	Tape          TapeConfig          `toml:"tape"`
 	Hooks         HooksConfig         `toml:"hooks"`
 	Debug         DebugConfig         `toml:"debug"`
+	Classroom     ClassroomConfig     `toml:"classroom"`
 	// Env holds extra environment variables to export into every shell tuios
 	// spawns (local windows and daemon-backed sessions alike), on top of
 	// whatever tuios itself already inherited. A TOML table is used instead of
@@ -68,6 +69,30 @@ type DebugConfig struct {
 	// --show-keys flag, the settings entry, the command palette, and the
 	// leader-D-k keybinding. Default false.
 	ShowKeyEvents bool `toml:"show_key_events"`
+}
+
+// ClassroomConfig holds trainer-console settings for tuios-web's PAM
+// classroom deployments (see docs/DEPLOYMENT.md): who is allowed to view and
+// control another trainee's live session, and which trainee sessions are
+// eligible to show up in the picker. Off by default - a config file with no
+// [classroom] section, or one that never sets trainer_console, behaves
+// exactly as before: no cross-user attach is possible at all.
+type ClassroomConfig struct {
+	// TrainerConsole enables the cross-user session picker for the accounts
+	// listed in TrainerUsers. Default false.
+	TrainerConsole bool `toml:"trainer_console"`
+	// TrainerUsers lists the exact usernames allowed to open the trainer
+	// console and attach to any session matching TraineePattern. This is the
+	// actual access-control gate, not just a UI toggle: an empty list means
+	// nobody may cross-attach, even with TrainerConsole set to true.
+	TrainerUsers []string `toml:"trainer_users"`
+	// TraineePattern is a Go RE2 regular expression (see regexp/syntax)
+	// matched against a session's name - the trainee's own username - to
+	// decide what appears in the trainer's picker, e.g. "^guru[0-9]{2}$".
+	// Left empty, the console lists nothing: there is no implicit "match
+	// everyone" default, since that would silently expose every account on
+	// the box to whoever is in TrainerUsers.
+	TraineePattern string `toml:"trainee_pattern"`
 }
 
 // StartupConfig holds settings that only take effect when a session starts.

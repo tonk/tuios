@@ -11,6 +11,7 @@ TUIOS supports user-configurable keybindings through a TOML configuration file, 
 - [Notification Settings](#notification-settings)
 - [Startup Settings](#startup-settings)
 - [Daemon Settings](#daemon-settings)
+- [Classroom Settings](#classroom-settings)
 - [Hooks](#hooks)
 - [Environment Variables](#environment-variables)
 - [Key Syntax](#key-syntax)
@@ -1051,6 +1052,54 @@ new window, detach, or kill it.
 **Default:** `false`
 
 **Note:** This does not apply to `tuios ssh --ephemeral`, which never uses a daemon at all.
+
+## Classroom Settings
+
+The `[classroom]` table gates the **trainer console**: a `tuios-web` feature
+(PAM multi-tenant/"classroom" deployments only, see
+[docs/DEPLOYMENT.md](DEPLOYMENT.md)) that lets a designated trainer account
+attach to another trainee's live session - view it, type into it - by
+picking it from a list. This section only defines *who is authorized*; the
+console itself is not implemented yet.
+
+```toml
+[classroom]
+trainer_console = false
+trainer_users = ["ton"]
+trainee_pattern = "^guru[0-9]{2}$"
+```
+
+### trainer_console
+
+Master switch for the feature. `false` (the default) means no config below
+it has any effect at all - a file with no `[classroom]` section behaves
+identically.
+
+**Default:** `false`
+
+### trainer_users
+
+The exact usernames allowed to open the trainer console and attach to
+another user's session. **This is the real access-control gate**, not just
+a UI toggle - it is checked server-side against the account that
+PAM-authenticated the connection, never trusted to anything the client
+sends. An empty list (the default) means nobody may cross-attach, even with
+`trainer_console` set to `true`.
+
+**Default:** `[]`
+
+### trainee_pattern
+
+A Go regular expression (RE2 syntax) matched against a session's name - the
+trainee's own username - to decide what shows up in the trainer's picker.
+Left empty, the console lists no sessions: there is deliberately no
+implicit "match everyone" default, since that would expose every account on
+the box to whoever is listed in `trainer_users`.
+
+**Default:** `""`
+
+**Example:** `"^guru[0-9]{2}$"` matches `guru00` through `guru99` and
+nothing else.
 
 ## Hooks
 
