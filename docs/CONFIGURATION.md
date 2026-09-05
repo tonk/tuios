@@ -1075,11 +1075,13 @@ for you (same reasoning as that pattern: a separate, explicitly-managed
 systemd unit, not automatic re-exec magic). See
 [docs/DEPLOYMENT.md](DEPLOYMENT.md).
 
-An authorized trainer requests another trainee's session with the `attach`
-query parameter on the same URL they'd otherwise use for their own, e.g.
-`https://tuios.example.com/?attach=guru07`. There is no picker UI yet - the
-trainer has to know (or be told) the username to type. A denied request
-(the account isn't in `trainer_users`, or the target doesn't match
+An authorized trainer connecting with no `attach` query parameter lands on
+a picker: a live, `trainee_pattern`-filtered, self-excluding list of
+sessions (arrow keys + enter to attach), polled from the daemon every few
+seconds. To jump straight to a specific trainee without going through the
+picker, use the `attach` query parameter on the connection URL instead,
+e.g. `https://tuios.example.com/?attach=guru07`. Either way, a denied
+request (the account isn't in `trainer_users`, or the target doesn't match
 `trainee_pattern`) gets the same generic "authentication failed" response as
 a wrong password, so it can't be used to probe who is or isn't an
 authorized trainer.

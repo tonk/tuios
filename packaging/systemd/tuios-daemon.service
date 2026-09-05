@@ -1,0 +1,39 @@
+[Unit]
+Description=tuios - background session daemon (classroom trainer console support)
+Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
+After=network.target
+
+[Service]
+Type=simple
+
+# Needed only for the [classroom] trainer console (docs/DEPLOYMENT.md,
+# "Trainer console"): tuios-web dials this daemon to create/attach a
+# trainee's classroom session instead of spawning shells itself. Not needed
+# for any other tuios-web deployment shape - skip this unit entirely if
+# trainer_console stays false (the default).
+#
+# Must run as the same account tuios-web.service does (User=/Group=
+# tuios-web below, matching that unit's default) - the daemon's socket is
+# permission-gated to a single uid, and tuios-web is the only thing that
+# ever needs to reach it.
+User=tuios-web
+Group=tuios-web
+
+# tuios-web.service runs with PrivateTmp=true, which gives it its own
+# isolated /tmp invisible to this separate unit - the default socket path
+# ($XDG_RUNTIME_DIR, or /tmp/tuios-<uid>/ as a fallback) would otherwise
+# never be reachable from here. XDG_RUNTIME_DIR is set explicitly instead,
+# to tuios-web.service's own StateDirectory-managed, non-tmp directory - the
+# identical value must also be added to tuios-web.service's own
+# [Service] section (see docs/DEPLOYMENT.md).
+Environment=HOME=/home/tuios-web
+Environment=XDG_RUNTIME_DIR=/var/lib/tuios-web
+ExecStart=/usr/local/bin/tuios daemon
+Restart=on-failure
+RestartSec=2
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

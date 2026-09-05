@@ -412,20 +412,33 @@ start this daemon for you, deliberately - same reasoning as
 `tuios-web` re-execs on demand: an explicit, independently-managed unit is
 easier to reason about than automatic process spawning.
 
-There is no packaged systemd unit for the bare daemon yet (only
-`tuios-web.service`, `tuios-web-mirror.service` and
-`tuios-pam-helper.service` ship under `packaging/systemd/`) - write your own
-`ExecStart=/usr/local/bin/tuios daemon`, running as the same account
-`tuios-web.service` runs as, `Restart=on-failure`, no special sandboxing
-needed beyond what `tuios-web.service` already has. The only hard
-requirement: it must use the same daemon socket `tuios-web` itself resolves
-by default - don't point `tuios-web` or the daemon at a custom `[daemon]
-socket_path` unless both agree on it.
+```bash
+sudo cp packaging/systemd/tuios-daemon.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+**`tuios-web.service` needs one addition first: `Environment=XDG_RUNTIME_DIR=/var/lib/tuios-web`**,
+next to its existing `Environment=` lines (`sudo systemctl edit --full
+tuios-web.service`). `tuios-web.service` runs with `PrivateTmp=true`, which
+gives it its own isolated `/tmp` - the session-daemon protocol's default
+socket path (`$XDG_RUNTIME_DIR`, or a `/tmp/tuios-<uid>/` fallback if unset)
+would otherwise never be reachable from `tuios-daemon.service`, a *separate*
+unit with its own, different private `/tmp`. Pointing both at the same
+real, non-tmp, already-`StateDirectory`-managed directory sidesteps that
+entirely - `tuios-daemon.service` (above) already sets the identical value,
+so this is the only edit needed on the `tuios-web.service` side. Skip this
+whole paragraph if `tuios-web.service`'s `PrivateTmp` is ever turned off.
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now tuios-daemon.service
+sudo systemctl restart tuios-web.service   # to pick up the new environment line
+```
 
 Without a reachable daemon, a classroom connection shows a plain
 full-screen error instead of silently falling back to a different,
 non-persistent kind of session - if trainees report that, check
-`systemctl status tuios.service` first.
+`systemctl status tuios-daemon.service` first.
 
 ## Hardening notes
 
