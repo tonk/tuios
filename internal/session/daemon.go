@@ -24,6 +24,12 @@ type Daemon struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 
+	// classroomListener is the login-handoff socket described in
+	// daemon_classroom.go. nil until Start (or startClassroomHandoffListener
+	// specifically) succeeds; a failure to bind it is logged but does not
+	// stop the daemon from starting, since ordinary sessions never need it.
+	classroomListener net.Listener
+
 	// Connection tracking
 	clients   map[string]*connState
 	clientsMu sync.RWMutex
@@ -365,6 +371,13 @@ func (d *Daemon) Start() error {
 	go d.stallMonitor()
 	go d.agentMonitor()
 
+	// Classroom sessions are an opt-in, PAM-specific feature (see
+	// docs/CONFIGURATION.md's [classroom] section); a daemon serving none of
+	// them still starts and works normally even if this fails to bind.
+	if err := d.startClassroomHandoffListener(); err != nil {
+		log.Printf("classroom login handoff disabled: %v", err)
+	}
+
 	return nil
 }
 
@@ -407,6 +420,10 @@ func (d *Daemon) shutdown() error {
 
 		if d.listener != nil {
 			_ = d.listener.Close()
+		}
+		if d.classroomListener != nil {
+			_ = d.classroomListener.Close()
+			_ = os.Remove(classroomHandoffSocketPath(d.manager.SocketPath()))
 		}
 
 		d.clientsMu.Lock()
