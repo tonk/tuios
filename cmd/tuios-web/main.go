@@ -902,15 +902,21 @@ func createClassroomTUIOSInstance(login *pamauth.Login, width, height int, graph
 	defer func() { _ = login.Close() }()
 	sessionName := login.Username()
 
-	// If the session already exists, attach directly - a browser reconnect
-	// must never hand off a fresh login for an existing session; see
-	// Session.SetClassroomSpawner's own doc comment for why that would be
-	// dangerous (it would kill every window already open), not merely
-	// wasteful.
-	if model, opts, err := attachDaemonSession(sessionName, false, width, height, graphicsOut, touch); err == nil {
-		return model, opts, nil
-	}
-
+	// Always hand off, even when the session may already exist - a browser
+	// reconnect must not skip straight to attaching, because "already
+	// exists" is not the same as "already has a live spawner": a session
+	// resurrected from disk after a daemon restart exists (its windows came
+	// back via RestorePTY) but was never handed a login, so it runs as the
+	// daemon's own account, not this trainee's - attaching directly to it
+	// would silently rejoin that wrong-account window forever. The daemon's
+	// own handleClassroomHandoff already handles every shape safely: no
+	// session yet - create one; a stale, spawner-less one - tear it down
+	// and recreate; a live one already spawning this trainee's shells -
+	// discard this login as redundant without touching it (see
+	// Session.SetClassroomSpawner's own doc comment for why it never
+	// replaces an in-use spawner). So this never risks killing windows
+	// already open; it only costs one extra, cheap round trip to the
+	// daemon on every reconnect.
 	loginFD, err := login.File()
 	if err != nil {
 		return nil, nil, fmt.Errorf("preparing classroom login handoff: %w", err)
