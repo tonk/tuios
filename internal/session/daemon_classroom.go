@@ -124,20 +124,30 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 		_ = writeClassroomHandoffAck(uconn, err)
 		return
 	}
-	sess.SetClassroomSpawner(login)
-
-	if created {
-		sessionID := sess.ID
-		onExit := func(ptyID string) { d.notifyPTYClosed(sessionID, ptyID) }
-		if _, err := sess.NewClassroomWindow("", onExit); err != nil {
-			log.Printf("classroom handoff for %q: failed to open initial window: %v", sessionName, err)
-			_ = writeClassroomHandoffAck(uconn, err)
-			return
-		}
-		log.Printf("Created classroom session %q for %q with an initial window", sessionName, username)
-	} else {
-		log.Printf("Classroom session %q for %q reconnected", sessionName, username)
+	if !created {
+		// A session-with-a-spawner already exists: either a genuine race with
+		// another handoff for the same trainee, or (before the client's own
+		// existence check) a redundant call. Either way, this login is not
+		// the session's spawner - installing it would silently orphan the
+		// spawner actually in use (never closed, since nothing else holds a
+		// reference to replace) without the daemon knowing to stop using it,
+		// and closing the login we DO hold spawns no shells to signal, so it
+		// is always safe to just end here instead.
+		_ = login.Close()
+		log.Printf("Classroom session %q for %q already exists; discarding redundant login handoff", sessionName, username)
+		_ = writeClassroomHandoffAck(uconn, nil)
+		return
 	}
+
+	sess.SetClassroomSpawner(login)
+	sessionID := sess.ID
+	onExit := func(ptyID string) { d.notifyPTYClosed(sessionID, ptyID) }
+	if _, err := sess.NewClassroomWindow("", onExit); err != nil {
+		log.Printf("classroom handoff for %q: failed to open initial window: %v", sessionName, err)
+		_ = writeClassroomHandoffAck(uconn, err)
+		return
+	}
+	log.Printf("Created classroom session %q for %q with an initial window", sessionName, username)
 
 	_ = writeClassroomHandoffAck(uconn, nil)
 }

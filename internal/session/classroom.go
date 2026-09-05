@@ -26,10 +26,19 @@ type ClassroomSpawner interface {
 // SetClassroomSpawner attaches sp as this session's PAM login: the source of
 // every window's PTY from now on, via NewClassroomWindow, in place of this
 // session spawning shells itself via exec.Command. A session gets one only
-// through the daemon's classroom login-handoff listener; an ordinary session
-// never has one. Calling it again (e.g. a trainee's login reconnecting after
-// a network blip) replaces the previous spawner without affecting any window
-// already open under it.
+// through the daemon's classroom login-handoff listener, exactly once, when
+// the session is first created; an ordinary session never has one.
+//
+// Calling it again on a session that already has one is dangerous, not
+// idempotent: pamauth.Login.Close (which a caller would need to call on the
+// previous spawner to avoid leaking it) signals every shell that Login ever
+// spawned - i.e. every window currently open under it - which is never what
+// a mere browser reconnect should do. A trainee's browser reconnecting
+// re-authenticates via PAM on every connection (see pamAuthMiddleware), but
+// that freshly-dialed, as-yet-unused Login must be closed by the caller
+// without ever reaching here once the daemon already holds a live spawner
+// for the session; see the handoff client's own existence check before
+// calling SendClassroomLogin.
 func (s *Session) SetClassroomSpawner(sp ClassroomSpawner) {
 	s.classroomSpawnerMu.Lock()
 	s.classroomSpawner = sp

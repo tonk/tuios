@@ -125,13 +125,15 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 	defer func() { _ = loginFile.Close() }()
 
 	d := NewDaemon(&DaemonConfig{DisableAutoRestore: true})
-	defer d.manager.Shutdown()
+	// Not a bare listener Close: that leaves d.ctx uncancelled, so
+	// classroomHandoffAcceptLoop's ctx.Done() check never fires and it spins
+	// logging accept errors instead of returning. Stop cancels first.
+	defer d.Stop()
 	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
 	d.manager.SetSocketPath(mainSocketPath)
 	if err := d.startClassroomHandoffListener(); err != nil {
 		t.Fatalf("startClassroomHandoffListener: %v", err)
 	}
-	defer func() { _ = d.classroomListener.Close() }()
 
 	if err := SendClassroomLogin(mainSocketPath, "guru07", "guru07", loginFile, 80, 24); err != nil {
 		t.Fatalf("SendClassroomLogin: %v", err)
@@ -162,5 +164,32 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 	}
 	if p.IsExited() {
 		t.Fatal("initial window's PTY already reports exited")
+	}
+
+	// A second handoff for the same session name (a race between two near-
+	// simultaneous first connections, or a client that skipped its own
+	// existence check) must not replace the spawner already in use, and must
+	// not open a second window.
+	firstSpawner := sess.ClassroomSpawner()
+	secondHelperPath := runFakePAMHelper(t)
+	secondHelperConn, err := net.Dial("unixpacket", secondHelperPath)
+	if err != nil {
+		t.Fatalf("dialing second fake helper: %v", err)
+	}
+	secondLoginFile, err := secondHelperConn.(*net.UnixConn).File()
+	if err != nil {
+		t.Fatalf("File: %v", err)
+	}
+	_ = secondHelperConn.Close()
+	defer func() { _ = secondLoginFile.Close() }()
+
+	if err := SendClassroomLogin(mainSocketPath, "guru07", "guru07", secondLoginFile, 80, 24); err != nil {
+		t.Fatalf("second SendClassroomLogin: %v", err)
+	}
+	if got := sess.ClassroomSpawner(); got != firstSpawner {
+		t.Fatal("a redundant handoff replaced the session's existing spawner")
+	}
+	if state := sess.GetState(); len(state.Windows) != 1 {
+		t.Fatalf("window count after redundant handoff = %d, want 1", len(state.Windows))
 	}
 }
