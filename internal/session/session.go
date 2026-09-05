@@ -745,8 +745,9 @@ func (s *Session) AdoptPTY(windowID string, ptyFile *os.File, pid int, width, he
 		// Not a critical error, continue - matches CreatePTY's own handling of
 		// a post-start resize failure, and internal/terminal.NewAdoptedWindow's
 		// identical tolerance for the same call on the non-daemon path.
-		_ = err
+		debugLog("[DEBUG] AdoptPTY: resize to %dx%d failed (continuing): %v", width, height, err)
 	}
+	debugLog("[DEBUG] AdoptPTY: adopted fd=%d pid=%d size=%dx%d", ptyFile.Fd(), pid, width, height)
 
 	pty := s.newPTY(newPTYArgs{
 		id:         id,
@@ -2267,6 +2268,7 @@ func (p *PTY) readOutput() {
 
 		n, err := p.pty.Read(buf)
 		if err != nil {
+			debugLog("[DEBUG] PTY %s: readOutput exiting: %v", p.ID[:8], err)
 			return
 		}
 
