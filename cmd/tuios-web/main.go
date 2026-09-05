@@ -373,7 +373,7 @@ func runWebServer() error {
 	}
 	sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, touchMiddleware(touch))
 	if webPAMAuth {
-		sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, pamAuthMiddleware(webPAMSocket))
+		sipConfig.ConnectMiddleware = append(sipConfig.ConnectMiddleware, pamAuthMiddleware(webPAMSocket, userConfig.Classroom))
 		log.Printf("PAM auth enabled (service defined by the pam-helper's own /etc/pam.d/tuios-web, socket %s)", webPAMSocket)
 	}
 	if webWebSettings {
@@ -590,12 +590,31 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 	graphicsOut := sess.PtySlave()
 	touch := sessionIsTouch(sess.Context())
 
-	// A PAM-authenticated connection (--pam-auth) always gets its own
-	// session, spawning every window as the trainee's own Unix account -
-	// this takes priority over both the ephemeral and daemon-backed paths
-	// below, neither of which is safe to hand a session that must run as a
-	// different uid per connection.
+	// A PAM-authenticated connection (--pam-auth) takes priority over both
+	// the ephemeral and daemon-backed paths below, neither of which is safe
+	// to hand a session that must run as a different uid per connection -
+	// unless the [classroom] trainer console is enabled, in which case
+	// classroom sessions are exactly a daemon-backed session whose windows
+	// happen to be spawned by a held PAM login rather than tuios-web's own
+	// account; see createClassroomTUIOSInstance.
 	if login, ok := pamLoginFromContext(sess.Context()); ok {
+		userConfig, err := loadWebUserConfig()
+		if err != nil {
+			userConfig = config.DefaultConfig()
+		}
+		if userConfig.Classroom.TrainerConsole {
+			sessionName := login.Username()
+			if target, ok := classroomAttachTargetFromContext(sess.Context()); ok {
+				sessionName = target
+			}
+			model, opts, err := createClassroomTUIOSInstance(login, sessionName, pty.Width, pty.Height, graphicsOut, touch)
+			if err != nil {
+				log.Printf("classroom session %q: %v", sessionName, err)
+				return classroomErrorModel{err: err}, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
+			}
+			return model, opts
+		}
+
 		model := createPAMTUIOSInstance(login, pty.Width, pty.Height, graphicsOut, touch)
 		go func() {
 			<-sess.Context().Done()
@@ -715,6 +734,28 @@ func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut
 
 // createDaemonTUIOSInstance creates a TUIOS instance connected to the daemon
 func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+	// Determine which session to attach to. The previous behavior  - picking
+	// an arbitrary existing session  - was confusing and non-deterministic.
+	// New behavior:
+	//   - If --default-session is set, use that (create if missing).
+	//   - Otherwise attach to a dedicated session named "web" (create if
+	//     missing). Users can then `Ctrl+B S` to switch to any other session
+	//     from inside TUIOS using the built-in session switcher.
+	if sessionName == "" {
+		sessionName = "web"
+	}
+	return attachDaemonSession(sessionName, true, width, height, graphicsOut, touch)
+}
+
+// attachDaemonSession connects to the daemon and attaches to sessionName,
+// creating it first if createNew is true and it does not already exist, then
+// builds a daemon-backed OS instance around it. Shared by the ordinary
+// daemon path (createDaemonTUIOSInstance) and the classroom PAM path
+// (createClassroomTUIOSInstance), which differ only in how the session comes
+// to exist before this runs - createNew is always false for the latter,
+// since a classroom session that does not exist yet is created via a login
+// handoff, never by this attaching client.
+func attachDaemonSession(sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	// Connect to daemon
 	client := session.NewTUIClient()
 	v := webServerConfig.version
@@ -740,22 +781,12 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 		return nil, nil, fmt.Errorf("failed to connect to daemon: %w", err)
 	}
 
-	// Determine which session to attach to. The previous behavior  - picking
-	// an arbitrary existing session  - was confusing and non-deterministic.
-	// New behavior:
-	//   - If --default-session is set, use that (create if missing).
-	//   - Otherwise attach to a dedicated session named "web" (create if
-	//     missing). Users can then `Ctrl+B S` to switch to any other session
-	//     from inside TUIOS using the built-in session switcher.
-	if sessionName == "" {
-		sessionName = "web"
-	}
-
-	// Attach to session (create if doesn't exist). webReadOnly is already
-	// enforced at the sip WebSocket layer (processInput drops MsgInput before
-	// it ever reaches here); passing it through too makes the daemon
-	// authoritative for this client as well, the same as attach/ssh.
-	state, err := client.AttachSession(sessionName, true, width, height, webReadOnly)
+	// Attach to session (create if doesn't exist and createNew is set).
+	// webReadOnly is already enforced at the sip WebSocket layer
+	// (processInput drops MsgInput before it ever reaches here); passing it
+	// through too makes the daemon authoritative for this client as well,
+	// the same as attach/ssh.
+	state, err := client.AttachSession(sessionName, createNew, width, height, webReadOnly)
 	if err != nil {
 		_ = client.Close()
 		return nil, nil, fmt.Errorf("failed to attach to session: %w", err)
@@ -823,6 +854,74 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 	return tuiosInstance, []tea.ProgramOption{
 		tea.WithFPS(config.MaxFPSCap),
 	}, nil
+}
+
+// createClassroomTUIOSInstance builds a daemon-backed TUIOS instance for a
+// PAM-authenticated connection under the [classroom] trainer console:
+// sessionName's shells are spawned by login (a trainee's own Unix account)
+// rather than tuios-web's, via the daemon's classroom login-handoff socket
+// (internal/session.SendClassroomLogin) - not by this connection itself, so
+// the session persists and stays attachable across reconnects and by an
+// authorized trainer, unlike an ordinary --pam-auth session.
+// sessionName is login.Username() for a trainee attaching to their own
+// session, or another trainee's username when the connecting user is an
+// authorized trainer (see pamAuthMiddleware/classroomAttachTargetFromContext).
+//
+// login is always closed by the time this returns, one way or another: it is
+// either handed to the daemon (which keeps its own independent copy - see
+// pamauth.Login.File) or, when the session already exists, redundant. Either
+// way tuios-web has no further use for its own copy once this returns.
+func createClassroomTUIOSInstance(login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+	defer func() { _ = login.Close() }()
+
+	// If the session already exists, attach directly - a browser reconnect
+	// must never hand off a fresh login for an existing session; see
+	// Session.SetClassroomSpawner's own doc comment for why that would be
+	// dangerous (it would kill every window already open), not merely
+	// wasteful.
+	if model, opts, err := attachDaemonSession(sessionName, false, width, height, graphicsOut, touch); err == nil {
+		return model, opts, nil
+	}
+
+	loginFD, err := login.File()
+	if err != nil {
+		return nil, nil, fmt.Errorf("preparing classroom login handoff: %w", err)
+	}
+	socketPath, err := session.GetSocketPath()
+	if err != nil {
+		_ = loginFD.Close()
+		return nil, nil, fmt.Errorf("resolving daemon socket path: %w", err)
+	}
+	handoffErr := session.SendClassroomLogin(socketPath, sessionName, login.Username(), loginFD, width, height)
+	_ = loginFD.Close()
+	if handoffErr != nil {
+		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
+	}
+
+	return attachDaemonSession(sessionName, false, width, height, graphicsOut, touch)
+}
+
+// classroomErrorModel is a minimal full-screen error display for when a
+// classroom PAM connection cannot get a working session (daemon unreachable,
+// handoff rejected, etc). Shown instead of silently falling back to a
+// different, non-persistent kind of session, which would be surprising for a
+// feature whose entire point is a persistent, cross-attachable one.
+type classroomErrorModel struct{ err error }
+
+func (m classroomErrorModel) Init() tea.Cmd { return nil }
+
+func (m classroomErrorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(tea.KeyPressMsg); ok {
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m classroomErrorModel) View() tea.View {
+	var v tea.View
+	v.SetContent(fmt.Sprintf("TUIOS classroom session unavailable:\n\n%v\n\nPress any key to disconnect.", m.err))
+	v.AltScreen = true
+	return v
 }
 
 // registerMultiClientHandlers registers handlers for multi-client messages
