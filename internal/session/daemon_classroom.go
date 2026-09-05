@@ -107,19 +107,16 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 		_ = writeClassroomHandoffAck(uconn, err)
 		return
 	}
-	// No defer loginFile.Close() here: NewLoginFromFD already closes
-	// loginFile's underlying fd itself, every time, success or error (it
-	// wraps then hands the fd to net.FileConn, which dups it, then closes
-	// the original - see that function's own doc comment). A second close
-	// here would be a double-close on that fd *number*: by the time this
-	// function returns, the kernel may already have reassigned it to
-	// something else entirely (in production, exactly the adopted PTY's own
-	// fd, spawned moments later) - closing "loginFile" at that point closes
-	// whatever now holds that number, not loginFile at all. This was a real,
-	// silent bug: the adopted PTY's fd got closed out from under a running
-	// shell, which then read as "bad file descriptor" with no indication
-	// why - see internal/session/session.go's readOutput/AdoptPTY debug
-	// logging, added while tracking this down.
+	// No defer loginFile.Close() here: NewLoginFromFD takes ownership of
+	// loginFile's fd (kept open as part of the returned Login, closed
+	// alongside it by Login.Close - see that field's own doc comment for
+	// why closing it any earlier is a real, timing-dependent hazard: two
+	// separate, real bugs were caught here before this shape was settled on
+	// - closing it immediately raced the adopted PTY's own fd for the same
+	// freed number (silently killing a running shell, logged as "bad file
+	// descriptor" with no indication why until readOutput/AdoptPTY started
+	// debugLog-ing this), and deferring the close to here instead raced it
+	// just the same, only later.
 	login, err := pamauth.NewLoginFromFD(loginFile.Fd(), username)
 	if err != nil {
 		log.Printf("classroom handoff for %q: %v", sessionName, err)

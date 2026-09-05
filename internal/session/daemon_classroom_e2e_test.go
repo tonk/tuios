@@ -166,6 +166,32 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 		t.Fatal("initial window's PTY already reports exited")
 	}
 
+	// Regression test for a real, timing-dependent bug: closing the fd
+	// NewLoginFromFD reconstructs a Login around - whether immediately, or
+	// deferred to handleClassroomHandoff's own return - frees its number
+	// for reuse while the Login is still actively used moments later to
+	// receive the adopted PTY's own fd. When something grabbed that freed
+	// number first, the PTY silently died within moments of creation
+	// (logged as "bad file descriptor", confirmed live against stepper). A
+	// single IsExited() check right after creation never caught this; only
+	// reading/writing after a delay does. Fixed by tying the reconstructed
+	// fd's lifetime to the Login's own (closed together in Login.Close),
+	// removing the free-then-reuse window entirely rather than just moving
+	// it.
+	if _, err := p.Write([]byte("echo classroom-marker\n")); err != nil {
+		t.Fatalf("write to PTY: %v", err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if p.IsExited() {
+		t.Fatal("PTY exited shortly after creation - closed out from under the shell")
+	}
+	if _, err := p.Write([]byte("echo still-alive\n")); err != nil {
+		t.Fatalf("second write to PTY after a delay: %v", err)
+	}
+	if p.IsExited() {
+		t.Fatal("PTY exited after a second write - closed out from under the shell")
+	}
+
 	// A second handoff for the same session name (a race between two near-
 	// simultaneous first connections, or a client that skipped its own
 	// existence check) must not replace the spawner already in use, and must

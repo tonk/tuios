@@ -58,6 +58,16 @@ const (
 type Login struct {
 	conn     *net.UnixConn
 	username string
+	// origFile, when set (only for a Login built by NewLoginFromFD), is the
+	// os.File conn's fd was reconstructed from - kept open and closed
+	// alongside conn, rather than immediately after net.FileConn dups it, to
+	// avoid a real, timing-dependent race: closing it immediately frees its
+	// fd *number* for reuse by anything else in the process while conn is
+	// still very much in active use (about to send/receive SpawnPTY's own
+	// fd), and if something else grabs that freed number before conn is
+	// done with it, closing "origFile" later closes whatever now holds that
+	// number instead. See NewLoginFromFD.
+	origFile *os.File
 }
 
 // Username is the trainee this Login authenticated as - the same value
@@ -168,9 +178,19 @@ func (l *Login) ClosePTY(pid int) error {
 }
 
 // Close ends the login: the helper signals every shell still running for it
-// and tears down the PAM session once it sees the connection close.
+// and tears down the PAM session once it sees the connection close - which,
+// for a Login built by NewLoginFromFD, requires closing origFile too: the
+// helper only sees the connection as closed once every fd referencing it
+// anywhere is closed, and origFile is a second one, deliberately kept open
+// until now (see the field's own doc comment).
 func (l *Login) Close() error {
-	return l.conn.Close()
+	err := l.conn.Close()
+	if l.origFile != nil {
+		if fErr := l.origFile.Close(); err == nil {
+			err = fErr
+		}
+	}
+	return err
 }
 
 // File returns a duplicate of this Login's connection to the helper, as an
@@ -195,16 +215,20 @@ func (l *Login) File() (*os.File, error) {
 func NewLoginFromFD(fd uintptr, username string) (*Login, error) {
 	f := os.NewFile(fd, "pam-login")
 	conn, err := net.FileConn(f)
-	_ = f.Close() // FileConn dups the fd; this process's original is no longer needed.
 	if err != nil {
+		_ = f.Close()
 		return nil, fmt.Errorf("reconstructing login connection: %w", err)
 	}
 	uconn, ok := conn.(*net.UnixConn)
 	if !ok {
 		_ = conn.Close()
+		_ = f.Close()
 		return nil, fmt.Errorf("received fd is not a unix connection (%T)", conn)
 	}
-	return &Login{conn: uconn, username: username}, nil
+	// f is deliberately not closed here even though net.FileConn already
+	// dup'd it - see Login.origFile's own doc comment for why closing it
+	// immediately is a real hazard, not just an unnecessary extra fd.
+	return &Login{conn: uconn, username: username, origFile: f}, nil
 }
 
 // String satisfies sip.Identity, so a *Login can be carried in a
