@@ -22,16 +22,24 @@ const classroomPickerRefreshInterval = 3 * time.Second
 // classroomPickerModel is the trainer console's landing screen: an
 // authorized trainer connecting with no "attach" query parameter (see
 // pamAuthMiddleware/classroomShowPickerFromContext) lands here instead of
-// their own session, and picks a live trainee session to attach to instead
-// of having to know/type a username. Once one is chosen, Update/View
-// delegate to the attached daemon-backed OS instance built around it - see
-// the "m.attached != nil" branches below - for the rest of the connection's
-// life.
+// their own session, and picks a live trainee session to attach to - or
+// their own, ordinary session - instead of having to know/type a username
+// or URL. Once one is chosen, Update/View delegate to the attached
+// daemon-backed OS instance built around it - see the "m.attached != nil"
+// branches below - for the rest of the connection's life.
 //
-// login is only ever used to authenticate this connection; a trainer never
-// spawns anything themselves (see createTrainerAttachInstance's own
-// reasoning), so it is closed as soon as the picker is built.
+// The list always has one extra, fixed entry at the top - "My own session"
+// - ahead of the live trainee list; cursor 0 is that entry, cursor N is
+// m.sessions[N-1].
+//
+// login is kept alive for as long as the picker is showing: unlike
+// attaching to another trainee's already-live session (never needs it - see
+// attach's own reasoning), the trainer's own session may not exist yet, and
+// creating it needs a live login to hand off (see attachOwn). It is closed
+// on every exit from the picker - quitting, or a successful attach of
+// either kind, whichever comes first.
 type classroomPickerModel struct {
+	login         *pamauth.Login
 	self          string
 	pattern       *regexp.Regexp
 	patternErr    error
@@ -60,10 +68,10 @@ type classroomPickerRefreshMsg struct {
 // failure, the same "fails closed" treatment ClassroomConfig.MatchesTrainee
 // already gives it server-side.
 func newClassroomPickerModel(login *pamauth.Login, traineePattern string, width, height int, graphicsOut *os.File, touch bool) *classroomPickerModel {
-	self := login.Username()
-	_ = login.Close()
-
-	m := &classroomPickerModel{self: self, width: width, height: height, graphicsOut: graphicsOut, touch: touch}
+	m := &classroomPickerModel{
+		login: login, self: login.Username(),
+		width: width, height: height, graphicsOut: graphicsOut, touch: touch,
+	}
 	if traineePattern == "" {
 		m.patternErr = fmt.Errorf("classroom.trainee_pattern is empty; no session can ever match")
 	} else if re, err := regexp.Compile(traineePattern); err != nil {
@@ -110,8 +118,9 @@ func (m *classroomPickerModel) refreshCmd() tea.Cmd {
 
 // filterClassroomSessions keeps only sessions matching pattern, excluding
 // self even if its own name would otherwise match (e.g. a trainer named
-// "guru00" against "^guru[0-9]{2}$": watching their own session through the
-// picker makes no sense), sorted by name for a stable, predictable list.
+// "guru00" against "^guru[0-9]{2}$": it appears as the picker's fixed "My
+// own session" entry instead, never twice), sorted by name for a stable,
+// predictable list.
 func filterClassroomSessions(all []session.SessionInfo, self string, pattern *regexp.Regexp) []session.SessionInfo {
 	filtered := make([]session.SessionInfo, 0, len(all))
 	for _, s := range all {
@@ -145,8 +154,8 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loadErr = msg.err
 		if msg.err == nil {
 			m.sessions = msg.sessions
-			if m.cursor >= len(m.sessions) {
-				m.cursor = max(len(m.sessions)-1, 0)
+			if m.cursor > len(m.sessions) {
+				m.cursor = len(m.sessions)
 			}
 		}
 		return m, nil
@@ -159,27 +168,50 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "down", "j":
-			if m.cursor < len(m.sessions)-1 {
+			if m.cursor < len(m.sessions) {
 				m.cursor++
 			}
 			return m, nil
 		case "enter":
-			if len(m.sessions) == 0 {
-				return m, nil
+			if m.cursor == 0 {
+				return m.attachOwn()
 			}
-			return m.attach(m.sessions[m.cursor].Name)
+			return m.attach(m.sessions[m.cursor-1].Name)
 		case "q", "esc", "ctrl+c":
+			_ = m.login.Close()
 			return m, tea.Quit
 		}
 	}
 	return m, nil
 }
 
+// attachOwn builds (creating it via a login handoff first, if it doesn't
+// already exist) the trainer's own classroom session - exactly the same
+// path an ordinary trainee's own connection uses, since a trainer is just
+// as much a PAM-authenticated account as anyone else in [classroom]
+// trainer_users. This is the only picker action that can ever need login,
+// which is why it stays open until now instead of being closed at
+// construction like an ordinary cross-attach never needs it to be.
+func (m *classroomPickerModel) attachOwn() (tea.Model, tea.Cmd) {
+	model, _, err := createClassroomTUIOSInstance(m.login, m.width, m.height, m.graphicsOut, m.touch)
+	if err != nil {
+		m.loadErr = fmt.Errorf("attaching to your own session: %w", err)
+		return m, nil
+	}
+	m.attached = model
+	return m, model.Init()
+}
+
 // attach builds a daemon-backed instance around an already-live session
 // from the picker's own list - never a login handoff, since a session only
 // ever appears here because some trainee is already logged into it under
-// their own account.
+// their own account. login is closed here since this path never needs it;
+// if this fails, picking "My own session" afterward will no longer work
+// either (login is gone) - a trainer hitting that would need to reconnect,
+// an accepted rough edge rather than keeping login alive on a false chance
+// it's needed again.
 func (m *classroomPickerModel) attach(name string) (tea.Model, tea.Cmd) {
+	_ = m.login.Close()
 	model, _, err := attachDaemonSession(name, false, m.width, m.height, m.graphicsOut, m.touch)
 	if err != nil {
 		m.loadErr = fmt.Errorf("attaching to %q: %w", name, err)
@@ -212,6 +244,14 @@ func (m *classroomPickerModel) View() tea.View {
 		b.WriteString("\n\n")
 	}
 
+	ownLine := fmt.Sprintf("My own session (%s)", m.self)
+	if m.cursor == 0 {
+		b.WriteString(selectedStyle.Render("▸ " + ownLine))
+	} else {
+		b.WriteString(normalStyle.Render("  " + ownLine))
+	}
+	b.WriteString("\n\n")
+
 	if len(m.sessions) == 0 {
 		b.WriteString(dimStyle.Render("No live trainee sessions right now."))
 		b.WriteString("\n\n")
@@ -222,7 +262,7 @@ func (m *classroomPickerModel) View() tea.View {
 				status = "attached"
 			}
 			line := fmt.Sprintf("%s (%d windows, %s)", s.Name, s.WindowCount, status)
-			if i == m.cursor {
+			if i+1 == m.cursor {
 				b.WriteString(selectedStyle.Render("▸ " + line))
 			} else {
 				b.WriteString(normalStyle.Render("  " + line))
@@ -234,8 +274,15 @@ func (m *classroomPickerModel) View() tea.View {
 
 	b.WriteString(dimStyle.Render("↑/k up  ↓/j down  enter: attach  q/esc: disconnect"))
 
+	// Padded to the full terminal size rather than left as a small block of
+	// text at the top-left: tea.View has no notion of a "fill the screen"
+	// default the way an ordinary tuios window/dock layout does, so without
+	// this the picker renders as a cramped island in an otherwise blank
+	// viewport.
+	content := lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, b.String())
+
 	var v tea.View
-	v.SetContent(b.String())
+	v.SetContent(content)
 	v.AltScreen = true
 	return v
 }
