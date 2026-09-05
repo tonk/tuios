@@ -138,8 +138,7 @@ func firstVisibleOnWorkspace(windows []WindowState, workspace int) string {
 // daemonWindowSize returns the outer window box (width, height) - the
 // session's own tracked size, falling back to 80x24 when unset - and the PTY
 // content size derived from it (inset for the border). Every daemon-window
-// constructor (AddDaemonWindow, AdoptDaemonWindow, NewClassroomWindow) needs
-// both identically.
+// constructor (AddDaemonWindow, AdoptDaemonWindow) needs both identically.
 func (s *Session) daemonWindowSize() (width, height, ptyWidth, ptyHeight int) {
 	width, height = s.Size()
 	if width <= 0 {
@@ -172,10 +171,9 @@ func newDaemonWindowID(title string) (id, resolvedTitle string) {
 
 // registerDaemonWindow appends a canonical window around an already-created
 // PTY to the session state, focusing it on the current workspace, and
-// returns a copy of it. Shared tail for AddDaemonWindow, AdoptDaemonWindow
-// and NewClassroomWindow, which differ only in how the PTY itself came to
-// exist; geometry is a nominal full-size box that a client re-tiles on
-// attach.
+// returns a copy of it. Shared tail for AddDaemonWindow and
+// AdoptDaemonWindow, which differ only in how the PTY itself came to exist;
+// geometry is a nominal full-size box that a client re-tiles on attach.
 func (s *Session) registerDaemonWindow(windowID, title string, width, height int, pty *PTY) WindowState {
 	var win WindowState
 	_ = s.mutateState(func(state *SessionState) error {

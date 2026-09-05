@@ -1,7 +1,6 @@
 package session
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -24,8 +23,9 @@ type ClassroomSpawner interface {
 }
 
 // SetClassroomSpawner attaches sp as this session's PAM login: the source of
-// every window's PTY from now on, via NewClassroomWindow, in place of this
-// session spawning shells itself via exec.Command. A session gets one only
+// every window's PTY from now on (see Session.CreatePTY, which checks for
+// one before falling back to its own exec.Command spawn), in place of this
+// session spawning shells itself. A session gets one only
 // through the daemon's classroom login-handoff listener, exactly once, when
 // the session is first created; an ordinary session never has one.
 //
@@ -51,31 +51,4 @@ func (s *Session) ClassroomSpawner() ClassroomSpawner {
 	s.classroomSpawnerMu.RLock()
 	defer s.classroomSpawnerMu.RUnlock()
 	return s.classroomSpawner
-}
-
-// NewClassroomWindow opens a window whose shell is spawned by this session's
-// held PAM login (SpawnPTY) rather than by this session directly, adopting
-// the resulting PTY exactly like AddDaemonWindow's own exec.Command spawn -
-// see AdoptDaemonWindow. Returns an error if this session has no classroom
-// spawner.
-func (s *Session) NewClassroomWindow(title string, onExit func(ptyID string)) (WindowState, error) {
-	sp := s.ClassroomSpawner()
-	if sp == nil {
-		return WindowState{}, fmt.Errorf("session %q has no classroom login", s.Name)
-	}
-
-	width, height, ptyWidth, ptyHeight := s.daemonWindowSize()
-	windowID, title := newDaemonWindowID(title)
-
-	ptyFile, pid, err := sp.SpawnPTY(ptyWidth, ptyHeight)
-	if err != nil {
-		return WindowState{}, fmt.Errorf("spawning PTY via classroom login: %w", err)
-	}
-	pty, err := s.AdoptPTY(windowID, ptyFile, pid, ptyWidth, ptyHeight, onExit, func() error {
-		return sp.ClosePTY(pid)
-	})
-	if err != nil {
-		return WindowState{}, err
-	}
-	return s.registerDaemonWindow(windowID, title, width, height, pty), nil
 }

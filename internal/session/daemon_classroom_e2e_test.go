@@ -22,7 +22,7 @@ import (
 // out the other side - the composition of pieces already tested in
 // isolation (daemon_classroom_test.go's wire round trip,
 // pamauth_test.go's Login-from-fd round trip, classroom_test.go's
-// NewClassroomWindow).
+// CreatePTY-dispatches-to-the-spawner behavior).
 const (
 	fakeMsgSpawnPTY       byte = 3
 	fakeMsgSpawnPTYResult byte = 4

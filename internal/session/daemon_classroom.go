@@ -18,9 +18,8 @@ import (
 // hand this daemon process the trainee's *pamauth.Login - reconstructed here
 // from a file descriptor received via SCM_RIGHTS, since a Login's live
 // connection to tuios-pam-helper cannot otherwise cross a process boundary.
-// From then on the daemon calls SpawnPTY/ClosePTY on it directly (see
-// Session.NewClassroomWindow) for every window that session ever opens, not
-// just the first.
+// From then on Session.CreatePTY calls SpawnPTY/ClosePTY on it directly for
+// every window that session ever opens, not just the first.
 //
 // It is deliberately a separate socket rather than a new message type
 // layered onto the main one: the main protocol's per-message reads go
@@ -139,10 +138,13 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 		return
 	}
 
+	// SetClassroomSpawner must run before AddDaemonWindow: CreatePTY (which
+	// AddDaemonWindow calls) checks for a classroom spawner and only routes
+	// through it when one is already installed.
 	sess.SetClassroomSpawner(login)
 	sessionID := sess.ID
 	onExit := func(ptyID string) { d.notifyPTYClosed(sessionID, ptyID) }
-	if _, err := sess.NewClassroomWindow("", onExit); err != nil {
+	if _, err := sess.AddDaemonWindow("", onExit); err != nil {
 		log.Printf("classroom handoff for %q: failed to open initial window: %v", sessionName, err)
 		_ = writeClassroomHandoffAck(uconn, err)
 		return
@@ -232,7 +234,7 @@ func writeClassroomHandoffAck(conn *net.UnixConn, handoffErr error) error {
 
 // SendClassroomLogin hands the trainee login behind loginFD over to the
 // daemon at daemonSocketPath, so it can spawn every window of the named
-// session itself from now on (see Session.NewClassroomWindow). loginFD is
+// session itself from now on (see Session.CreatePTY). loginFD is
 // typically the result of (*pamauth.Login).File in the caller - this
 // function takes a bare *os.File rather than a *pamauth.Login so this
 // package does not need to import internal/pamauth itself; only the

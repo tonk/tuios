@@ -13,8 +13,9 @@ import (
 
 // fakeClassroomSpawner stands in for a *pamauth.Login in tests: each SpawnPTY
 // starts a real local shell (there is no tuios-pam-helper in a unit test) and
-// records what ClosePTY/Close were asked to do, so NewClassroomWindow and its
-// window's Close can be verified without a privileged helper process.
+// records what ClosePTY/Close were asked to do, so a classroom window (one
+// created by AddDaemonWindow/CreatePTY on a session with a spawner set) and
+// its Close can be verified without a privileged helper process.
 type fakeClassroomSpawner struct {
 	mu        sync.Mutex
 	cmds      map[int]*exec.Cmd
@@ -73,12 +74,15 @@ func (f *fakeClassroomSpawner) wasClosed(pid int) bool {
 	return slices.Contains(f.closed, pid)
 }
 
-// TestNewClassroomWindow exercises a classroom session end to end at the
+// TestClassroomWindow exercises a classroom session end to end at the
 // session-package level: a held spawner (standing in for a *pamauth.Login)
-// provides every window's PTY, output still flows into the daemon's VT
-// emulator exactly like an ordinary window, and closing the window routes
-// through the spawner's ClosePTY rather than a local process kill.
-func TestNewClassroomWindow(t *testing.T) {
+// provides every window's PTY - via the ordinary AddDaemonWindow/CreatePTY
+// path, which is what a live client's own "new window" request also goes
+// through (see CreatePTY's own doc comment on why that matters) - output
+// still flows into the daemon's VT emulator exactly like an ordinary
+// window, and closing the window routes through the spawner's ClosePTY
+// rather than a local process kill.
+func TestClassroomWindow(t *testing.T) {
 	// Not newTestSession: that registers its own t.Cleanup(sess.Stop), and
 	// this test calls Stop itself to check it tears down the spawner -
 	// Stop is not safe to call twice (a pre-existing, unrelated issue in the
@@ -94,9 +98,9 @@ func TestNewClassroomWindow(t *testing.T) {
 		t.Fatalf("ClassroomSpawner() = %v, want the spawner just set", got)
 	}
 
-	win, err := sess.NewClassroomWindow("trainee shell", nil)
+	win, err := sess.AddDaemonWindow("trainee shell", nil)
 	if err != nil {
-		t.Fatalf("NewClassroomWindow: %v", err)
+		t.Fatalf("AddDaemonWindow: %v", err)
 	}
 	if win.PTYID == "" {
 		t.Fatal("created window has empty PTYID")
@@ -145,13 +149,37 @@ func TestNewClassroomWindow(t *testing.T) {
 	}
 }
 
-// TestNewClassroomWindowNoSpawner pins the error path: an ordinary session
-// (no PAM login attached) must refuse to spawn a classroom window rather
-// than silently falling back to a local exec.Command shell, which would
-// spawn a shell as the daemon's own uid instead of failing closed.
-func TestNewClassroomWindowNoSpawner(t *testing.T) {
+// TestSecondClassroomWindowAlsoUsesSpawner is the regression test for the
+// actual bug this dispatch fixed: only the very first window (created at
+// login-handoff time) was ever routed through the classroom spawner: a
+// *second* window - exactly what a live client asks for via handleCreatePTY
+// after, say, the trainee's shell exits and the browser wants a fresh one -
+// went straight to CreatePTY's ordinary exec.Command spawn, silently running
+// as the daemon's own account instead of the trainee's. Confirmed live on a
+// real deployment: the window's title ended up "tuios-web@host:/" instead of
+// running as the trainee. Every window from here on must go through the
+// spawner, not just the first.
+func TestSecondClassroomWindowAlsoUsesSpawner(t *testing.T) {
 	sess := newTestSession(t)
-	if _, err := sess.NewClassroomWindow("", nil); err == nil {
-		t.Fatal("NewClassroomWindow succeeded with no classroom spawner set")
+	sp := newFakeClassroomSpawner()
+	sess.SetClassroomSpawner(sp)
+
+	first, err := sess.AddDaemonWindow("first", nil)
+	if err != nil {
+		t.Fatalf("first AddDaemonWindow: %v", err)
+	}
+	second, err := sess.AddDaemonWindow("second", nil)
+	if err != nil {
+		t.Fatalf("second AddDaemonWindow: %v", err)
+	}
+
+	for _, win := range []WindowState{first, second} {
+		p := sess.GetPTY(win.PTYID)
+		if p == nil {
+			t.Fatalf("window %q has no live PTY", win.Title)
+		}
+		if pid := p.ShellPID(); pid == 0 {
+			t.Errorf("window %q: ShellPID() = 0, want a real adopted pid from the spawner", win.Title)
+		}
 	}
 }

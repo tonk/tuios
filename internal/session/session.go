@@ -442,10 +442,10 @@ type Session struct {
 	sizeMu sync.RWMutex
 
 	// classroomSpawner, when set, is this session's held PAM login (see
-	// SetClassroomSpawner/NewClassroomWindow in classroom.go): a classroom
-	// (PAM-authenticated) session's shells are spawned through it, one call per
-	// window, rather than by this session directly via exec.Command. nil for
-	// every ordinary session.
+	// SetClassroomSpawner in classroom.go and CreatePTY's own dispatch): a
+	// classroom (PAM-authenticated) session's shells are spawned through it,
+	// one call per window, rather than by this session directly via
+	// exec.Command. nil for every ordinary session.
 	classroomSpawner   ClassroomSpawner
 	classroomSpawnerMu sync.RWMutex
 
@@ -613,7 +613,27 @@ func (s *Session) publishState(snap *SessionState) {
 // client-side window UUID exported to the shell as TUIOS_WINDOW_ID. onExit, if
 // non-nil, is invoked with the PTY ID when the process exits; it is set before
 // the monitor goroutine starts so it is always visible to monitorExit.
+//
+// If this session holds a classroom spawner (see SetClassroomSpawner), every
+// window - not just the one created at handoff time - is spawned through it
+// instead of this session's own exec.Command, so a trainee's shell always
+// runs as their own account. This is the single choke point every window
+// creation path goes through (AddDaemonWindow's own headless spawn, and
+// handleCreatePTY's live "new window" request from an already-attached
+// client) - a classroom session missing this check here once meant a
+// replacement window (e.g. after the trainee's shell exited and the client
+// asked for a fresh one) silently fell back to running as tuios-web's own
+// account instead.
 func (s *Session) CreatePTY(windowID string, width, height int, onExit func(ptyID string)) (*PTY, error) {
+	if sp := s.ClassroomSpawner(); sp != nil {
+		ptyFile, pid, err := sp.SpawnPTY(width, height)
+		if err != nil {
+			return nil, fmt.Errorf("spawning PTY via classroom login: %w", err)
+		}
+		return s.AdoptPTY(windowID, ptyFile, pid, width, height, onExit, func() error {
+			return sp.ClosePTY(pid)
+		})
+	}
 	return s.createPTY(windowID, width, height, "", false, onExit)
 }
 
@@ -622,6 +642,14 @@ func (s *Session) CreatePTY(windowID string, width, height int, onExit func(ptyI
 // marks the shell as restored: the shell's environment carries TUIOS_RESTORED=1
 // and a one-line banner is written to the terminal so the user can see the
 // process is a freshly respawned shell, not the original long-lived one.
+//
+// Deliberately calls createPTY directly rather than going through CreatePTY's
+// own classroom-spawner dispatch: a live PAM login is never available yet at
+// daemon startup (resurrection runs before any trainee has reconnected to
+// hand one over), so there is no spawner to route through even for a session
+// whose name says otherwise. A classroom session's windows come back running
+// as tuios-web's own account until the trainee reconnects and a fresh
+// window is created through the ordinary CreatePTY path.
 func (s *Session) RestorePTY(windowID string, width, height int, cwd string, onExit func(ptyID string)) (*PTY, error) {
 	return s.createPTY(windowID, width, height, cwd, true, onExit)
 }
