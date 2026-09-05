@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"io"
@@ -11,6 +12,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/tonk/tuios/internal/pamauth"
 	"github.com/tonk/tuios/internal/theme"
@@ -92,23 +95,108 @@ func newFrontDoor(publicAddr, internalAddr string, tlsConfig *tls.Config, pamSoc
 // requirePAM wraps next so every request must present valid PAM credentials
 // first. See newFrontDoor for why this wraps the whole mux rather than being
 // inlined into one route's handler.
+//
+// A single page load is not one request here: sip's index.html alone pulls
+// in two stylesheets, two font files and three scripts (see static/
+// index.html in the vendored sip module), each proxied through this same
+// handler, on top of "/" itself and the WebSocket upgrade that follows -
+// nine-plus requests, all carrying the identical Basic Auth header a browser
+// caches after the first 401. Verifying every one of them against the real
+// pam-helper (a full PAM login: pam_unix's own crypt(), any slower module a
+// deployment's /etc/pam.d stacks on top) paid that cost that many times for
+// credentials that had not changed since the request before it, and was a
+// real, measurable share of how long a browser took to get from opening the
+// page to a working shell. A short-lived cache of already-verified
+// (username, password) pairs collapses a page load's whole asset burst back
+// down to the one real PAM call that actually has to happen, without
+// weakening what a 401 gates: wrong or revoked credentials still fail
+// immediately, and a cached pass expires quickly enough that it only ever
+// covers requests that were always going to arrive within the same load.
 func requirePAM(pamSocketPath string, next http.Handler) http.Handler {
+	verified := newVerifiedCredentialCache()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, password, ok := r.BasicAuth()
 		if !ok {
 			unauthorizedHTTP(w)
 			return
 		}
-		if err := pamauth.Verify(pamSocketPath, username, password); err != nil {
-			// Same reasoning as pamAuthMiddleware in pamauth.go: log the
-			// real reason server-side, tell the browser nothing more than
-			// "authentication failed".
-			log.Printf("PAM login for %q failed: %v", username, err)
-			unauthorizedHTTP(w)
-			return
+		if !verified.recentlyVerified(username, password) {
+			if err := pamauth.Verify(pamSocketPath, username, password); err != nil {
+				// Same reasoning as pamAuthMiddleware in pamauth.go: log the
+				// real reason server-side, tell the browser nothing more than
+				// "authentication failed".
+				log.Printf("PAM login for %q failed: %v", username, err)
+				unauthorizedHTTP(w)
+				return
+			}
+			verified.remember(username, password)
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// verifiedCredentialCacheTTL bounds how long a successful PAM verification is
+// trusted without redialing pam-helper: long enough to cover one page load's
+// burst of near-simultaneous asset requests (they all arrive within
+// milliseconds of each other in practice), short enough that a revoked or
+// changed password is only ever honored for a moment past whatever page load
+// was already in flight when it changed - not meaningfully different from the
+// ordinary window between a password change and this browser tab's next
+// reload.
+const verifiedCredentialCacheTTL = 10 * time.Second
+
+// verifiedCredentialCache remembers which (username, password) pairs
+// requirePAM has already confirmed with the real pam-helper recently, keyed
+// by a hash rather than the raw password so a cache dump does not hand out
+// plaintext credentials.
+type verifiedCredentialCache struct {
+	mu      sync.Mutex
+	expires map[[sha256.Size]byte]time.Time
+}
+
+func newVerifiedCredentialCache() *verifiedCredentialCache {
+	return &verifiedCredentialCache{expires: make(map[[sha256.Size]byte]time.Time)}
+}
+
+func verifiedCredentialKey(username, password string) [sha256.Size]byte {
+	// A NUL separator: neither field can contain one, so two (username,
+	// password) pairs can never collide onto the same concatenated bytes the
+	// way naive concatenation could (e.g. "ab"+"c" vs "a"+"bc").
+	return sha256.Sum256([]byte(username + "\x00" + password))
+}
+
+func (c *verifiedCredentialCache) recentlyVerified(username, password string) bool {
+	key := verifiedCredentialKey(username, password)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	exp, ok := c.expires[key]
+	if !ok {
+		return false
+	}
+	if time.Now().After(exp) {
+		delete(c.expires, key)
+		return false
+	}
+	return true
+}
+
+// remember also sweeps every already-expired entry: a cache that only ever
+// grows (one entry per distinct (username, password) pair anyone has ever
+// tried, valid or not) would be a slow memory leak on a long-running
+// service; piggybacking the sweep on the one call that adds an entry keeps
+// this bounded without a separate goroutine or ticker for what is a tiny,
+// infrequent map in practice.
+func (c *verifiedCredentialCache) remember(username, password string) {
+	key := verifiedCredentialKey(username, password)
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k, exp := range c.expires {
+		if now.After(exp) {
+			delete(c.expires, k)
+		}
+	}
+	c.expires[key] = now.Add(verifiedCredentialCacheTTL)
 }
 
 func unauthorizedHTTP(w http.ResponseWriter) {
