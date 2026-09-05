@@ -49,14 +49,22 @@ func pamAuthMiddleware(socketPath string, classroom config.ClassroomConfig) sip.
 			// never trusted to anything the client claims about itself. A
 			// denied request gets the same generic "authentication failed" as
 			// a wrong password: which check it tripped is not something to
-			// hand an attacker either.
-			if target := r.URL.Query().Get("attach"); target != "" && target != username {
+			// hand an attacker either. attach=<own username> is deliberately
+			// not a cross-attach at all - it falls through to the default
+			// (own-session) case below, same as no attach param.
+			target := r.URL.Query().Get("attach")
+			switch {
+			case target != "" && target != username:
 				if !classroom.IsTrainer(username) || !classroom.MatchesTrainee(target) {
 					log.Printf("classroom attach denied: %q requested session %q", username, target)
 					_ = login.Close()
 					return unauthorized("Authentication failed")
 				}
 				ctx = withClassroomAttachTarget(ctx, target)
+			case target == "" && classroom.IsTrainer(username):
+				// An authorized trainer who didn't ask for a specific session
+				// lands on the picker instead of their own session.
+				ctx = withClassroomShowPicker(ctx)
 			}
 
 			return next(r.WithContext(ctx))
@@ -80,6 +88,20 @@ func withClassroomAttachTarget(ctx context.Context, target string) context.Conte
 func classroomAttachTargetFromContext(ctx context.Context) (string, bool) {
 	target, ok := ctx.Value(classroomAttachTargetKey{}).(string)
 	return target, ok
+}
+
+// classroomShowPickerKey is the context key marking an authorized trainer
+// connection that asked for no specific session, so createTUIOSHandler shows
+// the picker instead of that trainer's own session.
+type classroomShowPickerKey struct{}
+
+func withClassroomShowPicker(ctx context.Context) context.Context {
+	return context.WithValue(ctx, classroomShowPickerKey{}, true)
+}
+
+func classroomShowPickerFromContext(ctx context.Context) bool {
+	show, _ := ctx.Value(classroomShowPickerKey{}).(bool)
+	return show
 }
 
 func unauthorized(body string) error {

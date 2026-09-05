@@ -49,14 +49,19 @@ func runFakePAMHelperForAuth(t *testing.T) string {
 }
 
 // fakeNextCalled records whether the wrapped handler ran, and with what
-// context, so tests can assert on classroomAttachTargetFromContext without
-// needing a real sip.Session.
+// context, so tests can assert on classroomAttachTargetFromContext and
+// classroomShowPickerFromContext without needing a real sip.Session.
 func fakeNext(called *bool, gotTarget *string, gotOK *bool) sip.ConnectHandler {
+	return fakeNextWithPicker(called, gotTarget, gotOK, new(bool))
+}
+
+func fakeNextWithPicker(called *bool, gotTarget *string, gotOK *bool, gotShowPicker *bool) sip.ConnectHandler {
 	return func(r *http.Request) error {
 		*called = true
 		target, ok := classroomAttachTargetFromContext(r.Context())
 		*gotTarget = target
 		*gotOK = ok
+		*gotShowPicker = classroomShowPickerFromContext(r.Context())
 		return nil
 	}
 }
@@ -168,6 +173,47 @@ func TestPAMAuthMiddlewareAllowsAuthorizedTrainer(t *testing.T) {
 	}
 	if !ok || target != "guru07" {
 		t.Errorf("classroom attach target = %q, %v; want \"guru07\", true", target, ok)
+	}
+}
+
+func TestPAMAuthMiddlewareTrainerWithNoTargetShowsPicker(t *testing.T) {
+	socketPath := runFakePAMHelperForAuth(t)
+	var called, ok, showPicker bool
+	var target string
+	mw := pamAuthMiddleware(socketPath, classroomTestConfig())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.SetBasicAuth("ton", "irrelevant")
+	if err := mw(fakeNextWithPicker(&called, &target, &ok, &showPicker))(req); err != nil {
+		t.Fatalf("middleware returned an error: %v", err)
+	}
+	if !called {
+		t.Fatal("next handler was not called")
+	}
+	if ok {
+		t.Errorf("classroom attach target = %q, want none when the trainer asked for no specific session", target)
+	}
+	if !showPicker {
+		t.Error("an authorized trainer with no attach param should see the picker")
+	}
+}
+
+func TestPAMAuthMiddlewareNonTrainerNeverSeesPicker(t *testing.T) {
+	socketPath := runFakePAMHelperForAuth(t)
+	var called, ok, showPicker bool
+	var target string
+	mw := pamAuthMiddleware(socketPath, classroomTestConfig())
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.SetBasicAuth("guru07", "irrelevant")
+	if err := mw(fakeNextWithPicker(&called, &target, &ok, &showPicker))(req); err != nil {
+		t.Fatalf("middleware returned an error: %v", err)
+	}
+	if !called {
+		t.Fatal("next handler was not called")
+	}
+	if showPicker {
+		t.Error("an ordinary trainee must never see the trainer picker")
 	}
 }
 

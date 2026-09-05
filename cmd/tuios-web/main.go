@@ -603,13 +603,34 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 			userConfig = config.DefaultConfig()
 		}
 		if userConfig.Classroom.TrainerConsole {
-			sessionName := login.Username()
+			// A trainer attaching to ANOTHER trainee's session - login
+			// belongs to the trainer, never the trainee, so this must go
+			// through createTrainerAttachInstance, never
+			// createClassroomTUIOSInstance: the latter's login-handoff
+			// fallback would silently spawn the "trainee's" shells under the
+			// trainer's own account if the target session didn't exist yet.
 			if target, ok := classroomAttachTargetFromContext(sess.Context()); ok {
-				sessionName = target
+				model, opts, err := createTrainerAttachInstance(login, target, pty.Width, pty.Height, graphicsOut, touch)
+				if err != nil {
+					log.Printf("trainer attach to %q: %v", target, err)
+					return classroomErrorModel{err: err}, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
+				}
+				return model, opts
 			}
-			model, opts, err := createClassroomTUIOSInstance(login, sessionName, pty.Width, pty.Height, graphicsOut, touch)
+
+			// An authorized trainer with no specific target lands on the
+			// picker instead of their own session.
+			if classroomShowPickerFromContext(sess.Context()) {
+				model := newClassroomPickerModel(login, userConfig.Classroom.TraineePattern, pty.Width, pty.Height, graphicsOut, touch)
+				return model, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
+			}
+
+			// Own session (a non-trainer, or a trainer who asked for
+			// ?attach=<their own username>): login and the target account
+			// are the same account, so creating it via a handoff is safe.
+			model, opts, err := createClassroomTUIOSInstance(login, pty.Width, pty.Height, graphicsOut, touch)
 			if err != nil {
-				log.Printf("classroom session %q: %v", sessionName, err)
+				log.Printf("classroom session %q: %v", login.Username(), err)
 				return classroomErrorModel{err: err}, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
 			}
 			return model, opts
@@ -857,22 +878,29 @@ func attachDaemonSession(sessionName string, createNew bool, width, height int, 
 }
 
 // createClassroomTUIOSInstance builds a daemon-backed TUIOS instance for a
-// PAM-authenticated connection under the [classroom] trainer console:
-// sessionName's shells are spawned by login (a trainee's own Unix account)
-// rather than tuios-web's, via the daemon's classroom login-handoff socket
-// (internal/session.SendClassroomLogin) - not by this connection itself, so
-// the session persists and stays attachable across reconnects and by an
-// authorized trainer, unlike an ordinary --pam-auth session.
-// sessionName is login.Username() for a trainee attaching to their own
-// session, or another trainee's username when the connecting user is an
-// authorized trainer (see pamAuthMiddleware/classroomAttachTargetFromContext).
+// PAM-authenticated connection's OWN classroom session under the
+// [classroom] trainer console: login.Username()'s shells are spawned by
+// login (that trainee's own Unix account) rather than tuios-web's, via the
+// daemon's classroom login-handoff socket (internal/session.
+// SendClassroomLogin) - not by this connection itself, so the session
+// persists and stays attachable across reconnects and by an authorized
+// trainer, unlike an ordinary --pam-auth session.
+//
+// This always uses login.Username() as the session name - never a
+// caller-supplied one - because the login-handoff fallback below spawns
+// shells as whoever login authenticated as. A trainer attaching to a
+// DIFFERENT trainee's session must go through createTrainerAttachInstance
+// instead, which never creates anything: creating a session named after one
+// account but backed by another account's login would silently mislabel
+// whose shells are actually running there.
 //
 // login is always closed by the time this returns, one way or another: it is
 // either handed to the daemon (which keeps its own independent copy - see
 // pamauth.Login.File) or, when the session already exists, redundant. Either
 // way tuios-web has no further use for its own copy once this returns.
-func createClassroomTUIOSInstance(login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+func createClassroomTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	defer func() { _ = login.Close() }()
+	sessionName := login.Username()
 
 	// If the session already exists, attach directly - a browser reconnect
 	// must never hand off a fresh login for an existing session; see
@@ -892,13 +920,34 @@ func createClassroomTUIOSInstance(login *pamauth.Login, sessionName string, widt
 		_ = loginFD.Close()
 		return nil, nil, fmt.Errorf("resolving daemon socket path: %w", err)
 	}
-	handoffErr := session.SendClassroomLogin(socketPath, sessionName, login.Username(), loginFD, width, height)
+	handoffErr := session.SendClassroomLogin(socketPath, sessionName, sessionName, loginFD, width, height)
 	_ = loginFD.Close()
 	if handoffErr != nil {
 		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
 	}
 
 	return attachDaemonSession(sessionName, false, width, height, graphicsOut, touch)
+}
+
+// createTrainerAttachInstance builds a daemon-backed instance for an
+// authorized trainer attaching to ANOTHER trainee's already-existing
+// classroom session (see pamAuthMiddleware/classroomAttachTargetFromContext,
+// which authorizes sessionName before this is ever called). login belongs to
+// the trainer, not the trainee named by sessionName, so - unlike
+// createClassroomTUIOSInstance's own-session path - this must never create
+// the session: doing so would spawn it under the trainer's own account
+// while it sits there named after the trainee, which a real trainee logging
+// in later would then silently attach to instead of getting their own.
+// login is only ever needed to authenticate this connection and is closed
+// immediately; the target session must already be live (the trainee is
+// actually logged in) or this returns an error.
+func createTrainerAttachInstance(login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+	_ = login.Close()
+	model, opts, err := attachDaemonSession(sessionName, false, width, height, graphicsOut, touch)
+	if err != nil {
+		return nil, nil, fmt.Errorf("trainee %q is not currently logged in (or the daemon is unreachable): %w", sessionName, err)
+	}
+	return model, opts, nil
 }
 
 // classroomErrorModel is a minimal full-screen error display for when a
