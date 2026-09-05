@@ -221,6 +221,16 @@ type PTY struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	// adoptedPID and killFunc are set only for a PTY built by AdoptPTY, whose
+	// process this session never forked (cmd is nil in that case). adoptedPID
+	// is the pid to poll for exit (see monitorExit) and to report from
+	// ShellPID/ProcessCwd; killFunc, when non-nil, is what Close calls to
+	// terminate the process instead of exec.Cmd.Process.Kill, since this
+	// process cannot signal a pid it did not fork when that pid runs as a
+	// different uid (see internal/pamauth.Login.ClosePTY).
+	adoptedPID int
+	killFunc   func() error
+
 	// Terminal emulator - maintains scrollback, screen state, cursor position
 	// This persists across client disconnect/reconnect
 	terminal *vt.Emulator
@@ -647,38 +657,134 @@ func (s *Session) createPTY(windowID string, width, height int, cwd string, rest
 		return nil, fmt.Errorf("failed to start shell: %w", err)
 	}
 
-	// Create VT emulator for persistent terminal state
-	// This maintains scrollback, screen content, cursor position across reconnects
-	terminal := vt.NewEmulator(width, height)
-	terminal.SetScrollbackMaxLines(10000) // Match default scrollback
-
 	// For a restored shell, seed the emulator with a one-line banner so the
 	// respawned process is clearly marked. This is written directly (before the
 	// reader/writer goroutines start) so it lands at the top of the screen ahead
 	// of the shell's first prompt; it only touches the daemon-side emulator and
 	// never the real PTY, so the shell is unaffected.
+	var preWrite []byte
 	if restored {
-		_, _ = terminal.Write([]byte(restoredBanner(cwd)))
+		preWrite = []byte(restoredBanner(cwd))
+	}
+
+	pty := s.newPTY(newPTYArgs{
+		id:       id,
+		ptyImpl:  ptyInstance,
+		cmd:      cmd,
+		ctx:      ctx,
+		cancel:   cancel,
+		windowID: windowID,
+		width:    width,
+		height:   height,
+		onExit:   onExit,
+		preWrite: preWrite,
+	})
+
+	return pty, nil
+}
+
+// AdoptPTY registers a canonical PTY around a PTY master and process that
+// something else already started - a privileged helper authenticating a
+// trainee via PAM and spawning their shell as their own Unix account (see
+// internal/pamauth), rather than this session spawning a shell itself via
+// CreatePTY. Everything downstream (I/O, resize, rendering, capture,
+// multi-client attach) is identical to a CreatePTY window; only how the
+// process/fd came to exist, how its exit is detected, and how it is killed
+// differ - see PTY.monitorExit and PTY.Close.
+//
+// killFunc, when non-nil, is what Close calls to terminate the process
+// instead of exec.Cmd.Process.Kill: this process cannot signal a pid it did
+// not fork when that pid runs as a different uid, so termination has to go
+// back through whatever privileged channel spawned it (e.g.
+// pamauth.Login.ClosePTY). windowID and onExit behave exactly as in CreatePTY.
+func (s *Session) AdoptPTY(windowID string, ptyFile *os.File, pid int, width, height int, onExit func(ptyID string), killFunc func() error) (*PTY, error) {
+	s.ptysMu.Lock()
+	defer s.ptysMu.Unlock()
+
+	id := uuid.New().String()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	adopted := &adoptedPty{File: ptyFile}
+	if err := adopted.Resize(width, height); err != nil {
+		// Not a critical error, continue - matches CreatePTY's own handling of
+		// a post-start resize failure, and internal/terminal.NewAdoptedWindow's
+		// identical tolerance for the same call on the non-daemon path.
+		_ = err
+	}
+
+	pty := s.newPTY(newPTYArgs{
+		id:         id,
+		ptyImpl:    adopted,
+		cmd:        nil,
+		adoptedPID: pid,
+		killFunc:   killFunc,
+		ctx:        ctx,
+		cancel:     cancel,
+		windowID:   windowID,
+		width:      width,
+		height:     height,
+		onExit:     onExit,
+	})
+
+	return pty, nil
+}
+
+// newPTYArgs bundles newPTY's parameters; CreatePTY and AdoptPTY differ only
+// in how ptyImpl/cmd came to exist and whether adoptedPID/killFunc/preWrite
+// apply, so those are optional here rather than duplicating the wiring below
+// (VT emulator, callbacks, kitty passthrough, registration, background
+// goroutines) between two near-identical functions.
+type newPTYArgs struct {
+	id         string
+	ptyImpl    xpty.Pty
+	cmd        *exec.Cmd
+	adoptedPID int
+	killFunc   func() error
+	ctx        context.Context
+	cancel     context.CancelFunc
+	windowID   string
+	width      int
+	height     int
+	onExit     func(ptyID string)
+	// preWrite, when set, is written directly to the VT emulator before the
+	// reader/writer goroutines start - used by CreatePTY to seed a restored
+	// shell's one-line banner ahead of its first prompt.
+	preWrite []byte
+}
+
+// newPTY builds, wires and registers a PTY, and starts its background
+// goroutines. Must be called with s.ptysMu already held.
+func (s *Session) newPTY(a newPTYArgs) *PTY {
+	// Create VT emulator for persistent terminal state
+	// This maintains scrollback, screen content, cursor position across reconnects
+	terminal := vt.NewEmulator(a.width, a.height)
+	terminal.SetScrollbackMaxLines(10000) // Match default scrollback
+
+	if len(a.preWrite) > 0 {
+		_, _ = terminal.Write(a.preWrite)
 	}
 
 	pty := &PTY{
-		ID:           id,
-		pty:          ptyInstance,
-		cmd:          cmd,
-		ctx:          ctx,
-		cancel:       cancel,
+		ID:           a.id,
+		pty:          a.ptyImpl,
+		cmd:          a.cmd,
+		adoptedPID:   a.adoptedPID,
+		killFunc:     a.killFunc,
+		ctx:          a.ctx,
+		cancel:       a.cancel,
 		terminal:     terminal,
-		width:        width,
-		height:       height,
+		width:        a.width,
+		height:       a.height,
 		outputBuffer: make([]byte, 64*1024), // 64KB ring buffer
 		subscribers:  make(map[string]*ptySubscriber),
 		vtWriteChan:  make(chan vtChunk, 256),
-		onExit:       onExit,
+		onExit:       a.onExit,
 	}
 
 	// Per-PTY control-plane event emitter, pre-tagged with this window and PTY
 	// ID. It routes through the session's event sink so events reach the daemon's
 	// event hub; when no sink is installed it is a cheap no-op.
+	id, windowID := a.id, a.windowID
 	pty.emit = func(ev SessionEvent) {
 		ev.Window = windowID
 		ev.PTYID = id
@@ -716,7 +822,7 @@ func (s *Session) createPTY(windowID string, width, height int, cwd string, rest
 		}
 	})
 
-	s.ptys[id] = pty
+	s.ptys[a.id] = pty
 
 	// Start VT writer goroutine (single, persistent)
 	go pty.vtWriter()
@@ -733,7 +839,7 @@ func (s *Session) createPTY(windowID string, width, height int, cwd string, rest
 	go pty.monitorExit()
 
 	s.LastActive = time.Now()
-	return pty, nil
+	return pty
 }
 
 // GetPTY returns a PTY by ID.
@@ -2044,9 +2150,13 @@ func (p *PTY) Close() error {
 	}
 	p.subscribersMu.Unlock()
 
-	// Kill process
+	// Kill process. An adopted PTY has no local *exec.Cmd to kill - its
+	// process runs as a different uid this one has no permission to signal
+	// directly - so killFunc (e.g. pamauth.Login.ClosePTY) does it instead.
 	if p.cmd != nil && p.cmd.Process != nil {
 		_ = p.cmd.Process.Kill()
+	} else if p.killFunc != nil {
+		_ = p.killFunc()
 	}
 
 	// Mark the VT emulator closed so forwardTerminalResponses returns EOF on
@@ -2068,20 +2178,21 @@ func (p *PTY) Close() error {
 // The second return is false when it cannot be determined (process gone, or an
 // unsupported platform). Used to capture cwd for session resurrection.
 func (p *PTY) ProcessCwd() (string, bool) {
-	if p.cmd == nil || p.cmd.Process == nil {
-		return "", false
+	if pid := p.ShellPID(); pid != 0 {
+		return processCwd(pid)
 	}
-	return processCwd(p.cmd.Process.Pid)
+	return "", false
 }
 
 // ShellPID returns the process id of the PTY's shell child, or 0 when the process
 // is not running. It is the anchor the agent auto-detector uses to resolve the
-// pane's foreground process group.
+// pane's foreground process group. For an adopted PTY (see AdoptPTY) this is
+// the pid reported by whatever spawned it, since there is no local *exec.Cmd.
 func (p *PTY) ShellPID() int {
-	if p.cmd == nil || p.cmd.Process == nil {
-		return 0
+	if p.cmd != nil && p.cmd.Process != nil {
+		return p.cmd.Process.Pid
 	}
-	return p.cmd.Process.Pid
+	return p.adoptedPID
 }
 
 // IsExited returns true if the shell process has exited.
@@ -2274,18 +2385,28 @@ func (p *PTY) broadcast(chunk ptyChunk, seq int64) {
 }
 
 func (p *PTY) monitorExit() {
-	if p.cmd == nil {
+	switch {
+	case p.cmd != nil:
+		_ = p.cmd.Wait()
+		p.exitedMu.Lock()
+		p.exited = true
+		if p.cmd.ProcessState != nil {
+			p.exitCode = p.cmd.ProcessState.ExitCode()
+		}
+		p.exitedMu.Unlock()
+	case p.adoptedPID != 0:
+		// This process never forked adoptedPID, so it cannot wait4/reap it;
+		// poll its liveness instead. Mirrors
+		// internal/terminal.waitForAdoptedExit on the non-daemon PAM path.
+		// There is no ProcessState to read an exit code from either, so
+		// exitCode is left at its zero value.
+		waitForAdoptedExit(p.adoptedPID)
+		p.exitedMu.Lock()
+		p.exited = true
+		p.exitedMu.Unlock()
+	default:
 		return
 	}
-
-	_ = p.cmd.Wait()
-
-	p.exitedMu.Lock()
-	p.exited = true
-	if p.cmd.ProcessState != nil {
-		p.exitCode = p.cmd.ProcessState.ExitCode()
-	}
-	p.exitedMu.Unlock()
 
 	debugLog("[DEBUG] PTY %s: process exited with code %d", p.ID[:8], p.exitCode)
 

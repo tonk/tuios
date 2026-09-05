@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -166,6 +167,75 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 		}
 	}
 	pty, err := s.CreatePTY(windowID, ptyWidth, ptyHeight, onExit)
+	if err != nil {
+		return WindowState{}, err
+	}
+
+	var win WindowState
+	_ = s.mutateState(func(state *SessionState) error {
+		if state.WorkspaceFocus == nil {
+			state.WorkspaceFocus = make(map[int]string)
+		}
+		workspace := state.CurrentWorkspace
+		if workspace < 1 {
+			workspace = 1
+			state.CurrentWorkspace = 1
+		}
+
+		win = WindowState{
+			ID:          windowID,
+			Title:       title,
+			X:           0,
+			Y:           0,
+			Width:       width,
+			Height:      height,
+			Workspace:   workspace,
+			PTYID:       pty.ID,
+			TitleLocked: config.LockTitles,
+			// The daemon has no viewport, so this box is a placeholder that keeps
+			// the PTY a usable size until a client places the window properly.
+			Unplaced: true,
+		}
+		state.Windows = append(state.Windows, win)
+		state.FocusedWindowID = windowID
+		state.WorkspaceFocus[workspace] = windowID
+		return nil
+	})
+	return win, nil
+}
+
+// AdoptDaemonWindow appends a canonical window for a PTY and process that
+// something else already started, in place of AddDaemonWindow's own
+// exec.Command spawn - a privileged helper authenticating a trainee via PAM
+// and spawning their shell as their own Unix account (see internal/pamauth).
+// Everything downstream of construction (I/O, resize, rendering, capture,
+// multi-client attach) is identical to an AddDaemonWindow window; see
+// Session.AdoptPTY for what differs. killFunc, when non-nil, is what closing
+// this window calls to terminate the process, since this session cannot
+// signal a pid it did not fork when that pid runs as a different uid.
+func (s *Session) AdoptDaemonWindow(title string, ptyFile *os.File, pid int, onExit func(ptyID string), killFunc func() error) (WindowState, error) {
+	width, height := s.Size()
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
+	}
+
+	// WindowState dimensions are the outer window box (including the border);
+	// the shell gets the inner content size, matching restoreSession.
+	ptyWidth := max(width-2, 1)
+	ptyHeight := max(height-2, 1)
+
+	windowID := uuid.New().String()
+	if title == "" {
+		if t := config.FormatInitialTitle(); t != "" {
+			title = t
+		} else {
+			title = "Terminal " + windowID[:8]
+		}
+	}
+	pty, err := s.AdoptPTY(windowID, ptyFile, pid, ptyWidth, ptyHeight, onExit, killFunc)
 	if err != nil {
 		return WindowState{}, err
 	}
