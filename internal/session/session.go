@@ -441,6 +441,14 @@ type Session struct {
 	height int
 	sizeMu sync.RWMutex
 
+	// classroomSpawner, when set, is this session's held PAM login (see
+	// SetClassroomSpawner/NewClassroomWindow in classroom.go): a classroom
+	// (PAM-authenticated) session's shells are spawned through it, one call per
+	// window, rather than by this session directly via exec.Command. nil for
+	// every ordinary session.
+	classroomSpawner   ClassroomSpawner
+	classroomSpawnerMu sync.RWMutex
+
 	// Lifecycle
 	Created    time.Time
 	LastActive time.Time
@@ -1189,11 +1197,19 @@ func (s *Session) Stop() {
 	s.stopAgentHoldTimer()
 
 	s.ptysMu.Lock()
-	defer s.ptysMu.Unlock()
-
 	for id, pty := range s.ptys {
 		_ = pty.Close()
 		delete(s.ptys, id)
+	}
+	s.ptysMu.Unlock()
+
+	// A classroom session's PTYs are all closed above (each window's killFunc
+	// already called back through the spawner), but the spawner itself - the
+	// trainee's whole PAM login - is a separate, longer-lived connection to
+	// tuios-pam-helper that only this closes. Ending it is what tells the
+	// helper the trainee's session is over.
+	if sp := s.ClassroomSpawner(); sp != nil {
+		_ = sp.Close()
 	}
 }
 

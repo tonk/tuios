@@ -135,42 +135,48 @@ func firstVisibleOnWorkspace(windows []WindowState, workspace int) string {
 	return ""
 }
 
-// AddDaemonWindow spawns a fresh PTY and appends a canonical window for it to
-// the session state, focusing it on the current workspace. onExit (may be nil)
-// is invoked with the PTY ID when the shell process exits. It returns a copy of
-// the created window state. This is the headless equivalent of the TUI creating
-// a new window; geometry is a nominal full-size box that a client re-tiles on
-// attach.
-func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (WindowState, error) {
-	width, height := s.Size()
+// daemonWindowSize returns the outer window box (width, height) - the
+// session's own tracked size, falling back to 80x24 when unset - and the PTY
+// content size derived from it (inset for the border). Every daemon-window
+// constructor (AddDaemonWindow, AdoptDaemonWindow, NewClassroomWindow) needs
+// both identically.
+func (s *Session) daemonWindowSize() (width, height, ptyWidth, ptyHeight int) {
+	width, height = s.Size()
 	if width <= 0 {
 		width = 80
 	}
 	if height <= 0 {
 		height = 24
 	}
-
 	// WindowState dimensions are the outer window box (including the border);
 	// the shell gets the inner content size, matching restoreSession.
-	ptyWidth := max(width-2, 1)
-	ptyHeight := max(height-2, 1)
+	return width, height, max(width-2, 1), max(height-2, 1)
+}
 
-	windowID := uuid.New().String()
+// newDaemonWindowID picks a window ID and resolves title, the same way for
+// every daemon-window constructor. An empty title falls back to the
+// configured initial-title format, then to a generic "Terminal <id>" - the
+// same default the renderer used when it still created windows itself, so a
+// window looks the same however it was asked for.
+func newDaemonWindowID(title string) (id, resolvedTitle string) {
+	id = uuid.New().String()
 	if title == "" {
 		if t := config.FormatInitialTitle(); t != "" {
 			title = t
 		} else {
-			// The same default the renderer used when it still created
-			// windows itself, so a window looks the same however it was
-			// asked for.
-			title = "Terminal " + windowID[:8]
+			title = "Terminal " + id[:8]
 		}
 	}
-	pty, err := s.CreatePTY(windowID, ptyWidth, ptyHeight, onExit)
-	if err != nil {
-		return WindowState{}, err
-	}
+	return id, title
+}
 
+// registerDaemonWindow appends a canonical window around an already-created
+// PTY to the session state, focusing it on the current workspace, and
+// returns a copy of it. Shared tail for AddDaemonWindow, AdoptDaemonWindow
+// and NewClassroomWindow, which differ only in how the PTY itself came to
+// exist; geometry is a nominal full-size box that a client re-tiles on
+// attach.
+func (s *Session) registerDaemonWindow(windowID, title string, width, height int, pty *PTY) WindowState {
 	var win WindowState
 	_ = s.mutateState(func(state *SessionState) error {
 		if state.WorkspaceFocus == nil {
@@ -201,7 +207,24 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 		state.WorkspaceFocus[workspace] = windowID
 		return nil
 	})
-	return win, nil
+	return win
+}
+
+// AddDaemonWindow spawns a fresh PTY and appends a canonical window for it to
+// the session state, focusing it on the current workspace. onExit (may be nil)
+// is invoked with the PTY ID when the shell process exits. It returns a copy of
+// the created window state. This is the headless equivalent of the TUI creating
+// a new window; geometry is a nominal full-size box that a client re-tiles on
+// attach.
+func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (WindowState, error) {
+	width, height, ptyWidth, ptyHeight := s.daemonWindowSize()
+	windowID, title := newDaemonWindowID(title)
+
+	pty, err := s.CreatePTY(windowID, ptyWidth, ptyHeight, onExit)
+	if err != nil {
+		return WindowState{}, err
+	}
+	return s.registerDaemonWindow(windowID, title, width, height, pty), nil
 }
 
 // AdoptDaemonWindow appends a canonical window for a PTY and process that
@@ -214,63 +237,14 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 // this window calls to terminate the process, since this session cannot
 // signal a pid it did not fork when that pid runs as a different uid.
 func (s *Session) AdoptDaemonWindow(title string, ptyFile *os.File, pid int, onExit func(ptyID string), killFunc func() error) (WindowState, error) {
-	width, height := s.Size()
-	if width <= 0 {
-		width = 80
-	}
-	if height <= 0 {
-		height = 24
-	}
+	width, height, ptyWidth, ptyHeight := s.daemonWindowSize()
+	windowID, title := newDaemonWindowID(title)
 
-	// WindowState dimensions are the outer window box (including the border);
-	// the shell gets the inner content size, matching restoreSession.
-	ptyWidth := max(width-2, 1)
-	ptyHeight := max(height-2, 1)
-
-	windowID := uuid.New().String()
-	if title == "" {
-		if t := config.FormatInitialTitle(); t != "" {
-			title = t
-		} else {
-			title = "Terminal " + windowID[:8]
-		}
-	}
 	pty, err := s.AdoptPTY(windowID, ptyFile, pid, ptyWidth, ptyHeight, onExit, killFunc)
 	if err != nil {
 		return WindowState{}, err
 	}
-
-	var win WindowState
-	_ = s.mutateState(func(state *SessionState) error {
-		if state.WorkspaceFocus == nil {
-			state.WorkspaceFocus = make(map[int]string)
-		}
-		workspace := state.CurrentWorkspace
-		if workspace < 1 {
-			workspace = 1
-			state.CurrentWorkspace = 1
-		}
-
-		win = WindowState{
-			ID:          windowID,
-			Title:       title,
-			X:           0,
-			Y:           0,
-			Width:       width,
-			Height:      height,
-			Workspace:   workspace,
-			PTYID:       pty.ID,
-			TitleLocked: config.LockTitles,
-			// The daemon has no viewport, so this box is a placeholder that keeps
-			// the PTY a usable size until a client places the window properly.
-			Unplaced: true,
-		}
-		state.Windows = append(state.Windows, win)
-		state.FocusedWindowID = windowID
-		state.WorkspaceFocus[workspace] = windowID
-		return nil
-	})
-	return win, nil
+	return s.registerDaemonWindow(windowID, title, width, height, pty), nil
 }
 
 // CloseDaemonWindow removes the window matching target from the session state

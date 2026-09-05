@@ -173,6 +173,40 @@ func (l *Login) Close() error {
 	return l.conn.Close()
 }
 
+// File returns a duplicate of this Login's connection to the helper, as an
+// *os.File suitable for passing to another process via SCM_RIGHTS - see
+// NewLoginFromFD, its counterpart in the receiving process (in practice,
+// tuios-web handing a classroom trainee's login over to the daemon process
+// so the daemon can spawn every later window itself, not just the first).
+// The caller owns the returned File and must close it once it has been sent;
+// this Login's own connection is unaffected either way.
+func (l *Login) File() (*os.File, error) {
+	return l.conn.File()
+}
+
+// NewLoginFromFD reconstructs a Login around a file descriptor received from
+// another process via SCM_RIGHTS - typically one returned by File in the
+// process that originally called Dial. The result behaves identically to a
+// freshly-dialed Login: SpawnPTY, ClosePTY and Close all work the same way,
+// since none of them depend on anything specific to having called Dial
+// itself, only on holding a live connection to the helper. username is not
+// re-verified here - it is carried alongside the fd by whatever transport
+// handed it over, and is trusted the same way the fd itself is.
+func NewLoginFromFD(fd uintptr, username string) (*Login, error) {
+	f := os.NewFile(fd, "pam-login")
+	conn, err := net.FileConn(f)
+	_ = f.Close() // FileConn dups the fd; this process's original is no longer needed.
+	if err != nil {
+		return nil, fmt.Errorf("reconstructing login connection: %w", err)
+	}
+	uconn, ok := conn.(*net.UnixConn)
+	if !ok {
+		_ = conn.Close()
+		return nil, fmt.Errorf("received fd is not a unix connection (%T)", conn)
+	}
+	return &Login{conn: uconn, username: username}, nil
+}
+
 // String satisfies sip.Identity, so a *Login can be carried in a
 // ConnectMiddleware's request context directly.
 func (l *Login) String() string { return "pam-authenticated" }
