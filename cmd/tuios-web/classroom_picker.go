@@ -274,12 +274,14 @@ func (m *classroomPickerModel) View() tea.View {
 
 	b.WriteString(dimStyle.Render("↑/k up  ↓/j down  enter: attach  q/esc: disconnect"))
 
-	// Padded to the full terminal size rather than left as a small block of
-	// text at the top-left: tea.View has no notion of a "fill the screen"
-	// default the way an ordinary tuios window/dock layout does, so without
-	// this the picker renders as a cramped island in an otherwise blank
-	// viewport.
-	content := lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, b.String())
+	// Centered in the full terminal size, matching tuios's own empty-
+	// workspace welcome screen (see render_overlays.go's identical
+	// lipgloss.Place(..., lipgloss.Center, lipgloss.Center, ...)): tea.View
+	// has no "fill the screen" default the way an ordinary tuios
+	// window/dock layout does, and left un-placed the picker rendered as a
+	// cramped block of text pinned to the top-left corner of an otherwise
+	// blank viewport - the reported "screen size is incorrect".
+	content := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, b.String())
 
 	var v tea.View
 	v.SetContent(content)
