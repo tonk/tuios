@@ -1058,9 +1058,8 @@ new window, detach, or kill it.
 The `[classroom]` table gates the **trainer console**: a `tuios-web` feature
 (PAM multi-tenant/"classroom" deployments only, see
 [docs/DEPLOYMENT.md](DEPLOYMENT.md)) that lets a designated trainer account
-attach to another trainee's live session - view it, type into it - by
-picking it from a list. This section only defines *who is authorized*; the
-console itself is not implemented yet.
+attach to another trainee's live session - view it, type into it - instead
+of only ever getting their own.
 
 ```toml
 [classroom]
@@ -1069,32 +1068,49 @@ trainer_users = ["ton"]
 trainee_pattern = "^guru[0-9]{2}$"
 ```
 
+**Requires a `tuios` daemon running alongside `tuios-web`** - classroom
+sessions are daemon-backed so they can be attached to by more than one
+connection at all; unlike `tuios-pam-helper`, `tuios-web` does not start one
+for you (same reasoning as that pattern: a separate, explicitly-managed
+systemd unit, not automatic re-exec magic). See
+[docs/DEPLOYMENT.md](DEPLOYMENT.md).
+
+An authorized trainer requests another trainee's session with the `attach`
+query parameter on the same URL they'd otherwise use for their own, e.g.
+`https://tuios.example.com/?attach=guru07`. There is no picker UI yet - the
+trainer has to know (or be told) the username to type. A denied request
+(the account isn't in `trainer_users`, or the target doesn't match
+`trainee_pattern`) gets the same generic "authentication failed" response as
+a wrong password, so it can't be used to probe who is or isn't an
+authorized trainer.
+
 ### trainer_console
 
 Master switch for the feature. `false` (the default) means no config below
 it has any effect at all - a file with no `[classroom]` section behaves
-identically.
+identically, and every PAM login keeps getting today's ephemeral,
+non-daemon session.
 
 **Default:** `false`
 
 ### trainer_users
 
-The exact usernames allowed to open the trainer console and attach to
-another user's session. **This is the real access-control gate**, not just
-a UI toggle - it is checked server-side against the account that
-PAM-authenticated the connection, never trusted to anything the client
-sends. An empty list (the default) means nobody may cross-attach, even with
-`trainer_console` set to `true`.
+The exact usernames allowed to attach to another user's session via
+`?attach=`. **This is the real access-control gate**, not just a UI toggle -
+it is checked server-side against the account that PAM-authenticated the
+connection, never trusted to anything the client sends. An empty list (the
+default) means nobody may cross-attach, even with `trainer_console` set to
+`true`.
 
 **Default:** `[]`
 
 ### trainee_pattern
 
-A Go regular expression (RE2 syntax) matched against a session's name - the
-trainee's own username - to decide what shows up in the trainer's picker.
-Left empty, the console lists no sessions: there is deliberately no
-implicit "match everyone" default, since that would expose every account on
-the box to whoever is listed in `trainer_users`.
+A Go regular expression (RE2 syntax) matched against the username given to
+`?attach=` before an authorized trainer is allowed to attach to it. Left
+empty, no target ever matches - there is deliberately no implicit "match
+everyone" default, since that would let anyone in `trainer_users` attach to
+any account on the box.
 
 **Default:** `""`
 

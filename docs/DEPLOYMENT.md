@@ -22,6 +22,7 @@ that. This doc is the "how do I actually keep this running" half.
 - [6. nginx reverse proxy and TLS](#6-nginx-reverse-proxy-and-tls)
 - [7. Verifying the deployment](#7-verifying-the-deployment)
 - [Presenter mirror session (optional)](#presenter-mirror-session-optional)
+- [Trainer console (optional)](#trainer-console-optional)
 - [Hardening notes](#hardening-notes)
 - [Troubleshooting](#troubleshooting)
 - [Related Documentation](#related-documentation)
@@ -391,6 +392,40 @@ disables input for every client of an instance, not just some, so it can't
 single out the projector tab while leaving your laptop interactive.
 Simplest mitigation: don't let anyone touch the projector machine's
 keyboard.
+
+## Trainer console (optional)
+
+PAM multi-tenant mode only: a designated trainer account can attach to a
+trainee's live session - view it, type into it - instead of only ever
+getting their own. See [docs/CONFIGURATION.md's Classroom
+Settings](CONFIGURATION.md#classroom-settings) for the `[classroom]` config
+itself (`trainer_console`, `trainer_users`, `trainee_pattern`); this section
+is only the deployment-shape requirement it adds.
+
+**A `tuios` daemon must be running alongside `tuios-web`.** Classroom
+sessions are daemon-backed (unlike an ordinary `--pam-auth` login, which is
+its own isolated, non-daemon instance per connection - see
+[pam-helper/README.md](../pam-helper/README.md)) so that more than one
+connection can ever attach to the same one at all. `tuios-web` does not
+start this daemon for you, deliberately - same reasoning as
+`tuios-pam-helper` being its own separate systemd unit rather than something
+`tuios-web` re-execs on demand: an explicit, independently-managed unit is
+easier to reason about than automatic process spawning.
+
+There is no packaged systemd unit for the bare daemon yet (only
+`tuios-web.service`, `tuios-web-mirror.service` and
+`tuios-pam-helper.service` ship under `packaging/systemd/`) - write your own
+`ExecStart=/usr/local/bin/tuios daemon`, running as the same account
+`tuios-web.service` runs as, `Restart=on-failure`, no special sandboxing
+needed beyond what `tuios-web.service` already has. The only hard
+requirement: it must use the same daemon socket `tuios-web` itself resolves
+by default - don't point `tuios-web` or the daemon at a custom `[daemon]
+socket_path` unless both agree on it.
+
+Without a reachable daemon, a classroom connection shows a plain
+full-screen error instead of silently falling back to a different,
+non-persistent kind of session - if trainees report that, check
+`systemctl status tuios.service` first.
 
 ## Hardening notes
 

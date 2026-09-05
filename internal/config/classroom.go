@@ -15,9 +15,9 @@ func (c *ClassroomConfig) IsTrainer(username string) bool {
 }
 
 // MatchesTrainee reports whether sessionName - a trainee's own username - is
-// eligible to appear in the trainer's picker, per TraineePattern. An empty
-// or malformed pattern matches nothing; validateClassroomConfig warns about
-// both at load time, so this fails closed rather than raising an error here.
+// a valid cross-attach target under TraineePattern. An empty or malformed
+// pattern matches nothing; validateClassroomConfig warns about both at load
+// time, so this fails closed rather than raising an error here.
 func (c *ClassroomConfig) MatchesTrainee(sessionName string) bool {
 	if c.TraineePattern == "" {
 		return false
