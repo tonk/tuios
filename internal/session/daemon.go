@@ -573,6 +573,25 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 					}
 				}
 			}
+
+			// handleDetach (an explicit MsgDetach) is not the only way a TUI
+			// client leaves a session - most of them just vanish, the browser
+			// tab closed or reloaded without ever sending one. Left
+			// unreported here, a session's effective size (calculateEffectiveSize,
+			// min across every still-registered client - see daemon_size.go)
+			// stayed clamped to whatever a now-gone client last reported
+			// forever: nothing else ever re-derives it except another client
+			// joining or leaving, and this was the only one of those two that
+			// never ran for the ordinary case. Confirmed live: a classroom
+			// session's shared terminal stuck at a stale, narrower client's
+			// width/height indefinitely, surviving browser reloads, restarting
+			// the trainee's own shell, and even a full browser restart -
+			// nothing short of restarting tuios-web itself (which drops every
+			// connection at once, clearing the whole client list) recovered it.
+			// clientID is already gone from d.clients (deleted above), so this
+			// recalculates using whoever is left, exactly like handleDetach's
+			// own call.
+			d.notifyClientLeft(sessionID, clientID)
 		}
 
 		// Purge any pending requests this client was waiting on so its

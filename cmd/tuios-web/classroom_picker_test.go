@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"regexp"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestNewClassroomPickerModelInvalidPattern(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
 
-	m := newClassroomPickerModel(login, "guru[0-9", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "guru[0-9", 80, 24, nil, false)
 	if m.patternErr == nil {
 		t.Fatal("expected a pattern error for an unparseable regex")
 	}
@@ -47,7 +48,7 @@ func TestNewClassroomPickerModelEmptyPattern(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
 
-	m := newClassroomPickerModel(login, "", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "", 80, 24, nil, false)
 	if m.patternErr == nil {
 		t.Fatal("expected a pattern error for an empty trainee_pattern")
 	}
@@ -57,7 +58,7 @@ func TestClassroomPickerCursorNavigation(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
 
-	m := newClassroomPickerModel(login, "^guru[0-9]{2}$", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 	m.sessions = []session.SessionInfo{{Name: "guru01"}, {Name: "guru02"}, {Name: "guru03"}}
 
 	if m.cursor != 0 {
@@ -90,7 +91,7 @@ func TestClassroomPickerCursorNavigation(t *testing.T) {
 func TestClassroomPickerQuits(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
-	m := newClassroomPickerModel(login, "^guru[0-9]{2}$", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if cmd == nil {
@@ -110,7 +111,7 @@ func TestClassroomPickerQuits(t *testing.T) {
 func TestClassroomPickerOwnSessionIsAlwaysCursorZero(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
-	m := newClassroomPickerModel(login, "^guru[0-9]{2}$", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 	m.sessions = []session.SessionInfo{{Name: "guru01"}}
 
 	// attachOwn will fail here (no real daemon reachable), but that failure
@@ -135,7 +136,7 @@ func TestClassroomPickerOwnSessionIsAlwaysCursorZero(t *testing.T) {
 func TestClassroomPickerCrossAttachClosesLogin(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
-	m := newClassroomPickerModel(login, "^guru[0-9]{2}$", 80, 24, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 	m.sessions = []session.SessionInfo{{Name: "guru01"}}
 	m.cursor = 1
 
@@ -152,7 +153,7 @@ func TestClassroomPickerCrossAttachClosesLogin(t *testing.T) {
 func TestClassroomPickerViewFillsTheTerminal(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
-	m := newClassroomPickerModel(login, "^guru[0-9]{2}$", 100, 40, nil, false)
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 100, 40, nil, false)
 	defer func() { _ = m.login.Close() }()
 
 	view := m.View()

@@ -610,7 +610,7 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 			// fallback would silently spawn the "trainee's" shells under the
 			// trainer's own account if the target session didn't exist yet.
 			if target, ok := classroomAttachTargetFromContext(sess.Context()); ok {
-				model, opts, err := createTrainerAttachInstance(login, target, pty.Width, pty.Height, graphicsOut, touch)
+				model, opts, err := createTrainerAttachInstance(sess.Context(), login, target, pty.Width, pty.Height, graphicsOut, touch)
 				if err != nil {
 					log.Printf("trainer attach to %q: %v", target, err)
 					return classroomErrorModel{err: err}, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
@@ -621,14 +621,14 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 			// An authorized trainer with no specific target lands on the
 			// picker instead of their own session.
 			if classroomShowPickerFromContext(sess.Context()) {
-				model := newClassroomPickerModel(login, userConfig.Classroom.TraineePattern, pty.Width, pty.Height, graphicsOut, touch)
+				model := newClassroomPickerModel(sess.Context(), login, userConfig.Classroom.TraineePattern, pty.Width, pty.Height, graphicsOut, touch)
 				return model, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
 			}
 
 			// Own session (a non-trainer, or a trainer who asked for
 			// ?attach=<their own username>): login and the target account
 			// are the same account, so creating it via a handoff is safe.
-			model, opts, err := createClassroomTUIOSInstance(login, pty.Width, pty.Height, graphicsOut, touch)
+			model, opts, err := createClassroomTUIOSInstance(sess.Context(), login, pty.Width, pty.Height, graphicsOut, touch)
 			if err != nil {
 				log.Printf("classroom session %q: %v", login.Username(), err)
 				return classroomErrorModel{err: err}, []tea.ProgramOption{tea.WithFPS(config.MaxFPSCap)}
@@ -653,7 +653,7 @@ func createTUIOSHandler(sess sip.Session) (tea.Model, []tea.ProgramOption) {
 	}
 
 	// Try to connect to daemon
-	model, opts, err := createDaemonTUIOSInstance(sessionName, pty.Width, pty.Height, graphicsOut, touch)
+	model, opts, err := createDaemonTUIOSInstance(sess.Context(), sessionName, pty.Width, pty.Height, graphicsOut, touch)
 	if err != nil {
 		log.Printf("Warning: Failed to connect to daemon, using ephemeral mode: %v", err)
 		return createEphemeralTUIOSInstance(pty.Width, pty.Height, graphicsOut, touch)
@@ -754,7 +754,7 @@ func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut
 }
 
 // createDaemonTUIOSInstance creates a TUIOS instance connected to the daemon
-func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+func createDaemonTUIOSInstance(ctx context.Context, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	// Determine which session to attach to. The previous behavior  - picking
 	// an arbitrary existing session  - was confusing and non-deterministic.
 	// New behavior:
@@ -765,7 +765,7 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 	if sessionName == "" {
 		sessionName = "web"
 	}
-	return attachDaemonSession(sessionName, true, width, height, graphicsOut, touch)
+	return attachDaemonSession(ctx, sessionName, true, width, height, graphicsOut, touch)
 }
 
 // attachDaemonSession connects to the daemon and attaches to sessionName,
@@ -776,7 +776,7 @@ func createDaemonTUIOSInstance(sessionName string, width, height int, graphicsOu
 // to exist before this runs - createNew is always false for the latter,
 // since a classroom session that does not exist yet is created via a login
 // handoff, never by this attaching client.
-func attachDaemonSession(sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+func attachDaemonSession(ctx context.Context, sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	// Connect to daemon
 	client := session.NewTUIClient()
 	v := webServerConfig.version
@@ -815,6 +815,23 @@ func attachDaemonSession(sessionName string, createNew bool, width, height int, 
 
 	// Start read loop for daemon messages
 	client.StartReadLoop()
+
+	// Close this daemon connection the moment the browser's own connection
+	// ends, the same way the plain --pam-auth path already closes its Login
+	// on sess.Context() (createTUIOSHandler, above) - a browser tab reloading
+	// or closing sends no MsgDetach, and nothing else here ever notices it is
+	// gone otherwise. Left unclosed, the daemon's connection for this client
+	// sat open indefinitely: confirmed live as a classroom session's shared
+	// terminal size staying clamped to a now-gone client's width/height
+	// forever (Session.calculateEffectiveSize takes the min across every
+	// still-registered client - see internal/session/daemon_size.go), which
+	// no later join/leave ever re-derives back up because there was no leave
+	// to derive from. ctx.Done() is sip's own per-connection lifecycle
+	// signal, already relied on the same way elsewhere in this file.
+	go func() {
+		<-ctx.Done()
+		_ = client.Close()
+	}()
 
 	// Load user configuration
 	userConfig, err := loadWebUserConfig()
@@ -898,7 +915,7 @@ func attachDaemonSession(sessionName string, createNew bool, width, height int, 
 // either handed to the daemon (which keeps its own independent copy - see
 // pamauth.Login.File) or, when the session already exists, redundant. Either
 // way tuios-web has no further use for its own copy once this returns.
-func createClassroomTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	defer func() { _ = login.Close() }()
 	sessionName := login.Username()
 
@@ -932,7 +949,7 @@ func createClassroomTUIOSInstance(login *pamauth.Login, width, height int, graph
 		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
 	}
 
-	return attachDaemonSession(sessionName, false, width, height, graphicsOut, touch)
+	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch)
 }
 
 // createTrainerAttachInstance builds a daemon-backed instance for an
@@ -947,9 +964,9 @@ func createClassroomTUIOSInstance(login *pamauth.Login, width, height int, graph
 // login is only ever needed to authenticate this connection and is closed
 // immediately; the target session must already be live (the trainee is
 // actually logged in) or this returns an error.
-func createTrainerAttachInstance(login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+func createTrainerAttachInstance(ctx context.Context, login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	_ = login.Close()
-	model, opts, err := attachDaemonSession(sessionName, false, width, height, graphicsOut, touch)
+	model, opts, err := attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch)
 	if err != nil {
 		return nil, nil, fmt.Errorf("trainee %q is not currently logged in (or the daemon is unreachable): %w", sessionName, err)
 	}

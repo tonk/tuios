@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -39,6 +40,7 @@ const classroomPickerRefreshInterval = 3 * time.Second
 // on every exit from the picker - quitting, or a successful attach of
 // either kind, whichever comes first.
 type classroomPickerModel struct {
+	ctx           context.Context
 	login         *pamauth.Login
 	self          string
 	pattern       *regexp.Regexp
@@ -67,9 +69,9 @@ type classroomPickerRefreshMsg struct {
 // an invalid pattern surfaces as an on-screen error instead of a startup
 // failure, the same "fails closed" treatment ClassroomConfig.MatchesTrainee
 // already gives it server-side.
-func newClassroomPickerModel(login *pamauth.Login, traineePattern string, width, height int, graphicsOut *os.File, touch bool) *classroomPickerModel {
+func newClassroomPickerModel(ctx context.Context, login *pamauth.Login, traineePattern string, width, height int, graphicsOut *os.File, touch bool) *classroomPickerModel {
 	m := &classroomPickerModel{
-		login: login, self: login.Username(),
+		ctx: ctx, login: login, self: login.Username(),
 		width: width, height: height, graphicsOut: graphicsOut, touch: touch,
 	}
 	if traineePattern == "" {
@@ -193,7 +195,7 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // which is why it stays open until now instead of being closed at
 // construction like an ordinary cross-attach never needs it to be.
 func (m *classroomPickerModel) attachOwn() (tea.Model, tea.Cmd) {
-	model, _, err := createClassroomTUIOSInstance(m.login, m.width, m.height, m.graphicsOut, m.touch)
+	model, _, err := createClassroomTUIOSInstance(m.ctx, m.login, m.width, m.height, m.graphicsOut, m.touch)
 	if err != nil {
 		m.loadErr = fmt.Errorf("attaching to your own session: %w", err)
 		return m, nil
@@ -212,7 +214,7 @@ func (m *classroomPickerModel) attachOwn() (tea.Model, tea.Cmd) {
 // it's needed again.
 func (m *classroomPickerModel) attach(name string) (tea.Model, tea.Cmd) {
 	_ = m.login.Close()
-	model, _, err := attachDaemonSession(name, false, m.width, m.height, m.graphicsOut, m.touch)
+	model, _, err := attachDaemonSession(m.ctx, name, false, m.width, m.height, m.graphicsOut, m.touch)
 	if err != nil {
 		m.loadErr = fmt.Errorf("attaching to %q: %w", name, err)
 		return m, nil
