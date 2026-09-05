@@ -8,7 +8,7 @@ import (
 // close PTYs for one already-authenticated Unix account, without this
 // package needing to import internal/pamauth directly - only the daemon's
 // classroom login-handoff listener does that, to reconstruct one from a
-// received file descriptor (see internal/pamauth.NewLoginFromFD).
+// received file descriptor (see internal/pamauth.NewLoginFromFile).
 // *pamauth.Login satisfies this exactly.
 type ClassroomSpawner interface {
 	// SpawnPTY starts one more shell for this login, at the given terminal

@@ -167,7 +167,7 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 	}
 
 	// Regression test for a real, timing-dependent bug: closing the fd
-	// NewLoginFromFD reconstructs a Login around - whether immediately, or
+	// NewLoginFromFile reconstructs a Login around - whether immediately, or
 	// deferred to handleClassroomHandoff's own return - frees its number
 	// for reuse while the Login is still actively used moments later to
 	// receive the adopted PTY's own fd. When something grabbed that freed
@@ -217,5 +217,84 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 	}
 	if state := sess.GetState(); len(state.Windows) != 1 {
 		t.Fatalf("window count after redundant handoff = %d, want 1", len(state.Windows))
+	}
+}
+
+// TestClassroomHandoffReplacesAStaleResurrectedSession is the regression
+// test for a real bug confirmed live on stepper: a classroom session that
+// survives a daemon restart comes back via ordinary resurrection
+// (RestorePTY), which has no live PAM login to spawn through yet and so
+// runs its window as the daemon's own account - and nothing ever replaced
+// it. A trainee reconnecting after a restart silently inherited that
+// stale, wrong-account window instead of getting a fresh one under their
+// own name.
+//
+// This builds that exact "resurrected, no spawner" shape directly (a
+// session with an ordinary AddDaemonWindow window, never touched by a
+// classroom handoff) rather than exercising real daemon-restart
+// resurrection, since the shape that matters here - session exists,
+// ClassroomSpawner() is nil - is identical either way.
+func TestClassroomHandoffReplacesAStaleResurrectedSession(t *testing.T) {
+	d := NewDaemon(&DaemonConfig{DisableAutoRestore: true})
+	defer d.Stop()
+	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
+	d.manager.SetSocketPath(mainSocketPath)
+	if err := d.startClassroomHandoffListener(); err != nil {
+		t.Fatalf("startClassroomHandoffListener: %v", err)
+	}
+
+	staleSess, err := d.manager.CreateSession("guru07", &SessionConfig{}, 80, 24)
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	staleWin, err := staleSess.AddDaemonWindow("", nil)
+	if err != nil {
+		t.Fatalf("AddDaemonWindow (simulating a resurrected window): %v", err)
+	}
+	staleSessionID := staleSess.ID
+	if staleSess.ClassroomSpawner() != nil {
+		t.Fatal("test setup bug: the stale session must start with no spawner")
+	}
+
+	helperPath := runFakePAMHelper(t)
+	helperConn, err := net.Dial("unixpacket", helperPath)
+	if err != nil {
+		t.Fatalf("dialing fake helper: %v", err)
+	}
+	loginFile, err := helperConn.(*net.UnixConn).File()
+	if err != nil {
+		t.Fatalf("File: %v", err)
+	}
+	_ = helperConn.Close()
+	defer func() { _ = loginFile.Close() }()
+
+	if err := SendClassroomLogin(mainSocketPath, "guru07", "guru07", loginFile, 80, 24); err != nil {
+		t.Fatalf("SendClassroomLogin: %v", err)
+	}
+
+	var sess *Session
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if sess = d.manager.GetSession("guru07"); sess != nil && sess.ClassroomSpawner() != nil {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if sess == nil || sess.ClassroomSpawner() == nil {
+		t.Fatal("classroom session \"guru07\" never got a live spawner")
+	}
+	if sess.ID == staleSessionID {
+		t.Fatal("the stale session was reused instead of torn down and rebuilt")
+	}
+
+	state := sess.GetState()
+	if len(state.Windows) != 1 {
+		t.Fatalf("window count = %d, want 1", len(state.Windows))
+	}
+	if state.Windows[0].ID == staleWin.ID {
+		t.Fatal("the stale window survived; expected a fresh one from the new session")
+	}
+	if p := sess.GetPTY(state.Windows[0].PTYID); p == nil || p.IsExited() {
+		t.Fatal("the new session's window has no live PTY")
 	}
 }

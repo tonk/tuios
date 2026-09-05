@@ -58,7 +58,7 @@ const (
 type Login struct {
 	conn     *net.UnixConn
 	username string
-	// origFile, when set (only for a Login built by NewLoginFromFD), is the
+	// origFile, when set (only for a Login built by NewLoginFromFile), is the
 	// os.File conn's fd was reconstructed from - kept open and closed
 	// alongside conn, rather than immediately after net.FileConn dups it, to
 	// avoid a real, timing-dependent race: closing it immediately frees its
@@ -66,7 +66,7 @@ type Login struct {
 	// still very much in active use (about to send/receive SpawnPTY's own
 	// fd), and if something else grabs that freed number before conn is
 	// done with it, closing "origFile" later closes whatever now holds that
-	// number instead. See NewLoginFromFD.
+	// number instead. See NewLoginFromFile.
 	origFile *os.File
 }
 
@@ -179,7 +179,7 @@ func (l *Login) ClosePTY(pid int) error {
 
 // Close ends the login: the helper signals every shell still running for it
 // and tears down the PAM session once it sees the connection close - which,
-// for a Login built by NewLoginFromFD, requires closing origFile too: the
+// for a Login built by NewLoginFromFile, requires closing origFile too: the
 // helper only sees the connection as closed once every fd referencing it
 // anywhere is closed, and origFile is a second one, deliberately kept open
 // until now (see the field's own doc comment).
@@ -195,7 +195,7 @@ func (l *Login) Close() error {
 
 // File returns a duplicate of this Login's connection to the helper, as an
 // *os.File suitable for passing to another process via SCM_RIGHTS - see
-// NewLoginFromFD, its counterpart in the receiving process (in practice,
+// NewLoginFromFile, its counterpart in the receiving process (in practice,
 // tuios-web handing a classroom trainee's login over to the daemon process
 // so the daemon can spawn every later window itself, not just the first).
 // The caller owns the returned File and must close it once it has been sent;
@@ -204,16 +204,30 @@ func (l *Login) File() (*os.File, error) {
 	return l.conn.File()
 }
 
-// NewLoginFromFD reconstructs a Login around a file descriptor received from
+// NewLoginFromFile reconstructs a Login around an *os.File received from
 // another process via SCM_RIGHTS - typically one returned by File in the
-// process that originally called Dial. The result behaves identically to a
-// freshly-dialed Login: SpawnPTY, ClosePTY and Close all work the same way,
-// since none of them depend on anything specific to having called Dial
-// itself, only on holding a live connection to the helper. username is not
-// re-verified here - it is carried alongside the fd by whatever transport
-// handed it over, and is trusted the same way the fd itself is.
-func NewLoginFromFD(fd uintptr, username string) (*Login, error) {
-	f := os.NewFile(fd, "pam-login")
+// process that originally called Dial, then rebuilt locally with
+// os.NewFile(fds[0], ...) around the fd ParseUnixRights handed back. The
+// result behaves identically to a freshly-dialed Login: SpawnPTY, ClosePTY
+// and Close all work the same way, since none of them depend on anything
+// specific to having called Dial itself, only on holding a live connection
+// to the helper. username is not re-verified here - it is carried alongside
+// the fd by whatever transport handed it over, and is trusted the same way
+// the fd itself is.
+//
+// This takes ownership of f itself (kept as origFile, see that field's own
+// doc comment) rather than a bare fd number: a caller that instead did
+// something like NewLoginFromFile-but-with-a-uintptr(f.Fd(), ...) would
+// leave f with no remaining Go-level reference once that call returns,
+// making it eligible for GC at any later point - including while conn (a
+// separate fd net.FileConn dups from the same number) is still actively
+// sending/receiving. f's finalizer closing its fd out from under conn's
+// still-live use of the same underlying socket is a real bug this signature
+// was chosen specifically to make impossible: passing f itself keeps a
+// permanent reference to it as long as the returned Login (which needs its
+// fd number to stay valid) lives, the same way origFile's own doc comment
+// already reasons about not closing it too early.
+func NewLoginFromFile(f *os.File, username string) (*Login, error) {
 	conn, err := net.FileConn(f)
 	if err != nil {
 		_ = f.Close()

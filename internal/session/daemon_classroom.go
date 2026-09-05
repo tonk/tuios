@@ -107,17 +107,21 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 		_ = writeClassroomHandoffAck(uconn, err)
 		return
 	}
-	// No defer loginFile.Close() here: NewLoginFromFD takes ownership of
-	// loginFile's fd (kept open as part of the returned Login, closed
+	// No defer loginFile.Close() here: NewLoginFromFile takes ownership of
+	// loginFile itself (kept open as part of the returned Login, closed
 	// alongside it by Login.Close - see that field's own doc comment for
-	// why closing it any earlier is a real, timing-dependent hazard: two
-	// separate, real bugs were caught here before this shape was settled on
-	// - closing it immediately raced the adopted PTY's own fd for the same
+	// why closing it any earlier is a real, timing-dependent hazard). Three
+	// separate, real bugs were caught here before this shape was settled on:
+	// closing it immediately raced the adopted PTY's own fd for the same
 	// freed number (silently killing a running shell, logged as "bad file
 	// descriptor" with no indication why until readOutput/AdoptPTY started
-	// debugLog-ing this), and deferring the close to here instead raced it
-	// just the same, only later.
-	login, err := pamauth.NewLoginFromFD(loginFile.Fd(), username)
+	// debugLog-ing this); deferring the close to here instead raced it just
+	// the same, only later; and passing loginFile.Fd() (a bare number)
+	// rather than loginFile itself left loginFile with no remaining
+	// reference once this call returned, letting the GC finalize-close its
+	// fd - the same number conn still actively uses - at any later,
+	// nondeterministic point (see NewLoginFromFile's own doc comment).
+	login, err := pamauth.NewLoginFromFile(loginFile, username)
 	if err != nil {
 		log.Printf("classroom handoff for %q: %v", sessionName, err)
 		_ = writeClassroomHandoffAck(uconn, err)
@@ -131,15 +135,42 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 		_ = writeClassroomHandoffAck(uconn, err)
 		return
 	}
+	if !created && sess.ClassroomSpawner() == nil {
+		// The session survived a daemon restart: it exists (resurrected from
+		// disk) but holds no live spawner, since one is never persisted (see
+		// SetClassroomSpawner's own doc comment) - every window it has was
+		// necessarily brought back via RestorePTY, which runs as this
+		// daemon's own account, not the trainee's, because there is no live
+		// login yet at daemon startup to route through. Left alone, this
+		// trainee's reconnect would silently attach them to a stale window
+		// running as someone else's account, with no error to explain why.
+		//
+		// Rather than trying to hot-swap PTYs under a window some client
+		// might be attached to *right now* (a state-sync race with no clean
+		// answer), tear the whole stale session down - exactly what
+		// tuios kill-session does, so any attached client gets the same
+		// proper MsgSessionEnded notice - and fall through to create a
+		// genuinely fresh one under the same name below.
+		if delErr := d.manager.DeleteSession(sessionName); delErr != nil {
+			log.Printf("classroom handoff for %q: tearing down stale resurrected session: %v", sessionName, delErr)
+		}
+		sess, created, err = d.manager.GetOrCreateSession(sessionName, &SessionConfig{}, cols, rows)
+		if err != nil {
+			log.Printf("classroom handoff for %q: %v", sessionName, err)
+			_ = login.Close()
+			_ = writeClassroomHandoffAck(uconn, err)
+			return
+		}
+	}
 	if !created {
-		// A session-with-a-spawner already exists: either a genuine race with
-		// another handoff for the same trainee, or (before the client's own
-		// existence check) a redundant call. Either way, this login is not
-		// the session's spawner - installing it would silently orphan the
-		// spawner actually in use (never closed, since nothing else holds a
-		// reference to replace) without the daemon knowing to stop using it,
-		// and closing the login we DO hold spawns no shells to signal, so it
-		// is always safe to just end here instead.
+		// A session with a *live* spawner already exists: a genuine race
+		// with another handoff for the same trainee, or (before the client's
+		// own existence check) a redundant call. Either way, this login is
+		// not the session's spawner - installing it would silently orphan
+		// the spawner actually in use (never closed, since nothing else
+		// holds a reference to replace) without the daemon knowing to stop
+		// using it, and closing the login we DO hold spawns no shells to
+		// signal, so it is always safe to just end here instead.
 		_ = login.Close()
 		log.Printf("Classroom session %q for %q already exists; discarding redundant login handoff", sessionName, username)
 		_ = writeClassroomHandoffAck(uconn, nil)
