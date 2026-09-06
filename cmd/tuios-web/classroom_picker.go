@@ -20,25 +20,30 @@ import (
 // for its live, trainee-pattern-filtered session list.
 const classroomPickerRefreshInterval = 3 * time.Second
 
+// classroomPickerTitleIdle is the window title while the trainer console list
+// is showing. The front-door page script (frontDoorWebsocketHead) treats this
+// as "Enter opens a new browser tab", so Enter can window.open during the
+// keydown gesture - required to beat popup blockers - and later navigate that
+// tab when a tuios-open-tab:* title arrives.
+const classroomPickerTitleIdle = "tuios-trainer-picker"
+
 // classroomPickerModel is the trainer console's landing screen: an
 // authorized trainer connecting with no "attach" query parameter (see
 // pamAuthMiddleware/classroomShowPickerFromContext) lands here instead of
-// their own session, and picks a live trainee session to attach to - or
-// their own, ordinary session - instead of having to know/type a username
-// or URL. Once one is chosen, Update/View delegate to the attached
-// daemon-backed OS instance built around it - see the "m.attached != nil"
-// branches below - for the rest of the connection's life.
+// their own session, and picks a live trainee session - or their own,
+// ordinary session - to open in a new browser tab (via ?attach=<name>),
+// keeping this picker tab as the console. Previously Enter attached
+// in-process in the same tab, which made returning to the list require a
+// full reload without ?attach=.
 //
 // The list always has one extra, fixed entry at the top - "My own session"
 // - ahead of the live trainee list; cursor 0 is that entry, cursor N is
 // m.sessions[N-1].
 //
-// login is kept alive for as long as the picker is showing: unlike
-// attaching to another trainee's already-live session (never needs it - see
-// attach's own reasoning), the trainer's own session may not exist yet, and
-// creating it needs a live login to hand off (see attachOwn). It is closed
-// on every exit from the picker - quitting, or a successful attach of
-// either kind, whichever comes first.
+// login is kept alive for as long as the picker is showing and closed only
+// on quit: opening a session happens in a new tab that authenticates on its
+// own (Basic Auth / PAM stash), so this connection never needs a login
+// handoff.
 type classroomPickerModel struct {
 	ctx           context.Context
 	login         *pamauth.Login
@@ -53,7 +58,11 @@ type classroomPickerModel struct {
 	cursor   int
 	loadErr  error
 
-	attached tea.Model
+	// openTabSeq / openTabUser arm a one-shot WindowTitle the injected page
+	// script turns into window.open(...?attach=<user>). Cleared shortly after
+	// so the next Enter for the same user still produces a distinct title.
+	openTabSeq  uint64
+	openTabUser string
 }
 
 type classroomPickerTickMsg struct{}
@@ -62,6 +71,8 @@ type classroomPickerRefreshMsg struct {
 	sessions []session.SessionInfo
 	err      error
 }
+
+type classroomPickerClearOpenTabMsg struct{}
 
 // newClassroomPickerModel builds the picker for an authorized trainer.
 // traineePattern is the raw [classroom] trainee_pattern config string,
@@ -138,12 +149,6 @@ func filterClassroomSessions(all []session.SessionInfo, self string, pattern *re
 }
 
 func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.attached != nil {
-		updated, cmd := m.attached.Update(msg)
-		m.attached = updated
-		return m, cmd
-	}
-
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -162,6 +167,10 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case classroomPickerClearOpenTabMsg:
+		m.openTabUser = ""
+		return m, nil
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "up", "k":
@@ -175,10 +184,7 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "enter":
-			if m.cursor == 0 {
-				return m.attachOwn()
-			}
-			return m.attach(m.sessions[m.cursor-1].Name)
+			return m.armOpenTab()
 		case "q", "esc", "ctrl+c":
 			_ = m.login.Close()
 			return m, tea.Quit
@@ -187,47 +193,26 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// attachOwn builds (creating it via a login handoff first, if it doesn't
-// already exist) the trainer's own classroom session - exactly the same
-// path an ordinary trainee's own connection uses, since a trainer is just
-// as much a PAM-authenticated account as anyone else in [classroom]
-// trainer_users. This is the only picker action that can ever need login,
-// which is why it stays open until now instead of being closed at
-// construction like an ordinary cross-attach never needs it to be.
-func (m *classroomPickerModel) attachOwn() (tea.Model, tea.Cmd) {
-	model, _, err := createClassroomTUIOSInstance(m.ctx, m.login, m.width, m.height, m.graphicsOut, m.touch)
-	if err != nil {
-		m.loadErr = fmt.Errorf("attaching to your own session: %w", err)
-		return m, nil
+// armOpenTab sets a one-shot window title the front-door page script turns
+// into a new browser tab at ?attach=<user>, then clears the title so a later
+// Enter for the same user still emits a distinct signal.
+func (m *classroomPickerModel) armOpenTab() (tea.Model, tea.Cmd) {
+	name := m.self
+	if m.cursor > 0 {
+		name = m.sessions[m.cursor-1].Name
 	}
-	m.attached = model
-	return m, model.Init()
-}
-
-// attach builds a daemon-backed instance around an already-live session
-// from the picker's own list - never a login handoff, since a session only
-// ever appears here because some trainee is already logged into it under
-// their own account. login is closed here since this path never needs it;
-// if this fails, picking "My own session" afterward will no longer work
-// either (login is gone) - a trainer hitting that would need to reconnect,
-// an accepted rough edge rather than keeping login alive on a false chance
-// it's needed again.
-func (m *classroomPickerModel) attach(name string) (tea.Model, tea.Cmd) {
-	_ = m.login.Close()
-	model, _, err := attachDaemonSession(m.ctx, name, false, m.width, m.height, m.graphicsOut, m.touch)
-	if err != nil {
-		m.loadErr = fmt.Errorf("attaching to %q: %w", name, err)
-		return m, nil
-	}
-	m.attached = model
-	return m, model.Init()
+	m.openTabSeq++
+	m.openTabUser = name
+	m.loadErr = nil
+	// Long enough for the title to reach the browser over the websocket
+	// before we flip back to the idle picker title; too short and the
+	// open-tab signal is overwritten before the page script sees it.
+	return m, tea.Tick(time.Second, func(time.Time) tea.Msg {
+		return classroomPickerClearOpenTabMsg{}
+	})
 }
 
 func (m *classroomPickerModel) View() tea.View {
-	if m.attached != nil {
-		return m.attached.View()
-	}
-
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39")).MarginBottom(1)
 	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(true).Padding(0, 1)
 	normalStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252")).Padding(0, 1)
@@ -274,7 +259,7 @@ func (m *classroomPickerModel) View() tea.View {
 		b.WriteString("\n")
 	}
 
-	b.WriteString(dimStyle.Render("↑/k up  ↓/j down  enter: attach  q/esc: disconnect"))
+	b.WriteString(dimStyle.Render("↑/k up  ↓/j down  enter: open in new tab  q/esc: disconnect"))
 
 	// Centered in the full terminal size, matching tuios's own empty-
 	// workspace welcome screen (see render_overlays.go's identical
@@ -288,5 +273,13 @@ func (m *classroomPickerModel) View() tea.View {
 	var v tea.View
 	v.SetContent(content)
 	v.AltScreen = true
+	if m.openTabUser != "" {
+		// seq makes each Enter distinct so the page script re-fires for the
+		// same username; the username is the only untrusted piece and is
+		// validated again client-side before window.open.
+		v.WindowTitle = fmt.Sprintf("tuios-open-tab:%d:%s", m.openTabSeq, m.openTabUser)
+	} else {
+		v.WindowTitle = classroomPickerTitleIdle
+	}
 	return v
 }

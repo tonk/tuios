@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/hooks"
 	"github.com/tonk/tuios/internal/layout"
 	"github.com/tonk/tuios/internal/session"
@@ -359,8 +360,15 @@ func (m *OS) RestoreFromState(state *session.SessionState) error {
 	// later reload restores the same stuck half-width/half-height window.
 	// Retiling here, exactly when placeUnplacedWindows actually placed
 	// something, closes that gap the same way the sync path already does.
+	// Floating + maximize_new_windows takes the matching fill instead of a
+	// retile: TileAllWindows ignores floating panes, so it would leave the
+	// half-size box alone.
 	if m.placeUnplacedWindows(state) {
-		m.TileAllWindows()
+		if m.AutoTiling {
+			m.TileAllWindows()
+		} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+			m.MaximizeFloatingWindows()
+		}
 	}
 
 	m.MarkAllDirty()
@@ -375,6 +383,13 @@ func (m *OS) RestoreFromState(state *session.SessionState) error {
 	if len(m.Windows) > 0 && m.FocusedWindow >= 0 {
 		m.Mode = TerminalMode
 		m.TerminalModeEnteredAt = time.Now()
+	}
+
+	// Web (--config) appearance may disagree with the daemon's own config file;
+	// push the client's initial_title_format / lock_titles onto restored panes
+	// so browser tabs and pane titles match what the web config asked for.
+	if m.applyConfiguredTitlesToWindows() {
+		m.SyncStateToDaemon()
 	}
 
 	return nil
@@ -604,6 +619,9 @@ func (m *OS) ApplyStateSync(state *session.SessionState) error {
 	}
 
 	m.MarkAllDirty()
+	if m.applyConfiguredTitlesToWindows() {
+		m.SyncStateToDaemon()
+	}
 	return nil
 }
 
@@ -613,7 +631,15 @@ func (m *OS) updateWindowFromState(w *terminal.Window, ws *session.WindowState) 
 	sizeChanged := w.Width != ws.Width || w.Height != ws.Height
 
 	// Update all properties
-	w.SetTitle(ws.Title)
+	if want := m.configuredWindowTitle(); want != "" && config.LockTitles {
+		// Client appearance wins over a shell OSC title the daemon echoed:
+		// without this, every sync would undo applyConfiguredTitlesToWindows.
+		w.SetTitle(want)
+		w.SetTitleLocked(true)
+	} else {
+		w.SetTitle(ws.Title)
+		w.SetTitleLocked(ws.TitleLocked || config.LockTitles)
+	}
 	w.CustomName = ws.CustomName
 	w.X = ws.X
 	w.Y = ws.Y
@@ -627,7 +653,6 @@ func (m *OS) updateWindowFromState(w *terminal.Window, ws *session.WindowState) 
 	w.PreMinimizeWidth = ws.PreMinimizeW
 	w.PreMinimizeHeight = ws.PreMinimizeH
 	w.SetAltScreen(ws.IsAltScreen)
-	w.SetTitleLocked(ws.TitleLocked)
 	w.AgentMessage = ws.AgentMessage
 	w.AgentHarness = ws.AgentHarness
 	w.AgentStateAt = ws.AgentStateAt
@@ -743,6 +768,7 @@ func (m *OS) createWindowFromSync(ws *session.WindowState) *terminal.Window {
 	}
 
 	adoptWindowState(window, *ws)
+	m.applyConfiguredWindowTitle(window)
 
 	m.installPassthroughs(window)
 	m.setupCwdWatch(window)

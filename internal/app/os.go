@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/ssh"
+	"github.com/google/uuid"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/hooks"
 	"github.com/tonk/tuios/internal/layout"
@@ -21,8 +23,6 @@ import (
 	"github.com/tonk/tuios/internal/tape/luascript"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/ui"
-	"github.com/charmbracelet/ssh"
-	"github.com/google/uuid"
 )
 
 // Mode represents the current interaction mode of the application.
@@ -329,6 +329,10 @@ type OS struct {
 	IsDaemonSession bool               // True when running as part of a persistent daemon session
 	DaemonClient    *session.TUIClient // Client for daemon communication (nil in local mode)
 	SessionName     string             // Name of the daemon session (if attached)
+	// InitialTitleUser is who appearance.initial_title_format's {user}
+	// expands to when this client applies configured titles. See
+	// OSOptions.InitialTitleUser. Empty falls through to PAMLogin / process user.
+	InitialTitleUser string
 	// PAMLogin is non-nil for a tuios-web connection authenticated via the
 	// optional PAM trainee-auth helper (see internal/pamauth and --pam-auth).
 	// When set, AddWindow spawns every window - the first and every later

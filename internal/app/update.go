@@ -1249,6 +1249,16 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 					m.LogInfo("[RESIZE] Retiling restored session to fit new terminal size (%dx%d -> %dx%d)",
 						oldWidth, oldHeight, msg.Width, msg.Height)
 					m.TileAllWindows()
+				} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+					// Same policy as the ordinary (non-restore) resize path
+					// below: maximize_new_windows means every floating pane
+					// fills the content area. Scaling a restored half-size box
+					// proportionally would keep it half-size forever - the
+					// exact stuck layout classroom web sessions hit despite
+					// appearance.maximize_new_windows = true in config.
+					m.LogInfo("[RESIZE] Restored session: maximizing floating windows to %dx%d",
+						msg.Width, msg.Height)
+					m.MaximizeFloatingWindows()
 				} else {
 					// In floating mode, scale windows proportionally if dimensions changed
 					if oldWidth > 0 && oldHeight > 0 {
@@ -1260,6 +1270,11 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 						m.ClampWindowsToView()
 					}
 				}
+			} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows && !m.AutoTiling {
+				// Same-size reattach still owes maximize_new_windows a fill:
+				// a persisted half-size pane must not be "preserved" when the
+				// config says new/floating windows fill the content area.
+				m.MaximizeFloatingWindows()
 			} else {
 				m.LogInfo("[RESIZE] Restored session, same size (%dx%d), preserving layout", msg.Width, msg.Height)
 			}

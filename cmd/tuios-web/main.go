@@ -19,14 +19,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/Gaurav-Gosain/sip"
+	"github.com/charmbracelet/colorprofile"
+	"github.com/charmbracelet/fang"
+	"github.com/spf13/cobra"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/input"
 	"github.com/tonk/tuios/internal/pamauth"
 	"github.com/tonk/tuios/internal/session"
-	"github.com/charmbracelet/colorprofile"
-	"github.com/charmbracelet/fang"
-	"github.com/spf13/cobra"
 )
 
 // Version information (set by goreleaser)
@@ -765,7 +765,7 @@ func createDaemonTUIOSInstance(ctx context.Context, sessionName string, width, h
 	if sessionName == "" {
 		sessionName = "web"
 	}
-	return attachDaemonSession(ctx, sessionName, true, width, height, graphicsOut, touch)
+	return attachDaemonSession(ctx, sessionName, true, width, height, graphicsOut, touch, "")
 }
 
 // attachDaemonSession connects to the daemon and attaches to sessionName,
@@ -776,7 +776,11 @@ func createDaemonTUIOSInstance(ctx context.Context, sessionName string, width, h
 // to exist before this runs - createNew is always false for the latter,
 // since a classroom session that does not exist yet is created via a login
 // handoff, never by this attaching client.
-func attachDaemonSession(ctx context.Context, sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+//
+// initialTitleUser is who appearance.initial_title_format's {user} expands
+// to for this client's panes (classroom trainee / session owner). Empty for
+// ordinary non-classroom web sessions.
+func attachDaemonSession(ctx context.Context, sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool, initialTitleUser string) (tea.Model, []tea.ProgramOption, error) {
 	// Connect to daemon
 	client := session.NewTUIClient()
 	v := webServerConfig.version
@@ -856,6 +860,7 @@ func attachDaemonSession(ctx context.Context, sessionName string, createNew bool
 		IsDaemonSession:           true,
 		DaemonClient:              client,
 		SessionName:               sessionName,
+		InitialTitleUser:          initialTitleUser,
 		EnableGraphicsPassthrough: true,
 		ForceGraphicsEnabled:      true,
 		GraphicsOutput:            graphicsOut,
@@ -949,7 +954,7 @@ func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, wid
 		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
 	}
 
-	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch)
+	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName)
 }
 
 // createTrainerAttachInstance builds a daemon-backed instance for an
@@ -966,7 +971,7 @@ func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, wid
 // actually logged in) or this returns an error.
 func createTrainerAttachInstance(ctx context.Context, login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
 	_ = login.Close()
-	model, opts, err := attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch)
+	model, opts, err := attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("trainee %q is not currently logged in (or the daemon is unreachable): %w", sessionName, err)
 	}

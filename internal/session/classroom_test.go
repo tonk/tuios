@@ -18,14 +18,17 @@ import (
 // its Close can be verified without a privileged helper process.
 type fakeClassroomSpawner struct {
 	mu        sync.Mutex
+	username  string
 	cmds      map[int]*exec.Cmd
 	closed    []int
 	allClosed bool
 }
 
 func newFakeClassroomSpawner() *fakeClassroomSpawner {
-	return &fakeClassroomSpawner{cmds: make(map[int]*exec.Cmd)}
+	return &fakeClassroomSpawner{username: "trainee", cmds: make(map[int]*exec.Cmd)}
 }
+
+func (f *fakeClassroomSpawner) Username() string { return f.username }
 
 func (f *fakeClassroomSpawner) SpawnPTY(cols, rows int) (*os.File, int, error) {
 	cmd := exec.Command("sh")

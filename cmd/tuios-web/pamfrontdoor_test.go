@@ -128,8 +128,8 @@ func decodeFakeLoginFields(payload []byte) (username, password string) {
 // stylesheets, two fonts, three scripts, "/" itself, then the WebSocket
 // upgrade - see requirePAM's own doc comment), and requirePAM used to run a
 // full PAM login for every one of them even though they all carry the exact
-// same Basic Auth header. Repeated requests with the same credentials within
-// the cache TTL must hit the real pam-helper only once.
+// same Basic Auth header. "/" dials once (and stashes the Login); the asset
+// paths that follow must hit the credential cache and not redial.
 func TestRequirePAMCachesVerifiedCredentials(t *testing.T) {
 	socketPath, logins := runCountingFakePAMHelper(t, "correct-password")
 
@@ -137,18 +137,74 @@ func TestRequirePAMCachesVerifiedCredentials(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	for i := range 5 {
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.SetBasicAuth("trainee", "correct-password")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /: status = %d, want 200", rec.Code)
+	}
+	if got := logins.Load(); got != 1 {
+		t.Fatalf("GET / dialed pam-helper %d times, want 1", got)
+	}
+
+	for i, path := range []string{
+		"/static/terminal.css",
+		"/static/terminal.js",
+		"/static/webterm.js",
+		"/static/fonts/JetBrainsMonoNerdFontMono-Regular.ttf",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.SetBasicAuth("trainee", "correct-password")
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
-			t.Fatalf("request %d: status = %d, want 200", i, rec.Code)
+			t.Fatalf("asset %d (%s): status = %d, want 200", i, path, rec.Code)
 		}
 	}
 
 	if got := logins.Load(); got != 1 {
-		t.Errorf("real pam-helper logins for 5 requests with the same credentials = %d, want 1 (the rest should have hit the cache)", got)
+		t.Errorf("real pam-helper logins after / + 4 assets = %d, want 1 (assets should hit the cache)", got)
+	}
+}
+
+// TestPendingPAMLoginStashClaimedOnce pins that the Login dialed on "/" is
+// handed to the WebSocket upgrade exactly once, so a second claim (or a
+// wrong password) falls through to a fresh Dial.
+func TestPendingPAMLoginStashClaimedOnce(t *testing.T) {
+	socketPath, logins := runCountingFakePAMHelper(t, "correct-password")
+
+	handler := requirePAM(socketPath, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.SetBasicAuth("trainee", "correct-password")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /: status = %d, want 200", rec.Code)
+	}
+	sid := ""
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == sidCookieName {
+			sid = c.Value
+		}
+	}
+	if sid == "" {
+		t.Fatal("GET / did not set tuios_sid")
+	}
+
+	claimed := takePendingPAMLogin(sid, "trainee", "correct-password")
+	if claimed == nil {
+		t.Fatal("expected a stashed Login after GET /")
+	}
+	_ = claimed.Close()
+	if takePendingPAMLogin(sid, "trainee", "correct-password") != nil {
+		t.Fatal("stashed Login must be single-use")
+	}
+	if got := logins.Load(); got != 1 {
+		t.Errorf("pam-helper logins = %d, want 1 (stash claim must not redial)", got)
 	}
 }
 

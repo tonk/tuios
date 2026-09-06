@@ -11,6 +11,12 @@ import (
 // received file descriptor (see internal/pamauth.NewLoginFromFile).
 // *pamauth.Login satisfies this exactly.
 type ClassroomSpawner interface {
+	// Username is the Unix account this login authenticated as - used when
+	// expanding appearance.initial_title_format's {user} for windows this
+	// spawner creates (see Session.resolveDaemonWindowTitle). Without it the
+	// daemon process's own service account would fill {user} for every
+	// trainee alike.
+	Username() string
 	// SpawnPTY starts one more shell for this login, at the given terminal
 	// size, and returns its PTY master and pid - see AdoptPTY for how the
 	// result becomes a daemon window.

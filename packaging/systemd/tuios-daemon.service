@@ -28,6 +28,11 @@ Group=tuios-web
 # [Service] section (see docs/DEPLOYMENT.md).
 Environment=HOME=/home/tuios-web
 Environment=XDG_RUNTIME_DIR=/var/lib/tuios-web
+# Share tuios-web's XDG config tree so appearance.initial_title_format /
+# lock_titles (and themes) match the web binary's deployment layout under
+# /etc/tuios-web/tuios/. Classroom windows are created by this daemon, so
+# those settings must be loaded here - not only by tuios-web --config.
+Environment=XDG_CONFIG_HOME=/etc/tuios-web
 ExecStart=/usr/local/bin/tuios daemon
 Restart=on-failure
 RestartSec=2

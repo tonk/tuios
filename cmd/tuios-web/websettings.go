@@ -323,6 +323,147 @@ func serveBundledFont(data []byte) http.HandlerFunc {
 // doOpen/xC again, so it never re-triggers this.
 const fontCookieName = "tuios_font"
 
+// frontDoorWebsocketHead seeds sip's localStorage transport to "websocket",
+// forwards ?attach= onto the WebSocket upgrade URL (sip drops search params
+// when building /ws), and wires the trainer-console "open in new tab" bridge.
+//
+// Behind the front door (--pam-auth / --web-settings) sip's WebTransport
+// listener is loopback-only and not reverse-proxied, so "auto" always fails
+// over after a browser QUIC timeout; forcing websocket removes that delay.
+// Overwrites a stored "auto" as well: that value is the unreachable default,
+// not a deliberate user choice of webtransport.
+//
+// The open-tab bridge: while document.title is "tuios-trainer-picker", Enter
+// synchronously opens about:blank (user-gesture, so popup blockers allow it).
+// When the picker then sets title to tuios-open-tab:<seq>:<user>, that blank
+// tab is navigated to the same URL with ?attach=<user>. Opening only after
+// the title arrives would be async and get blocked.
+func frontDoorWebsocketHead() string {
+	return `
+    <script>
+    (function() {
+        try {
+            var raw = localStorage.getItem('sip-web-settings');
+            var s = raw ? JSON.parse(raw) : {};
+            var changed = !raw;
+            if (s.cursorBlink === undefined) { s.cursorBlink = true; changed = true; }
+            if (s.copyOnSelect === undefined) { s.copyOnSelect = true; changed = true; }
+            // sip's default transport is "auto", which tries WebTransport
+            // first. Behind this front door that listener is unreachable, so
+            // force websocket (including overwriting a stale "auto").
+            if (s.transport !== 'websocket') {
+                s.transport = 'websocket';
+                changed = true;
+            }
+            if (changed) {
+                localStorage.setItem('sip-web-settings', JSON.stringify(s));
+            }
+        } catch (e) {}
+
+        // sip's WebSocket URL is built from the page path alone and drops
+        // location.search. pamAuthMiddleware reads ?attach= on the upgrade
+        // request, so without this bridge a tab opened as ?attach=guru01
+        // still lands on the trainer picker (no attach on /ws).
+        (function forwardAttachQueryToWebSocket() {
+            var attach = '';
+            try {
+                attach = new URLSearchParams(window.location.search).get('attach') || '';
+            } catch (e) { return; }
+            if (!attach || !/^[A-Za-z0-9._-]+$/.test(attach)) return;
+            var Orig = window.WebSocket;
+            if (!Orig) return;
+            function Wrapped(url, protocols) {
+                try {
+                    var u = new URL(url, window.location.href);
+                    if (/\/ws\/?$/.test(u.pathname) || u.pathname.endsWith('ws')) {
+                        u.searchParams.set('attach', attach);
+                        url = u.toString();
+                    }
+                } catch (e) {}
+                if (protocols === undefined) return new Orig(url);
+                return new Orig(url, protocols);
+            }
+            Wrapped.prototype = Orig.prototype;
+            Wrapped.CONNECTING = Orig.CONNECTING;
+            Wrapped.OPEN = Orig.OPEN;
+            Wrapped.CLOSING = Orig.CLOSING;
+            Wrapped.CLOSED = Orig.CLOSED;
+            window.WebSocket = Wrapped;
+        })();
+
+        // Trainer picker → new browser tab (see classroom_picker.go).
+        var inPicker = false;
+        var pendingWin = null;
+        var pendingTimer = null;
+        var lastOpenTitle = '';
+        function clearPending() {
+            if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+            if (pendingWin && !pendingWin.closed) {
+                try { pendingWin.close(); } catch (e) {}
+            }
+            pendingWin = null;
+        }
+        function openAttach(user) {
+            try {
+                var u = new URL(window.location.href);
+                u.searchParams.set('attach', user);
+                if (pendingWin && !pendingWin.closed) {
+                    pendingWin.location = u.href;
+                    pendingWin = null;
+                    if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+                    return;
+                }
+                window.open(u.href, '_blank');
+            } catch (e) {}
+        }
+        function onTitle(t) {
+            t = t || '';
+            if (t === 'tuios-trainer-picker') {
+                inPicker = true;
+                return;
+            }
+            var m = /^tuios-open-tab:(\d+):([A-Za-z0-9._-]+)$/.exec(t);
+            if (m) {
+                inPicker = true;
+                if (t === lastOpenTitle) return;
+                lastOpenTitle = t;
+                openAttach(m[2]);
+                return;
+            }
+            // Left the picker for a real session title.
+            if (t && t.indexOf('tuios-open-tab:') !== 0 && t !== 'tuios-trainer-picker') {
+                inPicker = false;
+                clearPending();
+            }
+        }
+        document.addEventListener('keydown', function(e) {
+            if (!inPicker || e.key !== 'Enter' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+            clearPending();
+            try { pendingWin = window.open('about:blank', '_blank'); } catch (err) { pendingWin = null; }
+            pendingTimer = setTimeout(clearPending, 3000);
+        }, true);
+        try {
+            var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'title') ||
+                       Object.getOwnPropertyDescriptor(HTMLDocument.prototype, 'title');
+            if (desc && desc.set && desc.get) {
+                Object.defineProperty(document, 'title', {
+                    configurable: true,
+                    enumerable: true,
+                    get: function() { return desc.get.call(document); },
+                    set: function(v) { desc.set.call(document, v); onTitle(v); }
+                });
+            } else {
+                setInterval(function() { onTitle(document.title); }, 100);
+            }
+        } catch (e) {
+            setInterval(function() { onTitle(document.title); }, 100);
+        }
+        onTitle(document.title);
+    })();
+    </script>
+`
+}
+
 // settingsInjectHead is spliced into "/" right before </head>.
 //
 // bgHex bakes in the currently active theme's background (see
@@ -397,24 +538,7 @@ func settingsInjectHead(bgHex string) string {
         overflow-y: auto;
     }
     ` + bgRule + `</style>
-    <script>
-    // sip's terminal.js defaults cursorBlink/copyOnSelect to false, and -
-    // unlike fontFamily/renderer - has no window.__sipConfig hook to steer
-    // them (see static/terminal.js's DEFAULT_SETTINGS/loadSettings): the
-    // only way in is pre-seeding the same localStorage key it reads on
-    // first load, and only when nothing is stored there yet, so a
-    // returning visitor's own choice - including deliberately turning
-    // either back off - is never overwritten. Runs in <head>, so this
-    // always lands before terminal.js's own body script reads it.
-    (function() {
-        try {
-            if (!localStorage.getItem('sip-web-settings')) {
-                localStorage.setItem('sip-web-settings', JSON.stringify({ cursorBlink: true, copyOnSelect: true }));
-            }
-        } catch (e) {}
-    })();
-    </script>
-`
+` + frontDoorWebsocketHead()
 }
 
 // settingsInjectHTML is spliced into the "/" response right before the

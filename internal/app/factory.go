@@ -4,12 +4,12 @@ import (
 	"io"
 	"strings"
 
+	"github.com/charmbracelet/ssh"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/hooks"
 	"github.com/tonk/tuios/internal/pamauth"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/ssh"
 )
 
 // OSOptions configures the creation of an OS instance.
@@ -42,6 +42,14 @@ type OSOptions struct {
 
 	// SessionName is the name of the daemon session.
 	SessionName string
+
+	// InitialTitleUser is who appearance.initial_title_format's {user} expands
+	// to for this client's panes. Set for classroom web sessions where the
+	// PAM Login is closed before the OS is built (handoff / trainer attach),
+	// so FormatInitialTitleForUser would otherwise fall back to the
+	// tuios-web service account. Empty means use PAMLogin.Username() or the
+	// process user.
+	InitialTitleUser string
 
 	// IsSSHMode indicates this is an SSH session.
 	IsSSHMode bool
@@ -137,8 +145,9 @@ func NewOS(opts OSOptions) *OS {
 		ReadOnly:        opts.ReadOnly,
 
 		// Daemon connection
-		DaemonClient: opts.DaemonClient,
-		SessionName:  opts.SessionName,
+		DaemonClient:     opts.DaemonClient,
+		SessionName:      opts.SessionName,
+		InitialTitleUser: opts.InitialTitleUser,
 
 		// PAM trainee-auth (optional; see OS.PAMLogin)
 		PAMLogin: opts.PAMLogin,

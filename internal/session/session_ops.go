@@ -152,15 +152,20 @@ func (s *Session) daemonWindowSize() (width, height, ptyWidth, ptyHeight int) {
 	return width, height, max(width-2, 1), max(height-2, 1)
 }
 
-// newDaemonWindowID picks a window ID and resolves title, the same way for
-// every daemon-window constructor. An empty title falls back to the
-// configured initial-title format, then to a generic "Terminal <id>" - the
-// same default the renderer used when it still created windows itself, so a
-// window looks the same however it was asked for.
-func newDaemonWindowID(title string) (id, resolvedTitle string) {
+// resolveDaemonWindowTitle picks a window ID and resolves title, the same
+// way for every daemon-window constructor. An empty title falls back to the
+// configured initial-title format (with {user} expanded for a classroom
+// session's trainee, not the daemon's service account), then to a generic
+// "Terminal <id>" - the same default the renderer used when it still
+// created windows itself, so a window looks the same however it was asked for.
+func (s *Session) resolveDaemonWindowTitle(title string) (id, resolvedTitle string) {
 	id = uuid.New().String()
 	if title == "" {
-		if t := config.FormatInitialTitle(); t != "" {
+		asUser := ""
+		if sp := s.ClassroomSpawner(); sp != nil {
+			asUser = sp.Username()
+		}
+		if t := config.FormatInitialTitleForUser(asUser); t != "" {
 			title = t
 		} else {
 			title = "Terminal " + id[:8]
@@ -216,7 +221,7 @@ func (s *Session) registerDaemonWindow(windowID, title string, width, height int
 // attach.
 func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (WindowState, error) {
 	width, height, ptyWidth, ptyHeight := s.daemonWindowSize()
-	windowID, title := newDaemonWindowID(title)
+	windowID, title := s.resolveDaemonWindowTitle(title)
 
 	pty, err := s.CreatePTY(windowID, ptyWidth, ptyHeight, onExit)
 	if err != nil {
@@ -236,7 +241,7 @@ func (s *Session) AddDaemonWindow(title string, onExit func(ptyID string)) (Wind
 // signal a pid it did not fork when that pid runs as a different uid.
 func (s *Session) AdoptDaemonWindow(title string, ptyFile *os.File, pid int, onExit func(ptyID string), killFunc func() error) (WindowState, error) {
 	width, height, ptyWidth, ptyHeight := s.daemonWindowSize()
-	windowID, title := newDaemonWindowID(title)
+	windowID, title := s.resolveDaemonWindowTitle(title)
 
 	pty, err := s.AdoptPTY(windowID, ptyFile, pid, ptyWidth, ptyHeight, onExit, killFunc)
 	if err != nil {

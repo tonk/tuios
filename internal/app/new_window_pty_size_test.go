@@ -3,6 +3,7 @@ package app
 import (
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
@@ -179,6 +180,76 @@ func TestRestoreFromStatePlacesSoloWindowFullSize(t *testing.T) {
 	}
 	if got := win.ContentHeight(); got != wantH {
 		t.Errorf("solo window content height = %d, want %d (same as ApplyStateSync's already-correct retile; half-size placement was never retiled)", got, wantH)
+	}
+}
+
+// TestRestoreFromStateMaximizesFloatingWhenConfigured is the floating-mode
+// twin of TestRestoreFromStatePlacesSoloWindowFullSize: with
+// appearance.maximize_new_windows = true and tiling off (the stepper
+// /etc/tuios-web/config.toml shape), a classroom handoff's Unplaced first
+// window must fill the content area on RestoreFromState, not stay at
+// NewWindowPlacement's half-size box. The WindowSizeMsg restore path must
+// also re-apply that fill instead of scaling a persisted half-size box up
+// proportionally (which kept it half-size forever).
+func TestRestoreFromStateMaximizesFloatingWhenConfigured(t *testing.T) {
+	prevAnim := config.AnimationsEnabled
+	config.AnimationsEnabled = false
+	t.Cleanup(func() { config.AnimationsEnabled = prevAnim })
+
+	const width, height = 130, 55
+
+	cfg := config.DefaultConfig()
+	cfg.Appearance.MaximizeNewWindows = true
+
+	daemonState := &session.SessionState{
+		Name:             "guru01",
+		CurrentWorkspace: 1,
+		AutoTiling:       false,
+		Width:            width,
+		Height:           height,
+		WorkspaceFocus:   map[int]string{},
+		Version:          1,
+	}
+	daemonNewWindow(daemonState, "win-00000000000000000000000000000001", width, height, 1)
+
+	m := &OS{
+		NumWorkspaces:        9,
+		CurrentWorkspace:     1,
+		WorkspaceFocus:       make(map[int]int),
+		WorkspaceLayouts:     make(map[int][]WindowLayout),
+		WorkspaceMasterRatio: make(map[int]float64),
+		WorkspaceHasCustom:   make(map[int]bool),
+		Width:                width,
+		Height:               height,
+		AutoTiling:           false,
+		UserConfig:           cfg,
+	}
+	if err := m.RestoreFromState(daemonState); err != nil {
+		t.Fatalf("RestoreFromState: %v", err)
+	}
+	if len(m.Windows) != 1 {
+		t.Fatalf("restored %d windows, want 1", len(m.Windows))
+	}
+
+	wantX, wantY, wantW, wantH := m.calculateSnapBounds(SnapFullScreen)
+	win := m.Windows[0]
+	if win.X != wantX || win.Y != wantY || win.Width != wantW || win.Height != wantH {
+		t.Fatalf("after restore: window = %d,%d %dx%d, want maximized %d,%d %dx%d",
+			win.X, win.Y, win.Width, win.Height, wantX, wantY, wantW, wantH)
+	}
+
+	// Simulate a persisted half-size pane (the stuck layout before this fix)
+	// surviving into a same-size reattach, then the first WindowSizeMsg.
+	win.X, win.Y = width/4, height/4
+	win.Width, win.Height = width/2, height/2
+	m.RestoredFromState = true
+	m.Width, m.Height = width, height // same size as restored state
+	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
+
+	wantX, wantY, wantW, wantH = m.calculateSnapBounds(SnapFullScreen)
+	if win.X != wantX || win.Y != wantY || win.Width != wantW || win.Height != wantH {
+		t.Errorf("after same-size WindowSizeMsg: window = %d,%d %dx%d, want maximized %d,%d %dx%d",
+			win.X, win.Y, win.Width, win.Height, wantX, wantY, wantW, wantH)
 	}
 }
 

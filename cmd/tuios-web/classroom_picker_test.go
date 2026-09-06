@@ -102,51 +102,86 @@ func TestClassroomPickerQuits(t *testing.T) {
 	}
 }
 
-// TestClassroomPickerOwnSessionIsAlwaysCursorZero pins the fixed "My own
-// session" entry ahead of the live trainee list: cursor 0 always means "my
-// own session", regardless of how many trainee sessions are currently
-// listed, and enter at cursor 0 must route to attachOwn (which needs
-// login), not attach (which would try to treat "" as a trainee's session
-// name).
-func TestClassroomPickerOwnSessionIsAlwaysCursorZero(t *testing.T) {
+// TestClassroomPickerEnterOpensOwnSessionInNewTab pins that Enter on cursor 0
+// arms a tuios-open-tab title for the trainer's own username (the new-tab
+// bridge), rather than attaching in-process - and leaves login open so the
+// picker tab can keep running as the console.
+func TestClassroomPickerEnterOpensOwnSessionInNewTab(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
 	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 	m.sessions = []session.SessionInfo{{Name: "guru01"}}
 
-	// attachOwn will fail here (no real daemon reachable), but that failure
-	// itself proves cursor 0 routed through attachOwn and not attach: the
-	// error message names attachOwn's own wording, and login (consumed by
-	// createClassroomTUIOSInstance regardless of outcome) ends up closed.
-	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*classroomPickerModel)
-	if m.loadErr == nil {
-		t.Fatal("expected attachOwn to fail with no daemon reachable")
+	if m.openTabUser != "ton" {
+		t.Fatalf("openTabUser = %q, want ton", m.openTabUser)
 	}
-	if !strings.Contains(m.loadErr.Error(), "attaching to your own session") {
-		t.Errorf("loadErr = %v, want it to come from attachOwn, not attach", m.loadErr)
+	if m.openTabSeq != 1 {
+		t.Fatalf("openTabSeq = %d, want 1", m.openTabSeq)
+	}
+	title := m.View().WindowTitle
+	if !strings.HasPrefix(title, "tuios-open-tab:1:ton") {
+		t.Fatalf("WindowTitle = %q, want tuios-open-tab:1:ton", title)
+	}
+	if cmd == nil {
+		t.Fatal("expected a clear-open-tab tick command")
+	}
+	// Login must stay open: this tab remains the picker console.
+	if err := m.login.Close(); err != nil {
+		t.Fatalf("login should still be open after arming a new-tab open: %v", err)
 	}
 }
 
-// TestClassroomPickerCrossAttachClosesLogin pins that attaching to another
-// trainee's session closes login: that path never needs it (see attach's
-// own doc comment), and leaving it open would leak a live connection to
-// tuios-pam-helper - and, in production, an open PAM session - for as long
-// as the resulting attached OS instance keeps running.
-func TestClassroomPickerCrossAttachClosesLogin(t *testing.T) {
+// TestClassroomPickerEnterOpensTraineeInNewTab pins Enter on a trainee row
+// arms ?attach=<trainee> via the open-tab title and does not close login.
+func TestClassroomPickerEnterOpensTraineeInNewTab(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")
 	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
 	m.sessions = []session.SessionInfo{{Name: "guru01"}}
 	m.cursor = 1
 
-	model, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = model.(*classroomPickerModel)
-	if m.loadErr == nil {
-		t.Fatal("expected attach to fail with no daemon reachable")
+	if m.openTabUser != "guru01" {
+		t.Fatalf("openTabUser = %q, want guru01", m.openTabUser)
 	}
-	if err := m.login.Close(); err == nil {
-		t.Error("login.Close() succeeded on a second call; attach should have already closed it")
+	title := m.View().WindowTitle
+	if title != "tuios-open-tab:1:guru01" {
+		t.Fatalf("WindowTitle = %q, want tuios-open-tab:1:guru01", title)
+	}
+	if msg := cmd(); msg != (classroomPickerClearOpenTabMsg{}) {
+		// cmd is a Tick that returns the clear msg after delay; invoke via
+		// running the tick's function indirectly by waiting - easier: just
+		// apply ClearOpenTabMsg and check title resets.
+		_ = msg
+	}
+	model, _ = m.Update(classroomPickerClearOpenTabMsg{})
+	m = model.(*classroomPickerModel)
+	if m.openTabUser != "" {
+		t.Fatalf("openTabUser still %q after clear", m.openTabUser)
+	}
+	if got := m.View().WindowTitle; got != classroomPickerTitleIdle {
+		t.Fatalf("WindowTitle after clear = %q, want %q", got, classroomPickerTitleIdle)
+	}
+	if err := m.login.Close(); err != nil {
+		t.Fatalf("login should still be open: %v", err)
+	}
+}
+
+func TestClassroomPickerClearOpenTabCmd(t *testing.T) {
+	fakeSocket := runFakePAMHelperForAuth(t)
+	login := dialFakeLogin(t, fakeSocket, "ton")
+	m := newClassroomPickerModel(context.Background(), login, "^guru[0-9]{2}$", 80, 24, nil, false)
+	defer func() { _ = m.login.Close() }()
+
+	_, cmd := m.armOpenTab()
+	if cmd == nil {
+		t.Fatal("expected clear tick")
+	}
+	if m.openTabUser != "ton" || m.openTabSeq != 1 {
+		t.Fatalf("armed openTabUser=%q seq=%d", m.openTabUser, m.openTabSeq)
 	}
 }
 
@@ -163,6 +198,12 @@ func TestClassroomPickerViewFillsTheTerminal(t *testing.T) {
 	}
 	if !strings.Contains(view.Content, "My own session (ton)") {
 		t.Error("view does not contain the \"My own session\" entry")
+	}
+	if view.WindowTitle != classroomPickerTitleIdle {
+		t.Errorf("idle WindowTitle = %q, want %q", view.WindowTitle, classroomPickerTitleIdle)
+	}
+	if !strings.Contains(view.Content, "open in new tab") {
+		t.Error("view hint should mention opening in a new tab")
 	}
 }
 

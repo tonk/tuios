@@ -34,13 +34,24 @@ func pamAuthMiddleware(socketPath string, classroom config.ClassroomConfig) sip.
 			if !ok {
 				return unauthorized("Authentication required")
 			}
-			login, err := pamauth.Dial(socketPath, username, password)
-			if err != nil {
-				// The specific reason (wrong password vs. helper unreachable
-				// vs. account locked) is only useful server-side: handing it
-				// to the browser would tell an attacker which they hit.
-				log.Printf("PAM login for %q failed: %v", username, err)
-				return unauthorized("Authentication failed")
+
+			// Prefer a Login the front door already dialed on "/" for this
+			// tuios_sid: claiming it skips a second pam_unix password hash on
+			// the WebSocket upgrade (see stashPendingPAMLogin).
+			var login *pamauth.Login
+			if c, err := r.Cookie(sidCookieName); err == nil && c.Value != "" {
+				login = takePendingPAMLogin(c.Value, username, password)
+			}
+			if login == nil {
+				var err error
+				login, err = pamauth.Dial(socketPath, username, password)
+				if err != nil {
+					// The specific reason (wrong password vs. helper unreachable
+					// vs. account locked) is only useful server-side: handing it
+					// to the browser would tell an attacker which they hit.
+					log.Printf("PAM login for %q failed: %v", username, err)
+					return unauthorized("Authentication failed")
+				}
 			}
 			ctx := sip.WithIdentity(r.Context(), login)
 

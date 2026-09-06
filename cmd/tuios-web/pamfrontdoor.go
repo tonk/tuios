@@ -51,8 +51,14 @@ func newFrontDoor(publicAddr, internalAddr string, tlsConfig *tls.Config, pamSoc
 	target := &url.URL{Scheme: "http", Host: internalAddr}
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.ErrorLog = log.Default()
+	// Always rewrite "/": even without --web-settings the front door puts
+	// sip on loopback where WebTransport is unreachable from the browser
+	// (QUIC is not reverse-proxied), so the page must prefer WebSocket or
+	// every connect pays a doomed WT handshake timeout first.
 	if injectSettings {
 		proxy.ModifyResponse = rewriteIndexResponse
+	} else {
+		proxy.ModifyResponse = injectWebsocketPreference
 	}
 
 	mux := http.NewServeMux()
@@ -65,8 +71,10 @@ func newFrontDoor(publicAddr, internalAddr string, tlsConfig *tls.Config, pamSoc
 		// backend's own response headers directly, bypassing whatever this
 		// ResponseWriter's headers were set to beforehand. "/" is always
 		// requested before the page's own JS opens the WebSocket, so this
-		// is never actually a race in practice.
-		if injectSettings && r.URL.Path == "/" {
+		// is never actually a race in practice. requirePAM also sets the
+		// cookie when dialing a stashed Login; calling it here covers the
+		// --web-settings-without-pam case.
+		if r.URL.Path == "/" && (injectSettings || pamSocketPath != "") {
 			ensureSessionCookie(w, r)
 		}
 		proxy.ServeHTTP(w, r)
@@ -112,6 +120,12 @@ func newFrontDoor(publicAddr, internalAddr string, tlsConfig *tls.Config, pamSoc
 // weakening what a 401 gates: wrong or revoked credentials still fail
 // immediately, and a cached pass expires quickly enough that it only ever
 // covers requests that were always going to arrive within the same load.
+//
+// "/" itself dials a lasting Login (not a Verify-and-close) and stashes it
+// under the tuios_sid cookie for pamAuthMiddleware to claim on the WebSocket
+// upgrade: otherwise the password hash would run a second time for Dial
+// there. On lab hosts with SHA-512 rounds=656000 that second hash alone was
+// ~2.5s of connect latency.
 func requirePAM(pamSocketPath string, next http.Handler) http.Handler {
 	verified := newVerifiedCredentialCache()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +134,24 @@ func requirePAM(pamSocketPath string, next http.Handler) http.Handler {
 			unauthorizedHTTP(w)
 			return
 		}
+
+		// The document request is what the WebSocket upgrade will follow:
+		// Dial once here, stash the Login, and let assets hit the credential
+		// cache without another pam-helper round trip.
+		if r.URL.Path == "/" {
+			sid := ensureSessionCookie(w, r)
+			login, err := pamauth.Dial(pamSocketPath, username, password)
+			if err != nil {
+				log.Printf("PAM login for %q failed: %v", username, err)
+				unauthorizedHTTP(w)
+				return
+			}
+			verified.remember(username, password)
+			stashPendingPAMLogin(sid, username, password, login)
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if !verified.recentlyVerified(username, password) {
 			if err := pamauth.Verify(pamSocketPath, username, password); err != nil {
 				// Same reasoning as pamAuthMiddleware in pamauth.go: log the
@@ -249,6 +281,28 @@ func rewriteIndexResponse(resp *http.Response) error {
 		}
 	}
 	rewritten := injectSettingsUI(string(body), selectedFont, bgHex, initialThemeJSON)
+	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
+	resp.ContentLength = int64(len(rewritten))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))
+	return nil
+}
+
+// injectWebsocketPreference is the --web-settings-off ModifyResponse path:
+// splice only the WebSocket-preference seed into "/" so a front-door deploy
+// does not wait on an unreachable WebTransport attempt.
+func injectWebsocketPreference(resp *http.Response) error {
+	if resp.Request == nil || resp.Request.URL.Path != "/" {
+		return nil
+	}
+	if !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
+		return nil
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	_ = resp.Body.Close()
+	rewritten := strings.Replace(string(body), "</head>", frontDoorWebsocketHead()+"</head>", 1)
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
 	resp.ContentLength = int64(len(rewritten))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))

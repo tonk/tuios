@@ -900,6 +900,11 @@ func runDaemon(foreground, disableAutoRestore bool) error {
 	}
 
 	if userConfig, err := config.LoadUserConfig(); err == nil {
+		// Appearance globals drive daemon-owned window creation
+		// (initial_title_format, lock_titles). Without this apply, LoadUserConfig
+		// alone leaves those package vars at defaults and every classroom /
+		// headless NewWindow ignores the config file's appearance section.
+		config.ApplyAppearanceConfig(userConfig)
 		if session.GetDebugLevel() == session.DebugOff && userConfig.Daemon.LogLevel != "" {
 			session.SetDebugLevel(session.ParseDebugLevel(userConfig.Daemon.LogLevel))
 		}

@@ -380,7 +380,11 @@ func (m *OS) NewWindowPlacement() (x, y, width, height int) {
 		leftMargin = 0
 		contentWidth = 80
 		screenHeight = 24
-	} else if !m.AutoTiling && m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+	}
+	// Checked after the zero-size fallback so a place that races ahead of the
+	// first WindowSizeMsg (classroom handoff attach is the common case) still
+	// honors maximize_new_windows instead of falling through to half of 80.
+	if !m.AutoTiling && m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
 		return m.calculateSnapBounds(SnapFullScreen)
 	}
 

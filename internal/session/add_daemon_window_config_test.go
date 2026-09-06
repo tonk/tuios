@@ -29,6 +29,33 @@ func TestAddDaemonWindowAppliesInitialTitleFormat(t *testing.T) {
 	}
 }
 
+// TestAddDaemonWindowClassroomUsesTraineeInInitialTitleFormat pins
+// {user} expanding to the classroom spawner's username, not the daemon
+// process's own service account - otherwise every trainee pane would be
+// titled "tuios-web@…" under a shared appearance.initial_title_format.
+func TestAddDaemonWindowClassroomUsesTraineeInInitialTitleFormat(t *testing.T) {
+	prev := config.InitialTitleFormat
+	config.InitialTitleFormat = "{user}@lab"
+	t.Cleanup(func() { config.InitialTitleFormat = prev })
+
+	sess, err := NewSession("classroom-title", &SessionConfig{}, 80, 24)
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	t.Cleanup(func() { sess.Stop() })
+	sp := newFakeClassroomSpawner()
+	sp.username = "guru07"
+	sess.SetClassroomSpawner(sp)
+
+	win, err := sess.AddDaemonWindow("", nil)
+	if err != nil {
+		t.Fatalf("AddDaemonWindow failed: %v", err)
+	}
+	if win.Title != "guru07@lab" {
+		t.Errorf("Title = %q, want guru07@lab", win.Title)
+	}
+}
+
 // TestAddDaemonWindowAppliesLockTitles pins appearance.lock_titles reaching
 // the daemon-headless window creation path's WindowState.TitleLocked, so a
 // trainee's window starts locked even when created via the daemon rather
