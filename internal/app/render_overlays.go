@@ -482,152 +482,34 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 
 	if m.PrefixActive && !m.ShowHelp && config.WhichKeyEnabled && time.Since(m.LastPrefixTime) > config.WhichKeyDelay {
 		var title string
-		var bindings []config.Keybinding
+		var groups []config.KeybindingGroup
 
 		if m.WorkspacePrefixActive {
 			title = "Workspace"
-			bindings = config.GetPrefixKeybindings("workspace", m.KeybindRegistry)
+			groups = config.GetPrefixKeybindingGroups("workspace", m.KeybindRegistry)
 		} else if m.MinimizePrefixActive {
 			title = "Minimize"
-			bindings = config.GetPrefixKeybindings("minimize", m.KeybindRegistry)
-			minimizedCount := 0
-			for _, win := range m.Windows {
-				if win.Minimized && win.Workspace == m.CurrentWorkspace {
-					minimizedCount++
-				}
-			}
-			for i := range bindings {
-				if bindings[i].Description == "Restore window" {
-					bindings[i].Description = fmt.Sprintf("Restore window (%d minimized)", minimizedCount)
-					break
-				}
-			}
+			groups = config.GetPrefixKeybindingGroups("minimize", m.KeybindRegistry)
 		} else if m.TilingPrefixActive {
 			title = "Window"
-			bindings = config.GetPrefixKeybindings("window", m.KeybindRegistry)
+			groups = config.GetPrefixKeybindingGroups("window", m.KeybindRegistry)
 		} else if m.DebugPrefixActive {
 			title = "Debug"
-			bindings = config.GetPrefixKeybindings("debug", m.KeybindRegistry)
+			groups = config.GetPrefixKeybindingGroups("debug", m.KeybindRegistry)
 		} else if m.TapePrefixActive {
 			title = "Tape"
-			bindings = config.GetPrefixKeybindings("tape", m.KeybindRegistry)
+			groups = config.GetPrefixKeybindingGroups("tape", m.KeybindRegistry)
 		} else if m.LayoutPrefixActive {
 			title = "Layout"
-			bindings = config.GetPrefixKeybindings("layout", m.KeybindRegistry)
+			groups = config.GetPrefixKeybindingGroups("layout", m.KeybindRegistry)
 		} else {
 			title = "Prefix"
-			bindings = config.GetPrefixKeybindings("", m.KeybindRegistry, m.IsDaemonSession)
+			groups = config.GetPrefixKeybindingGroups("", m.KeybindRegistry, m.IsDaemonSession)
 		}
 
-		// The overlay spends four rows on a blank pad above and below, the title
-		// and its rule. A prefix with more bindings than the rest of the screen
-		// can hold says how many it left out rather than running off the bottom
-		// where they cannot be read.
-		moreCount := 0
-		if rh := m.GetRenderHeight(); rh > 0 {
-			maxRows := max(rh-5, 1)
-			if len(bindings) > maxRows {
-				moreCount = len(bindings) - (maxRows - 1)
-				bindings = bindings[:maxRows-1]
-			}
+		if layer := m.whichKeyLayer(title, groups); layer != nil {
+			layers = append(layers, layer)
 		}
-
-		maxKeyLen := 0
-		maxDescLen := 0
-		for _, binding := range bindings {
-			if len(binding.Key) > maxKeyLen {
-				maxKeyLen = len(binding.Key)
-			}
-			if len(binding.Description) > maxDescLen {
-				maxDescLen = len(binding.Description)
-			}
-		}
-		contentWidth := max(maxKeyLen+2+maxDescLen, len(title))
-		// The overlay carries two cells of padding on each side and sits two
-		// cells in from the screen edge, so it can ask for at most that much
-		// less than the screen. Descriptions are cut to whatever is left; the
-		// key column is what the overlay is for and keeps its width.
-		if maxWidth := m.GetRenderWidth() - 8; maxWidth > 0 && contentWidth > maxWidth {
-			contentWidth = max(maxWidth, maxKeyLen+2)
-		}
-		descWidth := max(contentWidth-maxKeyLen-2, 1)
-
-		// The panel's own ground and tokens. This overlay was the last one on a
-		// palette of its own, which is why it was the only amber on the screen.
-		pal := theme.UI()
-		bg := pal.Surface
-
-		var styledLines []string
-
-		padLine := func(s string, targetWidth int) string {
-			return overlay.Fill(s, targetWidth, bg)
-		}
-
-		titleStyled := overlay.Style(bg).Foreground(pal.Fg).Bold(true).
-			Render(truncateString(strings.ToLower(title), contentWidth))
-		styledLines = append(styledLines, padLine(titleStyled, contentWidth))
-		styledLines = append(styledLines, overlay.Rule(contentWidth, bg, pal))
-
-		for _, binding := range bindings {
-			line := overlay.Style(bg).Foreground(pal.AccentBright).Bold(true).Render(binding.Key) +
-				overlay.Style(bg).Render(strings.Repeat(" ", maxKeyLen-len(binding.Key)+2)) +
-				overlay.Style(bg).Foreground(pal.FgDim).Render(truncateString(binding.Description, descWidth))
-			styledLines = append(styledLines, padLine(line, contentWidth))
-		}
-
-		if moreCount > 0 {
-			more := overlay.Style(bg).Foreground(pal.FgMute).
-				Render(truncateString(fmt.Sprintf("+%d more", moreCount), contentWidth))
-			styledLines = append(styledLines, padLine(more, contentWidth))
-		}
-
-		paddingH := overlay.Style(bg).Render("  ")
-		emptyLine := overlay.Style(bg).Render(strings.Repeat(" ", contentWidth+4))
-
-		var finalLines []string
-		finalLines = append(finalLines, emptyLine)
-		for _, line := range styledLines {
-			finalLines = append(finalLines, paddingH+line+paddingH)
-		}
-		finalLines = append(finalLines, emptyLine)
-
-		renderedOverlay := strings.Join(finalLines, "\n")
-
-		overlayWidth := lipgloss.Width(renderedOverlay)
-		overlayHeight := lipgloss.Height(renderedOverlay)
-		var overlayX, overlayY int
-
-		renderWidth := m.GetRenderWidth()
-		renderHeight := m.GetRenderHeight()
-		switch config.WhichKeyPosition {
-		case "top-left":
-			overlayX = 2
-			overlayY = 1
-		case "top-right":
-			overlayX = renderWidth - overlayWidth - 2
-			overlayY = 1
-		case "bottom-left":
-			overlayX = 2
-			overlayY = renderHeight - overlayHeight - 2
-		case "center":
-			overlayX = (renderWidth - overlayWidth) / 2
-			overlayY = (renderHeight - overlayHeight) / 2
-		default:
-			overlayX = renderWidth - overlayWidth - 2
-			overlayY = renderHeight - overlayHeight - 2
-		}
-		// A binding list taller than the screen would otherwise be positioned
-		// off the top, hiding the first entries with no way to reach them.
-		overlayX = max(min(overlayX, renderWidth-overlayWidth), 0)
-		overlayY = max(min(overlayY, renderHeight-overlayHeight), 0)
-
-		whichKeyLayer := lipgloss.NewLayer(renderedOverlay).
-			X(overlayX).
-			Y(overlayY).
-			Z(config.ZIndexWhichKey).
-			ID("whichkey")
-
-		layers = append(layers, whichKeyLayer)
 	}
 
 	// Notifications are no longer drawn here. They live in the dock's right-hand
