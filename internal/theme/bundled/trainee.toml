@@ -63,4 +63,4 @@ success = "#8ec07c"
 # regular monitor. See internal/theme/webpreset.go.
 [web]
 font      = "saucecodepro nfm"
-font_size = 14
+font_size = 16
