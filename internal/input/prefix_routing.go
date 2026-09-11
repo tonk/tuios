@@ -181,6 +181,7 @@ func isTerminalSafeAction(action string) bool {
 	return strings.HasPrefix(action, "select_window_") ||
 		strings.HasPrefix(action, "move_and_follow_") ||
 		action == "next_session" || action == "prev_session" ||
+		action == "next_workspace" || action == "prev_workspace" ||
 		action == "toggle_last_window"
 }
 

@@ -200,6 +200,24 @@ func generateWorkspaceBindings(registry *config.KeybindRegistry) []HelpBinding {
 		}
 	}
 
+	// Cycling to the adjacent workspace, wrapping around at the ends.
+	for _, entry := range []struct {
+		action, description string
+	}{
+		{"next_workspace", "Next workspace"},
+		{"prev_workspace", "Previous workspace"},
+	} {
+		keys := registry.GetKeys(entry.action)
+		if len(keys) > 0 {
+			bindings = append(bindings, HelpBinding{
+				Action:      entry.action,
+				Keys:        keys,
+				Description: entry.description,
+				Category:    "Workspaces",
+			})
+		}
+	}
+
 	// Renaming a workspace is a chord rather than a plain key, so its row is
 	// built from the same whole-chord hint the pill menu shows.
 	if chord := contextMenuHint(registry, "workspace_prefix_rename"); chord != "" {

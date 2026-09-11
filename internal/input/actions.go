@@ -83,6 +83,8 @@ func (d *ActionDispatcher) registerHandlers() {
 		d.Register("switch_workspace_"+string(rune('0'+i)), makeSwitchWorkspaceHandler(i))
 		d.Register("move_and_follow_"+string(rune('0'+i)), makeMoveAndFollowHandler(i))
 	}
+	d.Register("next_workspace", handleNextWorkspace)
+	d.Register("prev_workspace", handlePrevWorkspace)
 
 	// Layout actions
 	d.Register("snap_left", handleSnapLeft)
@@ -334,6 +336,19 @@ func makeMoveAndFollowHandler(workspace int) ActionHandler {
 		}
 		return o, nil
 	}
+}
+
+// handleNextWorkspace and handlePrevWorkspace cycle through workspaces 1..N,
+// wrapping around at the ends, mirroring the desktop-environment convention of
+// Ctrl+Alt+Left/Right.
+func handleNextWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.SwitchToWorkspace(o.CurrentWorkspace%o.NumWorkspaces + 1)
+	return o, nil
+}
+
+func handlePrevWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.SwitchToWorkspace((o.CurrentWorkspace-2+o.NumWorkspaces)%o.NumWorkspaces + 1)
+	return o, nil
 }
 
 // ============================================================================

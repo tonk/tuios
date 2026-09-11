@@ -679,10 +679,12 @@ func getDefaultWindowManagementKeybinds() map[string][]string {
 }
 
 // getDefaultWorkspaceKeybinds returns platform-specific workspace keybindings.
-// Switching workspaces is a prefix chord (prefix_mode.switch_workspace_N,
-// alongside prefix_mode.select_window_N's opposite number: alt+N picks a
-// window, prefix+N picks a workspace), so this only carries move_and_follow_N,
-// which stays a direct chord since it is not something you reach for as often.
+// Switching to a specific workspace is a prefix chord
+// (prefix_mode.switch_workspace_N, alongside prefix_mode.select_window_N's
+// opposite number: alt+N picks a window, prefix+N picks a workspace), so this
+// section carries move_and_follow_N plus next_workspace/prev_workspace, which
+// stay direct chords since they are not something you reach for via the
+// leader.
 func getDefaultWorkspaceKeybinds() map[string][]string {
 	// On macOS, use opt+N (which expands to alt+N and unicode via normalization)
 	// On Linux/other, use alt+N
@@ -716,6 +718,13 @@ func getDefaultWorkspaceKeybinds() map[string][]string {
 			"move_and_follow_9": {"alt+shift+9"},
 		}
 	}
+
+	// Cycling to the adjacent workspace is a reserved chord (works at any time,
+	// including while typing in a shell; see isTerminalSafeAction), same as the
+	// move_and_follow_N chords above, and the same on every platform since
+	// Ctrl+Alt+Left/Right is the desktop-environment convention this mirrors.
+	base["next_workspace"] = []string{"ctrl+alt+right"}
+	base["prev_workspace"] = []string{"ctrl+alt+left"}
 
 	return base
 }
