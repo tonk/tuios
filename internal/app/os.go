@@ -236,6 +236,7 @@ type OS struct {
 	dockIndicatorHits      []dockIndicatorHit      // where the dock's mode-indicator glyphs were drawn last frame
 	ClipboardContent       string                  // Store clipboard content from tea.ClipboardMsg
 	ShowCacheStats         bool                    // True when showing style cache statistics overlay
+	ShowAbout              bool                    // True when showing the about overlay
 	// Quit menu state. The menu replaces the old yes/no quit dialog: a small
 	// list overlay on the shared list-overlay grammar, registered in OverlayHits
 	// as kind "quit" so hover, click and click-away routing come from the same

@@ -142,6 +142,8 @@ The prototype the classroom console builds on:
   desktop-environment convention, alongside the existing jump-to-a-specific-
   workspace chord. Reserved, so it works everywhere, including while typing
   in a shell.
+- Added an About overlay (`Ctrl+B` `a`, the command palette, or the which-key
+  tools menu) showing the build version, Go runtime version and platform.
 - Several rounds of tiling/focus/cursor/keybinding-display fixes, plus
   per-element theme overrides, character indicators, a pill-underline
   toggle, configurable scrollbar indicator colors, a configurable clock

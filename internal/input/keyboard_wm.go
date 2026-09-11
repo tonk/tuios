@@ -173,6 +173,14 @@ func HandleWindowManagementModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea
 		return o, nil
 	}
 
+	// Handle about overlay (takes priority in window management mode)
+	if o.ShowAbout {
+		if key == "q" || key == "esc" || key == "a" {
+			o.CloseAbout()
+		}
+		return o, nil
+	}
+
 	// Settings: comma opens the settings page directly in window mode. Checked
 	// before the config dispatch because the default keybinds map "," to a
 	// tiling resize action, which would otherwise swallow it.

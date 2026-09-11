@@ -334,6 +334,11 @@ func (m *OS) renderOverlays() []*lipgloss.Layer {
 		layers = append(layers, m.centeredBoxLayer(content, config.ZIndexLogs, "cache-stats"))
 	}
 
+	if m.ShowAbout {
+		content, _ := m.RenderAbout()
+		layers = append(layers, m.centeredBoxLayer(content, config.ZIndexLogs, "about"))
+	}
+
 	if m.ShowLogs {
 		pal := theme.UI()
 		bg := pal.Surface

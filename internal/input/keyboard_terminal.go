@@ -173,6 +173,15 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 		return o, nil
 	}
 
+	// Handle about overlay (takes priority in terminal mode)
+	if o.ShowAbout {
+		key := msg.String()
+		if key == "q" || key == "esc" || key == "a" {
+			o.CloseAbout()
+		}
+		return o, nil
+	}
+
 	// Scrollback scroll keys (terminal_scroll_up/down/page_up/page_down, the
 	// keyboard spelling of the wheel - shift+up/down by default). Resolved
 	// through the keybind registry so they are rebindable, but dispatched here,

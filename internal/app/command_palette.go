@@ -577,6 +577,15 @@ func GetCommandPaletteItems() []CommandPaletteItem {
 			},
 		},
 		{
+			Name:     "About",
+			Shortcut: "prefix+a",
+			Category: "Session",
+			Action: func(m *OS) (*OS, tea.Cmd) {
+				m.ToggleAbout()
+				return m, nil
+			},
+		},
+		{
 			Name:     "Show Logs",
 			Shortcut: "prefix+D l",
 			Category: "Session",

@@ -368,7 +368,7 @@ func (m *OS) fullscreenFastWindow() (*terminal.Window, bool) {
 		return nil, false
 	}
 	if m.ShowHelp || m.ShowCommandPalette || m.ShowSessionSwitcher || m.ShowWorkspaceSwitcher || m.ShowLayoutPicker ||
-		m.ShowQuitMenu || m.ShowScrollbackBrowser || m.ShowLogs || m.ShowCacheStats ||
+		m.ShowQuitMenu || m.ShowScrollbackBrowser || m.ShowLogs || m.ShowCacheStats || m.ShowAbout ||
 		m.ShowAggregateView || m.ShowTapeManager || m.ShowTapeReview || m.ShowSettings || m.ShowThemePicker ||
 		m.ShowAccentPicker || m.PrefixActive || m.ContextMenu != nil {
 		return nil, false
@@ -583,7 +583,7 @@ func (m *OS) flushGraphicsForView() {
 	// puts it back with no round trip to whatever drew it.
 	hideImages := m.Resizing || m.ShowHelp || m.ShowCommandPalette || m.ShowSessionSwitcher ||
 		m.ShowWorkspaceSwitcher || m.ShowLayoutPicker || m.ShowQuitMenu || m.ShowScrollbackBrowser ||
-		m.ShowLogs || m.ShowCacheStats || m.ShowAggregateView ||
+		m.ShowLogs || m.ShowCacheStats || m.ShowAbout || m.ShowAggregateView ||
 		m.ShowSettings || m.ShowThemePicker || m.ShowAccentPicker || m.ShowTapeManager || m.ShowTapeReview
 	if m.KittyPassthrough != nil {
 		// Self-placed remote video images are hidden/dropped here, not by

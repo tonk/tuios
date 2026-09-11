@@ -124,6 +124,7 @@ func GetPrefixKeybindingGroups(prefixType string, registry *KeybindRegistry, isD
 				{"T", "Tape manager..."},
 				{"D", "Debug commands..."},
 				{",", "Settings"},
+				{"a", "About tuios"},
 				{"[", "Scrollback mode"},
 				{"s", "Scrollback browser"},
 				{"b", "Toggle sidebar"},
@@ -269,6 +270,7 @@ func getLivePrefixKeybindingGroups(prefixType string, registry *KeybindRegistry,
 		tools = add(tools, "prefix_tape", "Tape manager...")
 		tools = add(tools, "prefix_debug", "Debug commands...")
 		tools = add(tools, "prefix_settings", "Settings")
+		tools = add(tools, "prefix_about", "About tuios")
 		tools = add(tools, "prefix_selection", "Scrollback mode")
 		tools = add(tools, "prefix_scrollback", "Scrollback browser")
 		tools = add(tools, "prefix_toggle_sidebar", "Toggle sidebar")

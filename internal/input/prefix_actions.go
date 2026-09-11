@@ -34,6 +34,7 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 	d.Register("prefix_close_window", handlePrefixCloseWindow)
 	d.Register("prefix_rename_window", handlePrefixRenameWindow)
 	d.Register("prefix_settings", handlePrefixSettings)
+	d.Register("prefix_about", handlePrefixAbout)
 	d.Register("prefix_next_window", handlePrefixNextWindow)
 	d.Register("prefix_prev_window", handlePrefixPrevWindow)
 	for i := range 10 {
@@ -327,6 +328,11 @@ func handleWorkspacePillSwitch(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) 
 
 func handlePrefixSettings(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	o.OpenSettings()
+	return o, nil
+}
+
+func handlePrefixAbout(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	o.OpenAbout()
 	return o, nil
 }
 
