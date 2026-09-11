@@ -1436,9 +1436,18 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			m.EffectiveWidth = msg.Width
 			m.EffectiveHeight = msg.Height
 			m.MarkAllDirty()
-			// Retile if the effective render size changed
+			// Retile if the effective render size changed. Same policy as the
+			// tea.WindowSizeMsg path: this is the resize signal a daemon session
+			// actually settles on (the daemon's min-of-all-clients effective size,
+			// not necessarily this client's own raw WindowSizeMsg), so without the
+			// MaximizeNewWindows branch here a floating window placed against an
+			// early, not-yet-final terminal size (e.g. a WM still animating a
+			// maximize) never gets resized to fill the real one - it needs a
+			// manual snap-fullscreen forever after.
 			if m.AutoTiling {
 				m.TileAllWindows()
+			} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {
+				m.MaximizeFloatingWindows()
 			}
 			// CRITICAL: Force sync all daemon PTY dimensions after tiling
 			// This ensures PTYs match the new window dimensions even if no animation was created
