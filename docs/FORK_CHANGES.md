@@ -137,6 +137,11 @@ The prototype the classroom console builds on:
   toggled on its own. The layout mode used while tiled (BSP/master-stack/
   scrolling) stays session-wide. See
   [Layout Modes](LAYOUT_MODES.md#the-three-layout-modes).
+- Added `next_workspace`/`prev_workspace` actions to cycle workspaces with
+  wraparound (default `Ctrl+Alt+Right`/`Ctrl+Alt+Left`), the
+  desktop-environment convention, alongside the existing jump-to-a-specific-
+  workspace chord. Reserved, so it works everywhere, including while typing
+  in a shell.
 - Several rounds of tiling/focus/cursor/keybinding-display fixes, plus
   per-element theme overrides, character indicators, a pill-underline
   toggle, configurable scrollbar indicator colors, a configurable clock
