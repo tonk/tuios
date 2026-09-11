@@ -172,7 +172,7 @@ func (m *OS) toggleLayoutMode() {
 		m.ShowNotification("Layout: scrolling (niri)", "info", config.NotificationDuration)
 	}
 	if !m.AutoTiling && (m.UseScrollingLayout || m.UseBSPLayout) {
-		m.AutoTiling = true
+		m.setCurrentWorkspaceAutoTiling(true)
 	}
 	if m.AutoTiling {
 		m.TileAllWindows()
@@ -211,7 +211,7 @@ func (m *OS) enableScrollingLayout() {
 	m.UseScrollingLayout = true
 	m.UseBSPLayout = false
 	if !m.AutoTiling {
-		m.AutoTiling = true
+		m.setCurrentWorkspaceAutoTiling(true)
 	}
 	// Clear old scrolling layout to rebuild from current windows
 	delete(m.WorkspaceScrollingLayouts, m.CurrentWorkspace)
@@ -231,7 +231,7 @@ func (m *OS) enableBSPLayout() {
 	m.UseScrollingLayout = false
 	m.UseBSPLayout = true
 	if !m.AutoTiling {
-		m.AutoTiling = true
+		m.setCurrentWorkspaceAutoTiling(true)
 	}
 	// Clear old BSP tree to rebuild
 	if m.WorkspaceTrees == nil {
@@ -254,7 +254,7 @@ func (m *OS) enableMasterStackLayout() {
 	m.UseScrollingLayout = false
 	m.UseBSPLayout = false
 	if !m.AutoTiling {
-		m.AutoTiling = true
+		m.setCurrentWorkspaceAutoTiling(true)
 	}
 	m.TileAllWindows()
 	m.ShowNotification("Layout: master-stack", "info", config.NotificationDuration)
@@ -268,7 +268,7 @@ func (m *OS) DisableAllTiling() {
 
 // disableAllTiling is DisableAllTiling with the announcements already held.
 func (m *OS) disableAllTiling() {
-	m.AutoTiling = false
+	m.setCurrentWorkspaceAutoTiling(false)
 	m.UseScrollingLayout = false
 	m.resetTiledFlags()
 	// The panes draw their own borders again, so the column every split held

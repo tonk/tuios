@@ -620,7 +620,7 @@ func (m *OS) SetAgentState(state, message, source, harness string) error {
 
 // ToggleTiling toggles tiling mode.
 func (m *OS) ToggleTiling() error {
-	m.AutoTiling = !m.AutoTiling
+	m.setCurrentWorkspaceAutoTiling(!m.AutoTiling)
 	if m.AutoTiling {
 		m.TileAllWindows()
 	}
@@ -765,7 +765,7 @@ func (m *OS) RestoreWindowByName(name string) error {
 // EnableTiling enables tiling mode.
 func (m *OS) EnableTiling() error {
 	if !m.AutoTiling {
-		m.AutoTiling = true
+		m.setCurrentWorkspaceAutoTiling(true)
 		m.TileAllWindows()
 		m.MarkAllDirty()
 	}
@@ -774,7 +774,7 @@ func (m *OS) EnableTiling() error {
 
 // DisableTiling disables tiling mode.
 func (m *OS) DisableTiling() error {
-	m.AutoTiling = false
+	m.setCurrentWorkspaceAutoTiling(false)
 	m.MarkAllDirty()
 	return nil
 }

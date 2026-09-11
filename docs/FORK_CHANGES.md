@@ -131,6 +131,12 @@ The prototype the classroom console builds on:
 - Fixed the maximize button for zoomed and `MaximizeNewWindows` windows.
 - The host terminal's own title and bell now follow the focused pane.
 - No tiling forced at startup.
+- Tiling on/off (`Ctrl+B` `Space`) is now per-workspace instead of one global
+  flag: each of the 9 workspaces remembers its own state, inherited from
+  whichever workspace you're switching from until a workspace's tiling is
+  toggled on its own. The layout mode used while tiled (BSP/master-stack/
+  scrolling) stays session-wide. See
+  [Layout Modes](LAYOUT_MODES.md#the-three-layout-modes).
 - Several rounds of tiling/focus/cursor/keybinding-display fixes, plus
   per-element theme overrides, character indicators, a pill-underline
   toggle, configurable scrollbar indicator colors, a configurable clock

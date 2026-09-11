@@ -167,11 +167,18 @@ type SessionState struct {
 	// workspace with no entry here is unnamed and renders as its number, exactly
 	// as every workspace did before this existed. Naming one is a daemon-owned
 	// change so it survives a reattach and every attached client sees it.
-	WorkspaceNames  map[int]string             `json:"workspace_names,omitempty"`
-	WorkspaceTrees  map[int]*SerializedBSPTree `json:"workspace_trees,omitempty"`  // BSP tree per workspace
-	WindowToBSPID   map[string]int             `json:"window_to_bsp_id,omitempty"` // Window UUID -> BSP int ID
-	NextBSPWindowID int                        `json:"next_bsp_window_id,omitempty"`
-	TilingScheme    int                        `json:"tiling_scheme,omitempty"` // Default auto-insertion scheme
+	WorkspaceNames map[int]string `json:"workspace_names,omitempty"`
+	// WorkspaceAutoTiling maps a workspace number to whether tiling is on for
+	// it. AutoTiling above stays the value for CurrentWorkspace only, kept for
+	// clients that predate this field; a workspace missing from this map (an
+	// older save, or one never explicitly toggled) falls back to the single
+	// AutoTiling value rather than false. Daemon-owned and additive, like
+	// WorkspaceNames.
+	WorkspaceAutoTiling map[int]bool               `json:"workspace_auto_tiling,omitempty"`
+	WorkspaceTrees      map[int]*SerializedBSPTree `json:"workspace_trees,omitempty"`  // BSP tree per workspace
+	WindowToBSPID       map[string]int             `json:"window_to_bsp_id,omitempty"` // Window UUID -> BSP int ID
+	NextBSPWindowID     int                        `json:"next_bsp_window_id,omitempty"`
+	TilingScheme        int                        `json:"tiling_scheme,omitempty"` // Default auto-insertion scheme
 	// LayoutMode is which tiling layout the session uses: "bsp", "master-stack"
 	// or "scrolling". It sits beside the BSP topology it selects between, which
 	// was already carried here; without it a scrolling session came back as a BSP

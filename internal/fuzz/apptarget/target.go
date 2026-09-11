@@ -23,11 +23,11 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/fuzz"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/adrg/xdg"
 )
 
 // Target is the model under test plus the bookkeeping the oracle needs: the
@@ -158,6 +158,7 @@ func (t *Target) Reset() error {
 	m.AutoTiling = true
 	m.UseBSPLayout = true
 	m.CurrentWorkspace = 1
+	m.WorkspaceAutoTiling[m.CurrentWorkspace] = true
 
 	t.m, t.told = m, map[string]*announcedSize{}
 	t.seq = 0

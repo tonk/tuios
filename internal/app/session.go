@@ -61,14 +61,25 @@ func passThroughCursorStyle(data []byte) {
 // For windows with active animations, it uses the final (target) positions
 // so other clients see the end state immediately without animation jitter.
 func (m *OS) BuildSessionState() *session.SessionState {
+	// The map may not have the current workspace's live value yet (it is only
+	// written back on toggle or on switching away), so fold it in on the copy
+	// rather than mutating m.WorkspaceAutoTiling from what is meant to be a
+	// read-only snapshot.
+	workspaceAutoTiling := maps.Clone(m.WorkspaceAutoTiling)
+	if workspaceAutoTiling == nil {
+		workspaceAutoTiling = make(map[int]bool)
+	}
+	workspaceAutoTiling[m.CurrentWorkspace] = m.AutoTiling
+
 	state := &session.SessionState{
-		Name:             m.SessionName,
-		CurrentWorkspace: m.CurrentWorkspace,
-		MasterRatio:      m.MasterRatio,
-		AutoTiling:       m.AutoTiling,
-		Width:            m.GetRenderWidth(),
-		Height:           m.GetRenderHeight(),
-		WorkspaceFocus:   make(map[int]string),
+		Name:                m.SessionName,
+		CurrentWorkspace:    m.CurrentWorkspace,
+		MasterRatio:         m.MasterRatio,
+		AutoTiling:          m.AutoTiling,
+		WorkspaceAutoTiling: workspaceAutoTiling,
+		Width:               m.GetRenderWidth(),
+		Height:              m.GetRenderHeight(),
+		WorkspaceFocus:      make(map[int]string),
 		// Tell the daemon which of its versions this snapshot was built from, so
 		// it can reconcile rather than let a stale push undo its own mutations.
 		BaseVersion: m.DaemonStateVersion,
@@ -130,8 +141,10 @@ func (m *OS) BuildSessionState() *session.SessionState {
 		}
 	}
 
-	// Serialize BSP trees for each workspace
-	if m.WorkspaceTrees != nil && m.AutoTiling {
+	// Serialize BSP trees for each workspace. Not gated on m.AutoTiling: that
+	// only reflects the current workspace, and another workspace may carry a
+	// tree of its own from a time it was tiled.
+	if m.WorkspaceTrees != nil {
 		state.WorkspaceTrees = make(map[int]*session.SerializedBSPTree)
 		for ws, tree := range m.WorkspaceTrees {
 			if tree != nil {
@@ -207,6 +220,13 @@ func (m *OS) RestoreFromState(state *session.SessionState) error {
 	m.CurrentWorkspace = clampWorkspace(state.CurrentWorkspace)
 	m.MasterRatio = state.MasterRatio
 	m.AutoTiling = state.AutoTiling
+	// A newer save carries the full per-workspace map; an older one only ever
+	// set the legacy field above, so leaving WorkspaceAutoTiling nil here lets
+	// workspaceAutoTiling fall back to it for every workspace.
+	if state.WorkspaceAutoTiling != nil {
+		m.WorkspaceAutoTiling = maps.Clone(state.WorkspaceAutoTiling)
+		m.AutoTiling = m.workspaceAutoTiling(m.CurrentWorkspace)
+	}
 
 	// Set effective dimensions from state - this is the min of all connected clients
 	// as calculated by the daemon. This ensures a new client joining respects
@@ -318,8 +338,10 @@ func (m *OS) RestoreFromState(state *session.SessionState) error {
 	m.ApplyLayoutModeName(state.LayoutMode)
 	m.LogInfo("[RESTORE] NextBSPWindowID=%d, TilingScheme=%d, LayoutMode=%s", m.NextBSPWindowID, m.TilingScheme, m.LayoutModeName())
 
-	// Restore BSP trees
-	if state.WorkspaceTrees != nil && state.AutoTiling {
+	// Restore BSP trees. Not gated on state.AutoTiling: that only ever
+	// described the workspace that was current at save time, and would have
+	// dropped every other workspace's tree.
+	if state.WorkspaceTrees != nil {
 		m.WorkspaceTrees = make(map[int]*layout.BSPTree)
 		for ws, serialized := range state.WorkspaceTrees {
 			if serialized != nil {
@@ -480,6 +502,10 @@ func (m *OS) ApplyStateSync(state *session.SessionState) error {
 	m.CurrentWorkspace = clampWorkspace(state.CurrentWorkspace)
 	m.MasterRatio = state.MasterRatio
 	m.AutoTiling = state.AutoTiling
+	if state.WorkspaceAutoTiling != nil {
+		m.WorkspaceAutoTiling = maps.Clone(state.WorkspaceAutoTiling)
+		m.AutoTiling = m.workspaceAutoTiling(m.CurrentWorkspace)
+	}
 
 	// Update focused window index
 	m.FocusedWindow = -1
@@ -545,7 +571,9 @@ func (m *OS) ApplyStateSync(state *session.SessionState) error {
 
 	// Update BSP trees, again only from a strictly newer sync so a lagging echo
 	// cannot clobber the tree this client just computed (see newerState above).
-	if newerState && state.WorkspaceTrees != nil && state.AutoTiling {
+	// Not further gated on state.AutoTiling: that only describes the workspace
+	// current at sync time, and would have dropped every other workspace's tree.
+	if newerState && state.WorkspaceTrees != nil {
 		m.WorkspaceTrees = make(map[int]*layout.BSPTree)
 		for ws, serialized := range state.WorkspaceTrees {
 			if serialized != nil {

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/layout"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/adrg/xdg"
 )
 
 // LayoutTemplate v2  - comprehensive layout specification.
@@ -272,7 +272,7 @@ func ApplyLayoutTemplate(tmpl LayoutTemplate, m *OS) {
 	}
 
 	// Restore tiling configuration
-	m.AutoTiling = tmpl.AutoTiling
+	m.setCurrentWorkspaceAutoTiling(tmpl.AutoTiling)
 	if tmpl.MasterRatio > 0 {
 		m.MasterRatio = tmpl.MasterRatio
 	}

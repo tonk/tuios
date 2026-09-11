@@ -98,7 +98,10 @@ The rail's remaining keys are listed by that help overlay, which reads them from
 
 ## Workspaces
 
-TUIOS supports 9 workspaces for organizing windows.
+TUIOS supports 9 workspaces for organizing windows. Tiling on/off (`Ctrl+B`
+`Space`) is remembered per workspace, so one can be tiled while another
+floats; the layout mode used while tiled (BSP/master-stack/scrolling) is
+session-wide. See [Layout Modes](LAYOUT_MODES.md).
 
 | Key | Action |
 |-----|--------|

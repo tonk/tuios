@@ -68,6 +68,10 @@ func (m *OS) switchToWorkspaceHeld(workspace, focusTarget int) {
 		}
 	}
 	m.SaveCurrentLayout() // Save layout before switching
+	if m.WorkspaceAutoTiling == nil {
+		m.WorkspaceAutoTiling = make(map[int]bool)
+	}
+	m.WorkspaceAutoTiling[oldWorkspace] = m.AutoTiling
 
 	// Unsubscribe from old workspace PTYs and subscribe to new workspace PTYs
 	// This optimization reduces network traffic by only streaming output for visible windows
@@ -78,6 +82,7 @@ func (m *OS) switchToWorkspaceHeld(workspace, focusTarget int) {
 
 	// Switch to new workspace
 	m.CurrentWorkspace = workspace
+	m.AutoTiling = m.workspaceAutoTiling(workspace)
 	m.RestoreWorkspaceLayout(workspace) // Restore layout after switching
 
 	// A caller-supplied target wins: focus exactly it, so the switch does not fire

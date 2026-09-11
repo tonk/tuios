@@ -219,6 +219,34 @@ func (m *OS) tileAllWindows() {
 	m.ApplyBSPLayout()
 }
 
+// workspaceAutoTiling reports whether tiling is on for the given workspace,
+// falling back to the current AutoTiling value for one that has never had its
+// tiling explicitly set. That fallback is what makes the feature additive: a
+// workspace visited for the first time inherits whatever the workspace being
+// left already had (switchToWorkspaceHeld calls this before overwriting
+// AutoTiling with the result), and a session state saved before per-workspace
+// tiling existed inherits its one legacy AutoTiling value the same way
+// (restore paths set that field first, then look this up) — so nothing
+// changes for anyone until a workspace's tiling is toggled on its own.
+func (m *OS) workspaceAutoTiling(ws int) bool {
+	if v, ok := m.WorkspaceAutoTiling[ws]; ok {
+		return v
+	}
+	return m.AutoTiling
+}
+
+// setCurrentWorkspaceAutoTiling sets AutoTiling for the current workspace and
+// records it in the per-workspace map, so a later switch away and back (or a
+// full session save) sees the value the workspace was actually left in
+// instead of falling back to whatever's current at that later point.
+func (m *OS) setCurrentWorkspaceAutoTiling(enabled bool) {
+	m.AutoTiling = enabled
+	if m.WorkspaceAutoTiling == nil {
+		m.WorkspaceAutoTiling = make(map[int]bool)
+	}
+	m.WorkspaceAutoTiling[m.CurrentWorkspace] = enabled
+}
+
 // ToggleAutoTiling toggles automatic tiling mode
 func (m *OS) ToggleAutoTiling() {
 	m.settleSizes(func() { m.toggleAutoTiling() })
@@ -230,7 +258,7 @@ func (m *OS) toggleAutoTiling() {
 	// on the way to a size the user is still choosing.
 	m.requireRealLayout()
 
-	m.AutoTiling = !m.AutoTiling
+	m.setCurrentWorkspaceAutoTiling(!m.AutoTiling)
 	// Deferred because the enabling branch returns early for scrolling mode.
 	defer m.FireLayoutChanged()
 

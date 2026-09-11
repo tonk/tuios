@@ -16,8 +16,14 @@ view and multifocus. This document covers all of them.
 
 ## The Three Layout Modes
 
-Tiling is toggled on and off with `Ctrl+B` `Space`. Which layout it uses when it
-is on is a separate choice, made from the command palette:
+Tiling is toggled on and off with `Ctrl+B` `Space`. That on/off state is
+per-workspace: each of the nine workspaces remembers its own, so one can be
+tiled while another floats. A workspace you haven't touched yet just inherits
+whatever the workspace you're coming from already had, so nothing changes
+until you toggle a specific workspace.
+
+Which layout it uses when it is on is a separate choice, made from the command
+palette:
 
 | Palette command | Mode |
 |---|---|

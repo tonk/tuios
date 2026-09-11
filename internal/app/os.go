@@ -218,6 +218,7 @@ type OS struct {
 	WorkspaceLayouts       map[int][]WindowLayout  // Stores custom layouts per workspace
 	WorkspaceHasCustom     map[int]bool            // Tracks if workspace has custom layout
 	WorkspaceMasterRatio   map[int]float64         // Stores master ratio per workspace
+	WorkspaceAutoTiling    map[int]bool            // Tracks tiling on/off per workspace
 	ShowLogs               bool                    // True when showing log overlay
 	LogMessages            []LogMessage            // Store log messages
 	LogScrollOffset        int                     // Scroll offset for log viewer
