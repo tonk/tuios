@@ -49,6 +49,16 @@ const sidCookieName = "tuios_sid"
 // createTUIOSProgramHandler) and cleared when the session's context ends.
 var programRegistry sync.Map // string -> *tea.Program
 
+// openTabTargets stashes the username a trainer picker (see
+// classroom_picker.go's armOpenTab) just armed an open-tab title for, keyed
+// by the same tuios_sid cookie as programRegistry. handlePickerOpenTab is
+// the other end: the injected page script polls it over plain HTTP instead
+// of depending solely on that title actually reaching the browser over the
+// real terminal rendering pipeline, which is not reliable for every
+// connection. One-shot: a read via LoadAndDelete clears it, matching the
+// picker's own "arm once per Enter" semantics.
+var openTabTargets sync.Map // string -> string
+
 // sessionIDCtxKey types the request's session id in the request context,
 // read off the tuios_sid cookie by sessionIDMiddleware.
 type sessionIDCtxKey struct{}
@@ -131,6 +141,7 @@ func registerWebSettingsRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("/tuios-settings/themes", handleListThemes)
 	mux.HandleFunc("/tuios-settings/theme", handleSetTheme)
+	mux.HandleFunc("/tuios-settings/picker-open-tab", handlePickerOpenTab)
 	mux.HandleFunc("/tuios-settings/fonts/saucecodepro.ttf", serveBundledFont(sauceCodeProFont))
 	mux.HandleFunc("/tuios-settings/fonts/saucecodepro-semibold.ttf", serveBundledFont(sauceCodeProSemiBoldFont))
 	mux.HandleFunc("/tuios-settings/fonts/freemono.ttf", serveBundledFont(freeMonoFont))
@@ -284,6 +295,33 @@ func handleSetTheme(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
+// handlePickerOpenTab is polled by the injected page script after Enter on
+// the trainer picker: it hands back (and clears) whatever username
+// armOpenTab last stashed in openTabTargets for this connection's tuios_sid,
+// so the page can navigate there without depending on the window-title
+// relay actually reaching the browser. Empty user (still 200, not 404)
+// means nothing is armed yet - normal while a poll is still waiting on the
+// server to process the keypress, not an error.
+func handlePickerOpenTab(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	c, err := r.Cookie(sidCookieName)
+	if err != nil || c.Value == "" {
+		_ = json.NewEncoder(w).Encode(pickerOpenTabResponse{})
+		return
+	}
+	user := ""
+	if v, ok := openTabTargets.LoadAndDelete(c.Value); ok {
+		if s, ok := v.(string); ok {
+			user = s
+		}
+	}
+	_ = json.NewEncoder(w).Encode(pickerOpenTabResponse{User: user})
+}
+
+type pickerOpenTabResponse struct {
+	User string `json:"user"`
+}
+
 // serveBundledFont returns a handler that serves one embedded font's bytes,
 // shared by every bundledFonts route registered in registerWebSettingsRoutes.
 func serveBundledFont(data []byte) http.HandlerFunc {
@@ -409,6 +447,34 @@ func frontDoorWebsocketHead(ownUser string) string {
         // destination below when the normal title-relay round trip does not
         // arrive in time.
         var pickerCursor = 0;
+        // attachStarted guards against openAttach running twice for the same
+        // Enter press: it can now be reached two ways (the polled HTTP
+        // endpoint below, and the older window-title relay, kept as a second
+        // chance in case it ever does arrive first) - without this a title
+        // that arrives just after the poll already navigated would open a
+        // second, unwanted popup instead of a no-op.
+        var attachStarted = false;
+        // pollAttempt tags each Enter press's poll loop so an old one still
+        // in flight when a new Enter starts stops touching shared state
+        // instead of firing a stale navigation.
+        var pollAttempt = 0;
+        function pollOpenTabTarget(attempt) {
+            if (attempt !== pollAttempt || attachStarted) return;
+            fetch('/tuios-settings/picker-open-tab', {credentials: 'same-origin'})
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(data) {
+                    if (attempt !== pollAttempt || attachStarted) return;
+                    if (data && data.user) {
+                        openAttach(data.user);
+                        return;
+                    }
+                    setTimeout(function() { pollOpenTabTarget(attempt); }, 200);
+                })
+                .catch(function() {
+                    if (attempt !== pollAttempt || attachStarted) return;
+                    setTimeout(function() { pollOpenTabTarget(attempt); }, 200);
+                });
+        }
         // showToast is a minimal, self-removing on-page notice. The picker is
         // rendered entirely server-side (a bubbletea View streamed over the
         // terminal), so there is no existing DOM element to put a message
@@ -432,6 +498,8 @@ func frontDoorWebsocketHead(ownUser string) string {
                 try { pendingWin.close(); } catch (e) {}
             }
             pendingWin = null;
+            pollAttempt++;
+            attachStarted = false;
         }
         // clearPendingOnTimeout runs only when the placeholder tab's own
         // failsafe timer fires - i.e. the server's title-change response to
@@ -450,6 +518,11 @@ func frontDoorWebsocketHead(ownUser string) string {
         // actually get you to your own session.
         function clearPendingOnTimeout() {
             clearPending();
+            // clearPending() just reset this for a fresh attempt, but there
+            // is no fresh attempt here - this is the end of the one already
+            // in flight (both branches below), so a stale poll response or
+            // title arriving after this point must not also fire.
+            attachStarted = true;
             if (pickerCursor === 0 && TUIOS_OWN_USER) {
                 showToast("That's taking too long - going there directly instead.");
                 try {
@@ -462,13 +535,15 @@ func frontDoorWebsocketHead(ownUser string) string {
             showToast("Couldn't open that session in time - please try again.");
         }
         function openAttach(user) {
+            if (attachStarted) return;
+            attachStarted = true;
+            if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
             try {
                 var u = new URL(window.location.href);
                 u.searchParams.set('attach', user);
                 if (pendingWin && !pendingWin.closed) {
                     pendingWin.location = u.href;
                     pendingWin = null;
-                    if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
                     return;
                 }
                 window.open(u.href, '_blank');
@@ -507,14 +582,12 @@ func frontDoorWebsocketHead(ownUser string) string {
             if (e.key !== 'Enter') return;
             clearPending();
             try { pendingWin = window.open('about:blank', '_blank'); } catch (err) { pendingWin = null; }
-            // 10s, not 3s: the round trip this is waiting on (Enter -> server
-            // sets the window title -> that title reaches this page over the
-            // real terminal rendering pipeline -> onTitle fires) crosses a lot
-            // of layers, and 3s was tight enough to lose that race under
-            // ordinary real-world latency, closing the placeholder tab before
-            // it ever got its real destination - silently, since a closed
-            // background tab shows nothing.
+            // 10s: generous headroom for the poll below (normally sub-second)
+            // plus the window-title relay kept as a second chance, in case a
+            // slow connection needs it - either can win, openAttach's
+            // attachStarted guard makes a race between them harmless.
             pendingTimer = setTimeout(clearPendingOnTimeout, 10000);
+            pollOpenTabTarget(pollAttempt);
         }, true);
         // Poll rather than intercept the document.title property descriptor.
         // sip's own terminal.js also assigns document.title directly during

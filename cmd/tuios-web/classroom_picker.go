@@ -196,6 +196,17 @@ func (m *classroomPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // armOpenTab sets a one-shot window title the front-door page script turns
 // into a new browser tab at ?attach=<user>, then clears the title so a later
 // Enter for the same user still emits a distinct signal.
+//
+// The title is not the only way this reaches the page: it also stashes the
+// same username in openTabTargets, keyed by this connection's tuios_sid
+// cookie (see websettings.go's package doc for that mechanism, already used
+// by the settings panel). The injected page script polls a plain HTTP
+// endpoint for that stash instead of depending solely on the title reaching
+// the browser over the real terminal rendering pipeline - which, in
+// practice, has turned out not to reliably happen for every user's
+// connection, for reasons that didn't trace to browser, network, or proxy
+// buffering. The stash works for any selected entry, not just the picker's
+// own fixed "My own session" line, so it fixes the trainer-attach case too.
 func (m *classroomPickerModel) armOpenTab() (tea.Model, tea.Cmd) {
 	name := m.self
 	if m.cursor > 0 {
@@ -204,6 +215,9 @@ func (m *classroomPickerModel) armOpenTab() (tea.Model, tea.Cmd) {
 	m.openTabSeq++
 	m.openTabUser = name
 	m.loadErr = nil
+	if sid, ok := sessionIDFromContext(m.ctx); ok {
+		openTabTargets.Store(sid, name)
+	}
 	// Long enough for the title to reach the browser over the websocket
 	// before we flip back to the idle picker title; too short and the
 	// open-tab signal is overwritten before the page script sees it.
