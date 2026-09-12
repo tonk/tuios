@@ -92,6 +92,35 @@ func TestSyncHostTitleFollowsFocusedWindow(t *testing.T) {
 	}
 }
 
+// TestSyncHostTitleStripsDecorative covers the bug this guards against: a
+// guest program's raw OSC-set title (Claude Code's own spinner glyph is the
+// known real-world case, see printableRune) reaching the host terminal
+// unfiltered, which shows up as a tofu box in the host's own window/tab
+// title for anyone whose font lacks that glyph - even though the exact same
+// title is already laundered through printableTitle everywhere tuios draws
+// it in its own chrome (the per-pane title bar, the rail, the palette).
+func TestSyncHostTitleStripsDecorative(t *testing.T) {
+	withSetTerminalTitle(t, true)
+
+	win := &terminal.Window{ID: "w1"}
+	win.SetTitle("✳ Claude Code")
+	var buf bytes.Buffer
+	m := &OS{
+		KittyPassthrough: NewKittyPassthroughWithOptions(KittyPassthroughOptions{Output: &buf}),
+		Windows:          []*terminal.Window{win},
+		FocusedWindow:    0,
+	}
+
+	m.syncHostTitle()
+	got := buf.String()
+	if strings.ContainsRune(got, '✳') {
+		t.Errorf("host terminal write = %q, want the spinner glyph stripped", got)
+	}
+	if !strings.Contains(got, "Claude Code") {
+		t.Errorf("host terminal write = %q, want the rest of the title kept", got)
+	}
+}
+
 // TestSyncHostTitleFallsBackWithNoFocus covers an empty workspace (no focused
 // window) and a focused window that has not set a title yet: both must show
 // the "tuios" fallback rather than carrying over a stale title.

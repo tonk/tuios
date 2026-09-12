@@ -49,7 +49,16 @@ func (m *OS) syncHostTitle() {
 	}
 	title := hostTerminalTitle
 	if w := m.GetFocusedWindow(); w != nil {
-		if t := w.Title(); t != "" {
+		// printableTitle: a guest program's raw OSC-set title reaches here
+		// unfiltered otherwise. tuios's own per-pane title bar already
+		// launders this same w.Title() through printableTitle (see
+		// getWindowTitle) before drawing it in its own chrome; mirroring it
+		// straight to the host terminal skipped that, so an agent's spinner
+		// glyph outside the host's font (Claude Code's idle/working
+		// ornaments are the known case - see printableRune) showed up as a
+		// tofu box in the host's own window/tab title instead of being
+		// silently dropped the way it is everywhere else.
+		if t := printableTitle(w.Title()); t != "" {
 			title = t
 		}
 	}
