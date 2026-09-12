@@ -338,10 +338,15 @@ const fontCookieName = "tuios_font"
 // When the picker then sets title to tuios-open-tab:<seq>:<user>, that blank
 // tab is navigated to the same URL with ?attach=<user>. Opening only after
 // the title arrives would be async and get blocked.
-func frontDoorWebsocketHead() string {
+func frontDoorWebsocketHead(ownUser string) string {
+	ownUserJSON, _ := json.Marshal(ownUser)
 	return `
     <script>
     (function() {
+        // The authenticated user's own username, for the "My own session"
+        // fallback below - empty if this request carried none (not a
+        // trainer console front door, or auth was not Basic Auth).
+        var TUIOS_OWN_USER = ` + string(ownUserJSON) + `;
         try {
             var raw = localStorage.getItem('sip-web-settings');
             var s = raw ? JSON.parse(raw) : {};
@@ -396,12 +401,65 @@ func frontDoorWebsocketHead() string {
         var pendingWin = null;
         var pendingTimer = null;
         var lastOpenTitle = '';
+        // pickerCursor mirrors classroomPickerModel.cursor purely from the
+        // up/down keys this page itself sees, so it is only ever a guess -
+        // but cursor 0 ("My own session", the picker's fixed first entry) is
+        // also where every fresh page load starts, matching the server's own
+        // initial state, which is what makes it safe to use as a fallback
+        // destination below when the normal title-relay round trip does not
+        // arrive in time.
+        var pickerCursor = 0;
+        // showToast is a minimal, self-removing on-page notice. The picker is
+        // rendered entirely server-side (a bubbletea View streamed over the
+        // terminal), so there is no existing DOM element to put a message
+        // into - this is the simplest way to surface a client-side-only
+        // failure (the placeholder tab timing out) without a blocking
+        // alert() the user has to dismiss.
+        function showToast(text) {
+            try {
+                var el = document.createElement('div');
+                el.textContent = text;
+                el.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);' +
+                    'background:#7f1d1d;color:#fff;padding:8px 16px;border-radius:6px;' +
+                    'font:14px/1.4 sans-serif;z-index:2147483647;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+                document.body.appendChild(el);
+                setTimeout(function() { try { el.remove(); } catch (e) {} }, 5000);
+            } catch (e) {}
+        }
         function clearPending() {
             if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
             if (pendingWin && !pendingWin.closed) {
                 try { pendingWin.close(); } catch (e) {}
             }
             pendingWin = null;
+        }
+        // clearPendingOnTimeout runs only when the placeholder tab's own
+        // failsafe timer fires - i.e. the server's title-change response to
+        // Enter never arrived in time - as opposed to clearPending() being
+        // called proactively (a fresh Enter, or the tab having already
+        // navigated for real). That distinction is what makes this the right
+        // place to tell the user something actually went wrong, instead of
+        // leaving them staring at a tab that silently vanished.
+        //
+        // When the target was "My own session" (cursor 0) and the page knows
+        // its own username, this does not just report the failure - it
+        // navigates the current tab there directly, bypassing the title
+        // relay entirely. That relay has turned out to be unreliable in ways
+        // that do not depend on browser, network, or proxy buffering, so a
+        // path that does not need it at all is the only thing guaranteed to
+        // actually get you to your own session.
+        function clearPendingOnTimeout() {
+            clearPending();
+            if (pickerCursor === 0 && TUIOS_OWN_USER) {
+                showToast("That's taking too long - going there directly instead.");
+                try {
+                    var u = new URL(window.location.href);
+                    u.searchParams.set('attach', TUIOS_OWN_USER);
+                    window.location.href = u.href;
+                } catch (e) {}
+                return;
+            }
+            showToast("Couldn't open that session in time - please try again.");
         }
         function openAttach(user) {
             try {
@@ -437,27 +495,40 @@ func frontDoorWebsocketHead() string {
             }
         }
         document.addEventListener('keydown', function(e) {
-            if (!inPicker || e.key !== 'Enter' || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+            if (!inPicker || e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+            if (e.key === 'ArrowDown' || e.key === 'j') {
+                pickerCursor++;
+                return;
+            }
+            if (e.key === 'ArrowUp' || e.key === 'k') {
+                if (pickerCursor > 0) pickerCursor--;
+                return;
+            }
+            if (e.key !== 'Enter') return;
             clearPending();
             try { pendingWin = window.open('about:blank', '_blank'); } catch (err) { pendingWin = null; }
-            pendingTimer = setTimeout(clearPending, 3000);
+            // 10s, not 3s: the round trip this is waiting on (Enter -> server
+            // sets the window title -> that title reaches this page over the
+            // real terminal rendering pipeline -> onTitle fires) crosses a lot
+            // of layers, and 3s was tight enough to lose that race under
+            // ordinary real-world latency, closing the placeholder tab before
+            // it ever got its real destination - silently, since a closed
+            // background tab shows nothing.
+            pendingTimer = setTimeout(clearPendingOnTimeout, 10000);
         }, true);
-        try {
-            var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'title') ||
-                       Object.getOwnPropertyDescriptor(HTMLDocument.prototype, 'title');
-            if (desc && desc.set && desc.get) {
-                Object.defineProperty(document, 'title', {
-                    configurable: true,
-                    enumerable: true,
-                    get: function() { return desc.get.call(document); },
-                    set: function(v) { desc.set.call(document, v); onTitle(v); }
-                });
-            } else {
-                setInterval(function() { onTitle(document.title); }, 100);
+        // Poll rather than intercept the document.title property descriptor.
+        // sip's own terminal.js also assigns document.title directly during
+        // its own (later) init; redefining the property here is a race that
+        // can be silently lost - whichever of the two runs last wins, with no
+        // error either way, since redefining a configurable property is
+        // silent. Polling never has an owner to lose to.
+        var lastPolledTitle = null;
+        setInterval(function() {
+            if (document.title !== lastPolledTitle) {
+                lastPolledTitle = document.title;
+                onTitle(document.title);
             }
-        } catch (e) {
-            setInterval(function() { onTitle(document.title); }, 100);
-        }
+        }, 100);
         onTitle(document.title);
     })();
     </script>
@@ -479,7 +550,7 @@ func frontDoorWebsocketHead() string {
 // stylesheet rule, so live updates only need a plain element.style.background
 // set (inline style always outranks a stylesheet rule, !important or not) to
 // override it, with no !important tug-of-war between the two.
-func settingsInjectHead(bgHex string) string {
+func settingsInjectHead(bgHex, ownUser string) string {
 	bgRule := ""
 	if bgHex != "" {
 		bgRule = "body, html { background-color: " + bgHex + "; }\n    "
@@ -538,7 +609,7 @@ func settingsInjectHead(bgHex string) string {
         overflow-y: auto;
     }
     ` + bgRule + `</style>
-` + frontDoorWebsocketHead()
+` + frontDoorWebsocketHead(ownUser)
 }
 
 // settingsInjectHTML is spliced into the "/" response right before the
@@ -716,8 +787,8 @@ func settingsInjectFooter(initialTheme string) string {
 // (empty / "null" when theming is disabled) - rewriteIndexResponse computes
 // both from the same *tint.Tint, one for the CSS fallback, one for the JS
 // webterm.setOptions call.
-func injectSettingsUI(body, selectedFont, bgHex, initialThemeJSON string) string {
-	body = strings.Replace(body, "</head>", settingsInjectHead(bgHex)+"</head>", 1)
+func injectSettingsUI(body, selectedFont, bgHex, initialThemeJSON, ownUser string) string {
+	body = strings.Replace(body, "</head>", settingsInjectHead(bgHex, ownUser)+"</head>", 1)
 	body = strings.Replace(body, `<button id="settings-apply"`, settingsInjectHTML(selectedFont)+`        <button id="settings-apply"`, 1)
 	body = strings.Replace(body, "</body>", settingsInjectFooter(initialThemeJSON)+"</body>", 1)
 	return body

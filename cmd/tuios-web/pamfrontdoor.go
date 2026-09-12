@@ -280,11 +280,28 @@ func rewriteIndexResponse(resp *http.Response) error {
 			initialThemeJSON = string(encoded)
 		}
 	}
-	rewritten := injectSettingsUI(string(body), selectedFont, bgHex, initialThemeJSON)
+	rewritten := injectSettingsUI(string(body), selectedFont, bgHex, initialThemeJSON, ownUserFromRequest(resp.Request))
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
 	resp.ContentLength = int64(len(rewritten))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))
 	return nil
+}
+
+// ownUserFromRequest returns the username the request authenticated as, or
+// "" if it carried none - either no Basic Auth (not a --pam-auth front
+// door), or resp.Request no longer has it attached at this point in the
+// proxy pipeline. Used to give the trainer picker's client-side JS a
+// reliable "my own session" fallback destination that does not depend on
+// the title-relay round trip at all (see frontDoorWebsocketHead).
+func ownUserFromRequest(req *http.Request) string {
+	if req == nil {
+		return ""
+	}
+	user, _, ok := req.BasicAuth()
+	if !ok {
+		return ""
+	}
+	return user
 }
 
 // injectWebsocketPreference is the --web-settings-off ModifyResponse path:
@@ -302,7 +319,7 @@ func injectWebsocketPreference(resp *http.Response) error {
 		return err
 	}
 	_ = resp.Body.Close()
-	rewritten := strings.Replace(string(body), "</head>", frontDoorWebsocketHead()+"</head>", 1)
+	rewritten := strings.Replace(string(body), "</head>", frontDoorWebsocketHead(ownUserFromRequest(resp.Request))+"</head>", 1)
 	resp.Body = io.NopCloser(bytes.NewReader([]byte(rewritten)))
 	resp.ContentLength = int64(len(rewritten))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(rewritten)))
