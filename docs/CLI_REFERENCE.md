@@ -283,6 +283,7 @@ tuios attach [session-name] [flags]
 
 **Flags:**
 - `-c, --create` - Create session if it doesn't exist
+- `--no-restore` - If a daemon has to be started for this attach, start it with nothing restored from disk (a clean slate) instead of bringing back every saved session; no effect against a daemon that is already running. See [SESSIONS.md](SESSIONS.md#resurrection).
 - `--read-only` - Attach as a viewer: the daemon refuses input and window-management actions from this client (keystrokes, mouse, create/close/rename window, resize, retile, kill session). Output still streams normally. See [Multi-Client](MULTI_CLIENT.md#read-only-clients).
 - Same as `tuios new` (theme, ascii-only, etc.)
 
@@ -293,6 +294,7 @@ tuios attach mysession         # Attach to session named "mysession"
 tuios attach mysession -c      # Attach or create if doesn't exist
 tuios attach mysession --theme nord  # Attach with different theme
 tuios attach mysession --read-only   # Watch without being able to type
+tuios attach --no-restore       # Start clean if nothing was already running
 ```
 
 ### `tuios ls`

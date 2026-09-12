@@ -191,6 +191,13 @@ prompt is empty.
 
 Start the daemon with `--no-restore` to skip automatic restoration; saved state
 is left on disk and can still be restored on demand with `tuios resurrect`.
+`tuios attach --no-restore` does the same thing for the common case of a
+launcher command that runs `tuios attach` directly: if that attach is the one
+that ends up starting the daemon (nothing was already running), it starts
+that daemon with `--no-restore` too. Against a daemon that is already running
+- because you only detached last time, or another session is live - the flag
+is a no-op: that daemon already made its own restore-or-not decision when it
+started.
 
 A session killed with `tuios kill-session` has its saved state deleted, because
 an explicit kill is a deliberate teardown and must not leave the session

@@ -21,7 +21,7 @@ import (
 	"github.com/tonk/tuios/internal/terminal"
 )
 
-func runAttach(sessionName string, createIfMissing, readOnly bool) error {
+func runAttach(sessionName string, createIfMissing, readOnly, noRestore bool) error {
 	// Check the terminal before anything else: a session that cannot be
 	// rendered is much harder to diagnose once the TUI has taken the screen.
 	if err := checkTerminal(); err != nil {
@@ -33,18 +33,32 @@ func runAttach(sessionName string, createIfMissing, readOnly bool) error {
 	// command that would create a different session is what made attach look
 	// like it had lost them.
 	if !session.IsDaemonRunning() {
-		// Said before the daemon starts, because afterwards the sessions simply
-		// exist and the user is left to work out where they came from.
-		if reportSavedSessionsBeforeStart() == 0 && sessionName == "" {
-			// An unnamed attach against an empty daemon opens a new session:
-			// that is what the daemon has always done, and it is the only thing
-			// left that gets the user to a terminal. Say so rather than let a
-			// session appear unannounced.
-			fmt.Println("No saved sessions to restore; opening a new one.")
+		if noRestore {
+			if sessionName == "" {
+				fmt.Println("Starting fresh (--no-restore): saved sessions are left on disk, opening a new one.")
+			}
+			if err := ensureDaemon("--no-restore"); err != nil {
+				return err
+			}
+		} else {
+			// Said before the daemon starts, because afterwards the sessions simply
+			// exist and the user is left to work out where they came from.
+			if reportSavedSessionsBeforeStart() == 0 && sessionName == "" {
+				// An unnamed attach against an empty daemon opens a new session:
+				// that is what the daemon has always done, and it is the only thing
+				// left that gets the user to a terminal. Say so rather than let a
+				// session appear unannounced.
+				fmt.Println("No saved sessions to restore; opening a new one.")
+			}
+			if err := ensureDaemon(); err != nil {
+				return err
+			}
 		}
-		if err := ensureDaemon(); err != nil {
-			return err
-		}
+	} else if noRestore {
+		// The flag only controls how a daemon is *started*; against one that is
+		// already up (and so already made its own restore-or-not decision), it is
+		// silently moot unless we say so.
+		fmt.Println("A TUIOS daemon is already running; --no-restore has no effect on it.")
 	}
 
 	if err := ensureAttachTarget(sessionName, createIfMissing); err != nil {

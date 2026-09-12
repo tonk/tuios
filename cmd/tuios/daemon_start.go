@@ -17,13 +17,19 @@ const daemonStartTimeout = 5 * time.Second
 // ensureDaemon starts a daemon if none is reachable, and says so once. Every
 // command that may bring a daemon up funnels through here so the wording, the
 // timeout and the failure explanation cannot drift between them.
-func ensureDaemon() error {
+//
+// daemonArgs are appended to the spawned "daemon" invocation (e.g.
+// "--no-restore"). They only take effect when this call is the one that
+// actually starts the daemon; against an already-running one they are
+// silently moot, same as asking an existing process to have been launched
+// differently.
+func ensureDaemon(daemonArgs ...string) error {
 	if session.IsDaemonRunning() {
 		return nil
 	}
 
 	fmt.Println("Starting TUIOS daemon...")
-	if err := startDaemonBackground(); err != nil {
+	if err := startDaemonBackground(daemonArgs...); err != nil {
 		return &diagnosticError{
 			What:  fmt.Sprintf("The TUIOS daemon could not be started: %v.", err),
 			Cause: "the tuios binary could not be re-executed, or the socket directory is not writable.",
@@ -40,13 +46,13 @@ func ensureDaemon() error {
 // Success is "a daemon is up", not "my child is up". Two clients can decide to
 // start one at the same moment; the daemon's own start lock picks a winner and
 // the loser exits, which is the right outcome for both clients.
-func startDaemonBackground() error {
+func startDaemonBackground(daemonArgs ...string) error {
 	executable, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 
-	cmd := exec.Command(executable, "daemon")
+	cmd := exec.Command(executable, append([]string{"daemon"}, daemonArgs...)...)
 	cmd.Stdin = nil
 	cmd.Stdout = nil
 	cmd.Stderr = nil

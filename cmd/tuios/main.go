@@ -402,7 +402,7 @@ in the terminal UI. Press Ctrl+P to pause/resume playback.`,
 
 	tapeCmd.AddCommand(tapePlayCmd, tapeValidateCmd, tapeListCmd, tapeDirCmd, tapeDeleteCmd, tapeShowCmd)
 
-	var createIfMissing, attachReadOnly bool
+	var createIfMissing, attachReadOnly, attachNoRestore bool
 
 	attachCmd := &cobra.Command{
 		Use:   "attach [session-name]",
@@ -415,6 +415,14 @@ The daemon is started if it is not running, which restores every session
 saved on disk; attach then opens one of those. With nothing saved and no
 name given, a new session is opened instead. A name that matches no session
 is reported rather than created, unless -c is given.
+
+--no-restore starts a fresh daemon with nothing brought back from disk
+instead: a clean slate rather than whatever windows were open last time.
+Saved state is left alone and can still be restored later with
+'tuios resurrect'. It only has an effect when this attach is the one that
+starts the daemon - against one already running (e.g. you only detached
+last time, or another session is live) it is a no-op, since that daemon
+already made its own restore-or-not decision at its own start.
 
 --read-only attaches as a viewer: keystrokes, mouse input, and window
 management (create/close/rename, resize, retile) are refused by the daemon,
@@ -429,6 +437,9 @@ Output still streams normally.`,
   # Attach and create if session doesn't exist
   tuios attach mysession -c
 
+  # Start clean if nothing is running yet, instead of restoring old windows
+  tuios attach --no-restore
+
   # Watch a session without being able to type into it
   tuios attach mysession --read-only`,
 		Aliases: []string{"a"},
@@ -437,11 +448,12 @@ Output still streams normally.`,
 			if len(args) > 0 {
 				name = args[0]
 			}
-			return runAttach(name, createIfMissing, attachReadOnly)
+			return runAttach(name, createIfMissing, attachReadOnly, attachNoRestore)
 		},
 	}
 	attachCmd.Flags().BoolVarP(&createIfMissing, "create", "c", false, "Create session if it doesn't exist")
 	attachCmd.Flags().BoolVar(&attachReadOnly, "read-only", false, "Attach as a viewer: refuse input and window-management actions from this client")
+	attachCmd.Flags().BoolVar(&attachNoRestore, "no-restore", false, "If a daemon has to be started for this attach, start it with nothing restored from disk (a clean slate); no effect against a daemon that is already running")
 
 	var newDetach bool
 	newCmd := &cobra.Command{

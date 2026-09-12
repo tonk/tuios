@@ -148,6 +148,14 @@ The prototype the classroom console builds on:
   `Ctrl+Alt+Shift+Right`/`Ctrl+Alt+Shift+Left`.
 - Added an About overlay (`Ctrl+B` `a`, the command palette, or the which-key
   tools menu) showing the build version, Go runtime version and platform.
+- Added `tuios attach --no-restore`: if that attach is the one that ends up
+  starting the daemon, it starts with nothing restored from disk (a clean
+  slate) instead of bringing back every saved session. A no-op against a
+  daemon that is already running, since that daemon already made its own
+  restore-or-not decision at its own start. Lets a launcher command (e.g. a
+  desktop keybinding running `tuios attach` directly) get a clean slate after
+  a real quit, without needing to shell out to `tuios daemon --no-restore`
+  itself first.
 - Several rounds of tiling/focus/cursor/keybinding-display fixes, plus
   per-element theme overrides, character indicators, a pill-underline
   toggle, configurable scrollbar indicator colors, a configurable clock
