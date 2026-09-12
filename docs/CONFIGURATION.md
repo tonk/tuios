@@ -163,8 +163,10 @@ Window movement between workspaces. Switching to a workspace itself is a
 
 **Available actions:**
 - `move_and_follow_1` through `move_and_follow_9` - Move window to workspace N and follow
-- `next_workspace` - Switch to the next workspace, wrapping around (default: `ctrl+alt+right`, at any time)
-- `prev_workspace` - Switch to the previous workspace, wrapping around (default: `ctrl+alt+left`, at any time)
+- `next_active_workspace` - Switch to the next workspace that has at least one window, skipping empty ones, wrapping around (default: `ctrl+alt+right`, at any time)
+- `prev_active_workspace` - Switch to the previous workspace that has at least one window, skipping empty ones, wrapping around (default: `ctrl+alt+left`, at any time)
+- `next_workspace` - Switch to the next workspace, wrapping around, including empty ones (default: `ctrl+alt+shift+right`, at any time)
+- `prev_workspace` - Switch to the previous workspace, wrapping around, including empty ones (default: `ctrl+alt+shift+left`, at any time)
 
 Switching workspaces without moving a window is `switch_workspace_1` through
 `switch_workspace_9`, configured under `[keybindings.prefix_mode]` (default:

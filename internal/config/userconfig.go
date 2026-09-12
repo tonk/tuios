@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonk/tuios/internal/theme"
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/tonk/tuios/internal/theme"
 )
 
 // UserConfig represents the user's custom configuration
@@ -724,8 +724,13 @@ func getDefaultWorkspaceKeybinds() map[string][]string {
 	// including while typing in a shell; see isTerminalSafeAction), same as the
 	// move_and_follow_N chords above, and the same on every platform since
 	// Ctrl+Alt+Left/Right is the desktop-environment convention this mirrors.
-	base["next_workspace"] = []string{"ctrl+alt+right"}
-	base["prev_workspace"] = []string{"ctrl+alt+left"}
+	// The plain chord skips empty workspaces (next_active_workspace/
+	// prev_active_workspace); Shift added gets the old include-empty behavior
+	// (next_workspace/prev_workspace).
+	base["next_active_workspace"] = []string{"ctrl+alt+right"}
+	base["prev_active_workspace"] = []string{"ctrl+alt+left"}
+	base["next_workspace"] = []string{"ctrl+alt+shift+right"}
+	base["prev_workspace"] = []string{"ctrl+alt+shift+left"}
 
 	return base
 }

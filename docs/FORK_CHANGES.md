@@ -138,10 +138,14 @@ The prototype the classroom console builds on:
   scrolling) stays session-wide. See
   [Layout Modes](LAYOUT_MODES.md#the-three-layout-modes).
 - Added `next_workspace`/`prev_workspace` actions to cycle workspaces with
-  wraparound (default `Ctrl+Alt+Right`/`Ctrl+Alt+Left`), the
-  desktop-environment convention, alongside the existing jump-to-a-specific-
-  workspace chord. Reserved, so it works everywhere, including while typing
-  in a shell.
+  wraparound, the desktop-environment convention, alongside the existing
+  jump-to-a-specific-workspace chord. Reserved, so it works everywhere,
+  including while typing in a shell.
+- Added `next_active_workspace`/`prev_active_workspace`, cycling only through
+  workspaces that actually have a window instead of every workspace including
+  empty ones. These took over the `Ctrl+Alt+Right`/`Ctrl+Alt+Left` default;
+  the original include-empty `next_workspace`/`prev_workspace` moved to
+  `Ctrl+Alt+Shift+Right`/`Ctrl+Alt+Shift+Left`.
 - Added an About overlay (`Ctrl+B` `a`, the command palette, or the which-key
   tools menu) showing the build version, Go runtime version and platform.
 - Several rounds of tiling/focus/cursor/keybinding-display fixes, plus

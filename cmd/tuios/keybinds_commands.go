@@ -32,7 +32,7 @@ func generateWorkspaceActions() []string {
 	for i := 1; i <= 9; i++ {
 		actions = append(actions, fmt.Sprintf("move_and_follow_%d", i))
 	}
-	actions = append(actions, "next_workspace", "prev_workspace")
+	actions = append(actions, "next_workspace", "prev_workspace", "next_active_workspace", "prev_active_workspace")
 	return actions
 }
 

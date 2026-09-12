@@ -204,6 +204,8 @@ func generateWorkspaceBindings(registry *config.KeybindRegistry) []HelpBinding {
 	for _, entry := range []struct {
 		action, description string
 	}{
+		{"next_active_workspace", "Next active workspace"},
+		{"prev_active_workspace", "Previous active workspace"},
 		{"next_workspace", "Next workspace"},
 		{"prev_workspace", "Previous workspace"},
 	} {

@@ -85,6 +85,8 @@ func (d *ActionDispatcher) registerHandlers() {
 	}
 	d.Register("next_workspace", handleNextWorkspace)
 	d.Register("prev_workspace", handlePrevWorkspace)
+	d.Register("next_active_workspace", handleNextActiveWorkspace)
+	d.Register("prev_active_workspace", handlePrevActiveWorkspace)
 
 	// Layout actions
 	d.Register("snap_left", handleSnapLeft)
@@ -349,6 +351,46 @@ func handleNextWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 func handlePrevWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	o.SwitchToWorkspace((o.CurrentWorkspace-2+o.NumWorkspaces)%o.NumWorkspaces + 1)
 	return o, nil
+}
+
+func handleNextActiveWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	if ws, ok := adjacentActiveWorkspace(o, 1); ok {
+		o.SwitchToWorkspace(ws)
+	}
+	return o, nil
+}
+
+func handlePrevActiveWorkspace(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	if ws, ok := adjacentActiveWorkspace(o, -1); ok {
+		o.SwitchToWorkspace(ws)
+	}
+	return o, nil
+}
+
+// adjacentActiveWorkspace steps from the current workspace in the given
+// direction (+1/-1), wrapping around, until it finds one with at least one
+// window. Unlike next_workspace/prev_workspace it skips empty workspaces
+// entirely. ok is false only when no other workspace has any windows, since
+// then there is nowhere active to go.
+func adjacentActiveWorkspace(o *app.OS, step int) (int, bool) {
+	n := o.NumWorkspaces
+	if n <= 0 {
+		return 0, false
+	}
+	occupied := make(map[int]bool, n)
+	for i := range o.Windows {
+		if ws := o.Windows[i].Workspace; ws >= 1 && ws <= n {
+			occupied[ws] = true
+		}
+	}
+	ws := o.CurrentWorkspace
+	for range n {
+		ws = (ws-1+step+n)%n + 1
+		if occupied[ws] {
+			return ws, true
+		}
+	}
+	return 0, false
 }
 
 // ============================================================================

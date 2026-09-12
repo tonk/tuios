@@ -182,6 +182,7 @@ func isTerminalSafeAction(action string) bool {
 		strings.HasPrefix(action, "move_and_follow_") ||
 		action == "next_session" || action == "prev_session" ||
 		action == "next_workspace" || action == "prev_workspace" ||
+		action == "next_active_workspace" || action == "prev_active_workspace" ||
 		action == "toggle_last_window"
 }
 
