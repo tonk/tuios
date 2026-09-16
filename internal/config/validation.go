@@ -353,6 +353,8 @@ func validateAppearanceEnums(cfg *UserConfig, result *ValidationResult) {
 		[]string{"bottom-right", "bottom-left", "top-right", "top-left", "center"})
 	checkEnum("window_title_position", cfg.Appearance.WindowTitlePosition,
 		[]string{"bottom", "top", "hidden"})
+	checkEnum("focus_after_close", cfg.Appearance.FocusAfterClose,
+		[]string{"first", "previous"})
 	checkEnum("clock_position", cfg.Appearance.ClockPosition,
 		[]string{"left", "center", "right"})
 	validateTitleFormat(cfg.Appearance.WindowTitleFormat, "window_title_format", knownTitlePlaceholders, result)

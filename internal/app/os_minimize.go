@@ -234,6 +234,21 @@ func (m *OS) FocusNextVisibleWindow() {
 	m.FocusedWindow = -1
 }
 
+// FocusPreviousVisibleWindow focuses the closest visible window in the
+// current workspace before index from (the index a just-deleted window used
+// to occupy in m.Windows, which by the time this runs already holds whatever
+// followed it). It reports whether it found one, so a caller can fall back
+// to FocusNextVisibleWindow when from was already the first window.
+func (m *OS) FocusPreviousVisibleWindow(from int) bool {
+	for i := from - 1; i >= 0; i-- {
+		if m.Windows[i].Workspace == m.CurrentWorkspace && !m.Windows[i].Minimized && !m.Windows[i].Minimizing {
+			m.FocusWindow(i)
+			return true
+		}
+	}
+	return false
+}
+
 // HasMinimizedWindows returns true if there are any minimized windows.
 func (m *OS) HasMinimizedWindows() bool {
 	for _, w := range m.Windows {

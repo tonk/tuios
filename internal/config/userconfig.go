@@ -196,6 +196,7 @@ type AppearanceConfig struct {
 	Theme                          string  `toml:"theme"`                              // Color theme name (e.g., dracula, nord, my-custom-theme)
 	SharedBorders                  *bool   `toml:"shared_borders"`                     // Share borders between adjacent tiled windows (default: false)
 	MaximizeNewWindows             bool    `toml:"maximize_new_windows"`               // A new floating window fills the content area instead of spawning at half size (default: false). No effect while auto-tiling is on.
+	FocusAfterClose                string  `toml:"focus_after_close"`                  // Which window gets focus after the focused one closes: first, previous (default: first)
 	// Customization
 	BorderFocusedColor   string `toml:"border_focused_color"`   // Hex color for focused pane border (e.g., "#89b4fa")
 	BorderUnfocusedColor string `toml:"border_unfocused_color"` // Hex color for unfocused pane border (e.g., "#585b70")
@@ -1108,6 +1109,11 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// Only apply from config if not already set via flag (run.go applies flags separately)
 	if cfg.Appearance.WindowTitlePosition != "" && WindowTitlePosition == "bottom" {
 		WindowTitlePosition = cfg.Appearance.WindowTitlePosition
+	}
+
+	// FocusAfterClose defaults to "first"
+	if cfg.Appearance.FocusAfterClose != "" {
+		FocusAfterClose = cfg.Appearance.FocusAfterClose
 	}
 
 	// HideClock defaults to false

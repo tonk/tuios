@@ -674,6 +674,17 @@ var HideScrollbar = false
 // Set via --window-title-position flag or appearance.window_title_position config
 var WindowTitlePosition = "bottom"
 
+// FocusAfterClose controls which window becomes focused when the focused
+// window closes.
+//
+//	"first"    - the first (lowest-position) visible window (default)
+//	"previous" - the window that was one position before the closed one,
+//	             falling back to "first" when the closed window was already
+//	             first (nothing precedes it)
+//
+// Set via appearance.focus_after_close config.
+var FocusAfterClose = "first"
+
 // WindowTitleFormat is the template used to build a window's displayed title.
 // Empty (the default) means the title is shown as-is. See FormatWindowTitle for
 // the supported placeholders.

@@ -68,6 +68,7 @@ var exampleTables = []exampleTable{
 			{"theme", `""`, `Color theme name (e.g. "dracula", "nord", or a custom theme in ~/.config/tuios/themes/). Empty uses the terminal's own colors.`},
 			{"shared_borders", "false", "Share borders between adjacent tiled windows."},
 			{"maximize_new_windows", "false", "A new floating window fills the content area instead of spawning at half size. No effect while auto-tiling is on."},
+			{"focus_after_close", `"first"`, `Which window gets focus after the focused one closes: "first" (lowest-position visible window) or "previous" (the window one position before the closed one).`},
 			{"border_focused_color", `""`, `Hex color for the focused pane border, e.g. "#89b4fa". Empty uses the theme's color.`},
 			{"border_unfocused_color", `""`, "Hex color for unfocused pane borders. Empty uses the theme's color."},
 			{"window_title_format", `""`, "Template overriding how a window's title is built: {title}, {index}, {cwd}. Empty shows the title as-is."},

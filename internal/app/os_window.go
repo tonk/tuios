@@ -741,8 +741,16 @@ func (m *OS) DeleteWindow(i int) *OS {
 	} else if i < m.FocusedWindow {
 		m.FocusedWindow--
 	} else if i == m.FocusedWindow {
-		// If we deleted the focused window, find the next visible window to focus
-		m.FocusNextVisibleWindow()
+		// If we deleted the focused window, find a window to focus. The
+		// default picks the first (lowest-position) visible window;
+		// "previous" instead picks the one that sat right before the closed
+		// window, falling back to "first" when the closed window already
+		// was first and nothing precedes it.
+		if config.FocusAfterClose == "previous" && m.FocusPreviousVisibleWindow(i) {
+			// Focused above.
+		} else {
+			m.FocusNextVisibleWindow()
+		}
 	}
 
 	// Retile if in tiling mode
