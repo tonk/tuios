@@ -873,7 +873,14 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// Tick handles animations, interactions, whichkey, dock stats, and scripts.
 		// PTY content changes are handled by PTYDataMsg (event-driven).
 		hasAnimations := m.HasActiveAnimations()
-		needsDockTick := config.NeedsDockTick()
+
+		// dockInfoChanged is true only when the dock's clock/CPU/RAM text
+		// actually changed since the last tick, so an enabled clock (or CPU/RAM
+		// meter) doesn't pin the tick at NormalFPS and force a render every
+		// single tick just because the feature is on.
+		dockRightInfo := m.dockRightInfoSnapshot()
+		dockInfoChanged := dockRightInfo != m.lastDockRightInfo
+		m.lastDockRightInfo = dockRightInfo
 
 		// Debounce rail titles: a burst of title changes adopts at most one per
 		// interval. railTitleChanged means the rail must redraw; sidebarTitlePending
@@ -912,7 +919,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			// cost smoothness without limiting the motion flood, since motion
 			// events drove their own renders regardless of the tick rate.
 			nextTick = TickCmd()
-		} else if hasAnimations || m.PrefixActive || needsScriptFrame || needsDockTick || hasNotifications || m.SidebarMarqueeActive() || m.TooltipPending() || m.sidebarTitlePending {
+		} else if hasAnimations || m.PrefixActive || needsScriptFrame || hasNotifications || m.SidebarMarqueeActive() || m.TooltipPending() || m.sidebarTitlePending {
 			nextTick = TickCmd() // Normal FPS when things need periodic updates
 		} else {
 			nextTick = IdleTickCmd() // Slow idle tick (process cleanup, etc.)
@@ -926,7 +933,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 
 		// Render on tick if something periodic needs visual updates OR background windows changed
 		needsRender := hadAnimations || hasAnimations || m.InteractionMode || m.PrefixActive ||
-			needsDockTick || hasBackgroundChanges || hasNotifications || notifExpired || leftScriptMode ||
+			dockInfoChanged || hasBackgroundChanges || hasNotifications || notifExpired || leftScriptMode ||
 			m.SidebarMarqueeActive() || m.TooltipPending() || railTitleChanged
 		if !needsRender {
 			m.renderSkipped = true
@@ -1223,6 +1230,21 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// However, if the size is the same (e.g., web reload), skip retiling to preserve layout.
 		if m.RestoredFromState {
 			m.RestoredFromState = false
+			// A restore can start EffectiveWidth/Height at a stale or
+			// placeholder size (a fresh daemon's attach-handshake default, or a
+			// previous, smaller client's terminal) before this, the first
+			// WindowSizeMsg, reports the attaching client's real size.
+			// GetRenderWidth/Height read EffectiveWidth/Height first, so every
+			// branch below needs the real size now - not just the AutoTiling
+			// one, which used to be the only one that stamped it. Leaving it
+			// stale for the floating branches meant MaximizeFloatingWindows/
+			// ScaleWindowsToTerminal filled only that stale effective canvas:
+			// the TUI content stuck small in a corner of an otherwise
+			// full-size terminal, with nothing after this tick able to
+			// correct it, since SessionResizeMsg does not re-run the floating
+			// layout either (fixed below).
+			m.EffectiveWidth = msg.Width
+			m.EffectiveHeight = msg.Height
 			sizeChanged := oldWidth != msg.Width || oldHeight != msg.Height
 			if sizeChanged {
 				// In daemon mode, the previous implementation waited for
@@ -1237,12 +1259,6 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 				if m.IsDaemonSession && m.AutoTiling {
 					m.LogInfo("[RESIZE] Daemon mode restore: tiling to %dx%d (was %dx%d)",
 						msg.Width, msg.Height, oldWidth, oldHeight)
-					// Force the render size to the browser viewport. Any stale
-					// EffectiveWidth/Height from the attach handshake will be
-					// corrected by the next SessionResizeMsg if the daemon
-					// actually computes something different.
-					m.EffectiveWidth = msg.Width
-					m.EffectiveHeight = msg.Height
 					m.TileAllWindows()
 				} else if m.AutoTiling {
 					// Non-daemon mode: tile immediately
@@ -1436,14 +1452,12 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			m.EffectiveWidth = msg.Width
 			m.EffectiveHeight = msg.Height
 			m.MarkAllDirty()
-			// Retile if the effective render size changed. Same policy as the
-			// tea.WindowSizeMsg path: this is the resize signal a daemon session
-			// actually settles on (the daemon's min-of-all-clients effective size,
-			// not necessarily this client's own raw WindowSizeMsg), so without the
-			// MaximizeNewWindows branch here a floating window placed against an
-			// early, not-yet-final terminal size (e.g. a WM still animating a
-			// maximize) never gets resized to fill the real one - it needs a
-			// manual snap-fullscreen forever after.
+			// Re-run layout for the new effective render size. Floating mode
+			// needs this exactly as much as tiling does: without it, a
+			// maximize_new_windows session left the effective size stale by
+			// the RestoredFromState handler above never recovers once this
+			// message finally reports the corrected size, because nothing
+			// else re-triggers MaximizeFloatingWindows.
 			if m.AutoTiling {
 				m.TileAllWindows()
 			} else if m.UserConfig != nil && m.UserConfig.Appearance.MaximizeNewWindows {

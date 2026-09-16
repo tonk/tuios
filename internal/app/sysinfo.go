@@ -117,6 +117,28 @@ func (m *OS) GetTilingIndicator() string {
 	return "Tiling: OFF"
 }
 
+// dockRightInfoSnapshot returns the current text of the dock's clock/CPU/RAM
+// cluster for whichever of those are enabled. Ticks diff this against
+// lastDockRightInfo so a render is only forced when the visible text
+// actually changed (e.g. once a minute for a minute-resolution clock
+// format), not on every tick the feature happens to be turned on.
+func (m *OS) dockRightInfoSnapshot() string {
+	if !config.ShowClock && !config.ShowCPU && !config.ShowRAM {
+		return ""
+	}
+	var b strings.Builder
+	if config.ShowClock {
+		b.WriteString(config.FormatClock(time.Now()))
+	}
+	if config.ShowCPU {
+		b.WriteString(m.GetCPUGraph())
+	}
+	if config.ShowRAM {
+		b.WriteString(m.GetRAMUsage())
+	}
+	return b.String()
+}
+
 // GetRAMUsage returns RAM usage as a formatted string.
 // Cached to avoid expensive gopsutil calls on every render.
 func (m *OS) GetRAMUsage() string {

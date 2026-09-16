@@ -177,6 +177,10 @@ type OS struct {
 	LastCPUUpdate      time.Time                  // Last time CPU was updated
 	RAMUsage           float64                    // Cached RAM usage percentage
 	LastRAMUpdate      time.Time                  // Last time RAM was updated
+	// lastDockRightInfo is the dock's clock/CPU/RAM text last shown, so a
+	// maintenance tick only forces a render when that text actually changed
+	// instead of every tick the feature happens to be enabled.
+	lastDockRightInfo string
 	AutoTiling         bool                       // Automatic tiling mode enabled
 	MasterRatio        float64                    // Master window width ratio for tiling (0.3-0.7)
 	// TouchClient marks a session whose pointer is a finger. It is per session
