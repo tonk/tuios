@@ -135,6 +135,19 @@ func firstVisibleOnWorkspace(windows []WindowState, workspace int) string {
 	return ""
 }
 
+// previousVisibleOnWorkspace returns the ID of the closest visible window on
+// workspace before idx - the position a just-removed window used to occupy,
+// so idx now holds whatever followed it, if anything. Returns "" when
+// nothing visible precedes idx (the removed window was already first).
+func previousVisibleOnWorkspace(windows []WindowState, workspace int, idx int) string {
+	for i := idx - 1; i >= 0; i-- {
+		if windows[i].Workspace == workspace && !windows[i].Minimized {
+			return windows[i].ID
+		}
+	}
+	return ""
+}
+
 // daemonWindowSize returns the outer window box (width, height) - the
 // session's own tracked size, falling back to 80x24 when unset - and the PTY
 // content size derived from it (inset for the border). Every daemon-window
@@ -269,9 +282,20 @@ func (s *Session) CloseDaemonWindow(target string) (string, error) {
 		// running, and a claim can now come from a source that is not the detector.
 		delete(s.agentClaims, closed.ID)
 
-		// Repair focus if we removed the focused window.
+		// Repair focus if we removed the focused window. This is the
+		// server-side counterpart of the client's own appearance.
+		// focus_after_close preference: a daemon session's DeleteWindow
+		// never picks focus itself (see os_window.go), it only asks the
+		// daemon to close the window and the daemon's answer here is what
+		// every attached client actually converges on.
 		if state.FocusedWindowID == closed.ID {
-			state.FocusedWindowID = firstVisibleOnWorkspace(state.Windows, workspace)
+			state.FocusedWindowID = ""
+			if config.FocusAfterClose == "previous" {
+				state.FocusedWindowID = previousVisibleOnWorkspace(state.Windows, workspace, idx)
+			}
+			if state.FocusedWindowID == "" {
+				state.FocusedWindowID = firstVisibleOnWorkspace(state.Windows, workspace)
+			}
 		}
 		if state.WorkspaceFocus != nil && state.WorkspaceFocus[workspace] == closed.ID {
 			delete(state.WorkspaceFocus, workspace)

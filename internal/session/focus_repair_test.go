@@ -1,6 +1,10 @@
 package session
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tonk/tuios/internal/config"
+)
 
 // The focus-repair rule is what decides where focus lands after the focused
 // window goes away. Two implementations answer that question today: the daemon's
@@ -128,5 +132,67 @@ func TestDaemonFocusRepairAfterClose(t *testing.T) {
 				t.Errorf("WorkspaceFocus[%d] = %q, want %q", tc.workspace, got, tc.wantWorkspaceFocus)
 			}
 		})
+	}
+}
+
+// TestCloseDaemonWindowFocusAfterClosePrevious confirms CloseDaemonWindow
+// honours appearance.focus_after_close = "previous" - this is the daemon's
+// own copy of the client's FocusPreviousVisibleWindow rule, and is the one
+// that actually applies for a tuios attach session: DeleteWindow never picks
+// focus itself there, it just asks the daemon to close the window.
+func TestCloseDaemonWindowFocusAfterClosePrevious(t *testing.T) {
+	prev := config.FocusAfterClose
+	config.FocusAfterClose = "previous"
+	t.Cleanup(func() { config.FocusAfterClose = prev })
+
+	sess := newTestSession(t)
+	if err := sess.mutateState(func(state *SessionState) error {
+		state.Windows = []WindowState{
+			{ID: "w1", Workspace: 1}, {ID: "w2", Workspace: 1}, {ID: "w3", Workspace: 1},
+			{ID: "w4", Workspace: 1}, {ID: "w5", Workspace: 1}, {ID: "w6", Workspace: 1},
+			{ID: "w7", Workspace: 1},
+		}
+		state.CurrentWorkspace = 1
+		state.WorkspaceFocus = map[int]string{1: "w7"}
+		state.FocusedWindowID = "w7"
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding state failed: %v", err)
+	}
+
+	if _, err := sess.CloseDaemonWindow("w7"); err != nil {
+		t.Fatalf("CloseDaemonWindow: %v", err)
+	}
+
+	if got := sess.GetState().FocusedWindowID; got != "w6" {
+		t.Errorf("FocusedWindowID after closing w7 = %q, want w6", got)
+	}
+}
+
+// TestCloseDaemonWindowFocusAfterClosePreviousFallsBackToFirst confirms
+// closing the first window under "previous" falls back to the new first
+// window, since nothing precedes position 1.
+func TestCloseDaemonWindowFocusAfterClosePreviousFallsBackToFirst(t *testing.T) {
+	prev := config.FocusAfterClose
+	config.FocusAfterClose = "previous"
+	t.Cleanup(func() { config.FocusAfterClose = prev })
+
+	sess := newTestSession(t)
+	if err := sess.mutateState(func(state *SessionState) error {
+		state.Windows = []WindowState{{ID: "w1", Workspace: 1}, {ID: "w2", Workspace: 1}, {ID: "w3", Workspace: 1}}
+		state.CurrentWorkspace = 1
+		state.WorkspaceFocus = map[int]string{1: "w1"}
+		state.FocusedWindowID = "w1"
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding state failed: %v", err)
+	}
+
+	if _, err := sess.CloseDaemonWindow("w1"); err != nil {
+		t.Fatalf("CloseDaemonWindow: %v", err)
+	}
+
+	if got := sess.GetState().FocusedWindowID; got != "w2" {
+		t.Errorf("FocusedWindowID after closing w1 = %q, want w2", got)
 	}
 }

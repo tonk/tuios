@@ -234,6 +234,25 @@ func (m *OS) FocusNextVisibleWindow() {
 	m.FocusedWindow = -1
 }
 
+// focusNextVisibleWindowExcept is FocusNextVisibleWindow, but skips index
+// except. It exists for the daemon-mode close path in DeleteWindow: the
+// window whose close was just requested is still in m.Windows (its removal
+// is up to the daemon's state sync), so the ordinary scan-from-the-top
+// FocusNextVisibleWindow could pick that same doomed window right back if it
+// happens to be the first visible one.
+func (m *OS) focusNextVisibleWindowExcept(except int) {
+	for i := range m.Windows {
+		if i == except {
+			continue
+		}
+		if m.Windows[i].Workspace == m.CurrentWorkspace && !m.Windows[i].Minimized && !m.Windows[i].Minimizing {
+			m.FocusWindow(i)
+			return
+		}
+	}
+	m.FocusedWindow = -1
+}
+
 // FocusPreviousVisibleWindow focuses the closest visible window in the
 // current workspace before index from (the index a just-deleted window used
 // to occupy in m.Windows, which by the time this runs already holds whatever

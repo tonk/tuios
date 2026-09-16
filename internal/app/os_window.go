@@ -641,6 +641,24 @@ func (m *OS) DeleteWindow(i int) *OS {
 		windowID := m.Windows[i].ID
 		if err := m.DaemonClient.SendIntent("CloseWindow", windowID); err != nil {
 			m.LogError("Failed to ask the daemon to close window %s: %v", shortID(windowID), err)
+			return m
+		}
+		// The daemon owns the actual teardown; it comes back as a state sync
+		// (ApplyStateSync) that removes the window and repairs focus, and
+		// that round trip is not instant. Waiting for it to move focus left
+		// the user typing into a pane whose PTY the daemon had already begun
+		// killing - it looked frozen until an unrelated action (switching
+		// panes) forced the render that had been sitting there queued the
+		// whole time. Move focus off it now; the window itself still shows
+		// its last frame until the sync lands and removes it for real.
+		// CloseDaemonWindow (session_ops.go) applies this same
+		// focus_after_close policy server-side, so the sync's authoritative
+		// FocusedWindowID will usually already agree with this guess.
+		if i == m.FocusedWindow {
+			moved := config.FocusAfterClose == "previous" && m.FocusPreviousVisibleWindow(i)
+			if !moved {
+				m.focusNextVisibleWindowExcept(i)
+			}
 		}
 		return m
 	}
