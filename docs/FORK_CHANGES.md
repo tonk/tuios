@@ -146,6 +146,10 @@ The prototype the classroom console builds on:
   empty ones. These took over the `Ctrl+Alt+Right`/`Ctrl+Alt+Left` default;
   the original include-empty `next_workspace`/`prev_workspace` moved to
   `Ctrl+Alt+Shift+Right`/`Ctrl+Alt+Shift+Left`.
+- A dock clock/CPU/RAM meter no longer pins every tick at NormalFPS and
+  forces a render each tick regardless of whether the displayed text
+  changed - a render is now only forced when that text actually differs
+  from the last tick (e.g. once a minute for a minute-resolution clock).
 - Added an About overlay (`Ctrl+B` `a`, the command palette, or the which-key
   tools menu) showing the build version, Go runtime version and platform.
 - Added `tuios attach --no-restore`: if that attach is the one that ends up
