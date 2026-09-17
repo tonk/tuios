@@ -251,8 +251,18 @@ func validateLuaTapeFile(tapeFile, content string) error {
 	return nil
 }
 
+// tapeExtensions loads the configured tape.extensions, falling back to the
+// defaults when the config can't be read.
+func tapeExtensions() []string {
+	userConfig, err := config.LoadUserConfig()
+	if err != nil {
+		return config.DefaultTapeExtensions
+	}
+	return userConfig.Tape.Extensions
+}
+
 func listTapeFiles() error {
-	files, err := app.LoadTapeFiles()
+	files, err := app.LoadTapeFiles(tapeExtensions())
 	if err != nil {
 		return fmt.Errorf("failed to load tape files: %w", err)
 	}
@@ -297,11 +307,11 @@ func showTapeDirectory() error {
 	return nil
 }
 
-// findTapeFile locates a tape by display name or by name with its .tape/.lua
-// extension still attached, shared by every CLI subcommand that takes a tape
-// name rather than a full path.
+// findTapeFile locates a tape by display name or by name with its .tape,
+// .lua, or .tape.lua extension still attached, shared by every CLI subcommand
+// that takes a tape name rather than a full path.
 func findTapeFile(files []app.TapeFile, name string) *app.TapeFile {
-	stripped := strings.TrimSuffix(strings.TrimSuffix(name, ".tape"), ".lua")
+	stripped := strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(name, ".tape.lua"), ".tape"), ".lua")
 	for i := range files {
 		if files[i].Name == name || files[i].Name == stripped {
 			return &files[i]
@@ -310,16 +320,8 @@ func findTapeFile(files []app.TapeFile, name string) *app.TapeFile {
 	return nil
 }
 
-// tapeFileExt returns the extension a TapeFile was loaded with, for display.
-func tapeFileExt(kind app.TapeFileKind) string {
-	if kind == app.TapeFileLua {
-		return ".lua"
-	}
-	return ".tape"
-}
-
 func deleteTapeFile(name string) error {
-	files, err := app.LoadTapeFiles()
+	files, err := app.LoadTapeFiles(tapeExtensions())
 	if err != nil {
 		return fmt.Errorf("failed to load tape files: %w", err)
 	}
@@ -349,7 +351,7 @@ func deleteTapeFile(name string) error {
 }
 
 func showTapeFile(name string) error {
-	files, err := app.LoadTapeFiles()
+	files, err := app.LoadTapeFiles(tapeExtensions())
 	if err != nil {
 		return fmt.Errorf("failed to load tape files: %w", err)
 	}
@@ -366,7 +368,7 @@ func showTapeFile(name string) error {
 
 	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4")).Bold(true)
 	pathStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	fmt.Printf("%s\n", headerStyle.Render(targetFile.Name+tapeFileExt(targetFile.Kind)))
+	fmt.Printf("%s\n", headerStyle.Render(targetFile.Name+targetFile.Ext))
 	fmt.Printf("%s\n\n", pathStyle.Render(targetFile.Path))
 
 	fmt.Print(string(content))

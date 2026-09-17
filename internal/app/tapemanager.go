@@ -11,6 +11,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/overlay"
 	"github.com/tonk/tuios/internal/tape"
 	"github.com/tonk/tuios/internal/theme"
@@ -54,6 +55,7 @@ type TapeFile struct {
 	Size     int64        // File size in bytes
 	Modified time.Time    // Last modification time
 	Kind     TapeFileKind // .tape (DSL) or .lua
+	Ext      string       // The matched extension, e.g. ".tape" or ".tape.lua"
 }
 
 // TapeManagerState holds the state for the tape manager UI
@@ -81,8 +83,30 @@ func GetTapeDirectory() (string, error) {
 	return tapeDir, nil
 }
 
-// LoadTapeFiles loads all tape files from the XDG data directory
-func LoadTapeFiles() ([]TapeFile, error) {
+// matchTapeExtension returns the longest configured extension name ends with,
+// or "" if none match. Checking longest-first means a compound suffix like
+// ".tape.lua" wins over a shorter ".lua" entry that would otherwise also
+// match.
+func matchTapeExtension(name string, extensions []string) string {
+	best := ""
+	for _, ext := range extensions {
+		if ext != "" && strings.HasSuffix(name, ext) && len(ext) > len(best) {
+			best = ext
+		}
+	}
+	return best
+}
+
+// LoadTapeFiles loads all tape files from the tape directory whose name ends
+// in one of extensions (see config.TapeConfig.Extensions); anything else -
+// such as a shared .lua helper module required by other tape scripts - is
+// filtered out. A nil or empty extensions falls back to
+// config.DefaultTapeExtensions.
+func LoadTapeFiles(extensions []string) ([]TapeFile, error) {
+	if len(extensions) == 0 {
+		extensions = config.DefaultTapeExtensions
+	}
+
 	tapeDir, err := GetTapeDirectory()
 	if err != nil {
 		return nil, err
@@ -105,18 +129,16 @@ func LoadTapeFiles() ([]TapeFile, error) {
 		}
 
 		name := entry.Name()
-		var kind TapeFileKind
-		var displayName string
-		switch {
-		case strings.HasSuffix(name, ".tape"):
-			kind = TapeFileDSL
-			displayName = strings.TrimSuffix(name, ".tape")
-		case strings.HasSuffix(name, ".lua"):
-			kind = TapeFileLua
-			displayName = strings.TrimSuffix(name, ".lua")
-		default:
+		ext := matchTapeExtension(name, extensions)
+		if ext == "" {
 			continue
 		}
+
+		kind := TapeFileDSL
+		if strings.HasSuffix(ext, ".lua") {
+			kind = TapeFileLua
+		}
+		displayName := strings.TrimSuffix(name, ext)
 
 		info, err := entry.Info()
 		if err != nil {
@@ -129,6 +151,7 @@ func LoadTapeFiles() ([]TapeFile, error) {
 			Size:     info.Size(),
 			Modified: info.ModTime(),
 			Kind:     kind,
+			Ext:      ext,
 		})
 	}
 
@@ -190,7 +213,11 @@ func (m *OS) RefreshTapeFiles() {
 		m.InitTapeManager()
 	}
 
-	files, err := LoadTapeFiles()
+	var extensions []string
+	if m.UserConfig != nil {
+		extensions = m.UserConfig.Tape.Extensions
+	}
+	files, err := LoadTapeFiles(extensions)
 	if err != nil {
 		m.TapeManager.ErrorMessage = err.Error()
 		m.TapeManager.MessageTime = time.Now()

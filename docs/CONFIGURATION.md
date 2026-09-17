@@ -1167,6 +1167,7 @@ session from it - after you review and trust the content.
 [tape]
 autorun = "ask"        # off | ask | auto (default: ask)
 auto_review = false    # auto-open the review dialog on detection (default: false)
+extensions = [".tape", ".tape.lua"]  # tape file suffixes shown in the tape manager (default: [".tape", ".tape.lua"])
 ```
 
 - `off` - no scanning, no indicators, feature invisible.
@@ -1180,6 +1181,11 @@ auto_review = false    # auto-open the review dialog on detection (default: fals
   never runs anything on its own (you still choose Run/Trust/Never/Not now), never
   auto-opens for a denied or ineligible tape, and pops at most once per directory
   per session. Configurable from the settings menu (`Ctrl+B` `,` -> Tape).
+- `extensions` - the filename suffixes the tape manager (`Ctrl+T`) and the
+  `tuios tape` CLI list; anything else in the tape directory (e.g. a shared
+  `.lua` helper module required by other tape scripts) is filtered out. A
+  suffix ending in `.lua` is played back as a Lua tape script; anything else
+  is parsed as the `.tape` DSL.
 
 `TUIOS_TAPE_AUTORUN` overrides this for a single run. An untrusted tape is inert:
 it is never parsed as a program or executed until you review its content and

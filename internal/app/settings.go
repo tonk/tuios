@@ -1,6 +1,7 @@
 package app
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -158,6 +159,23 @@ func (m *OS) setTape(fn func(t *config.TapeConfig)) {
 	if m.UserConfig != nil {
 		fn(&m.UserConfig.Tape)
 	}
+}
+
+// parseTapeExtensions splits a comma-separated tape.extensions edit into its
+// suffixes, trimming whitespace and dropping empty entries. An edit that
+// leaves nothing usable falls back to config.DefaultTapeExtensions rather
+// than an empty list, which would hide every tape file.
+func parseTapeExtensions(v string) []string {
+	var extensions []string
+	for _, part := range strings.Split(v, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			extensions = append(extensions, part)
+		}
+	}
+	if len(extensions) == 0 {
+		return slices.Clone(config.DefaultTapeExtensions)
+	}
+	return extensions
 }
 
 // setDebug runs fn against the held config's [debug] section when a config is
@@ -818,6 +836,21 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setTape(func(t *config.TapeConfig) { t.AutoReview = !cur })
 				},
 			},
+			stringItem(
+				"Extensions",
+				"Filename suffixes listed in the tape manager (Ctrl+T) and tuios tape CLI; anything else (e.g. a shared .lua helper) is filtered out",
+				".tape, .tape.lua",
+				strings.Join(config.DefaultTapeExtensions, ", "),
+				func(m *OS) string {
+					if m.UserConfig == nil {
+						return ""
+					}
+					return strings.Join(m.UserConfig.Tape.Extensions, ", ")
+				},
+				func(m *OS, v string) {
+					m.setTape(func(t *config.TapeConfig) { t.Extensions = parseTapeExtensions(v) })
+				},
+			),
 		},
 	}
 

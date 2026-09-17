@@ -132,6 +132,14 @@ type StartupConfig struct {
 type TapeConfig struct {
 	Autorun    string `toml:"autorun"`     // off | ask | auto (default: ask)
 	AutoReview bool   `toml:"auto_review"` // auto-open the review dialog on detection (default: false)
+
+	// Extensions lists the filename suffixes the tape manager (Ctrl+T) and the
+	// `tuios tape` CLI list as tape files; anything else in the tape directory
+	// (e.g. a shared .lua helper module required by other tape scripts) is
+	// filtered out. A suffix ending in ".lua" is played back as a Lua tape
+	// script; anything else is parsed as the .tape DSL. Default:
+	// [".tape", ".tape.lua"].
+	Extensions []string `toml:"extensions"`
 }
 
 // DaemonConfig holds daemon-related settings
@@ -320,6 +328,10 @@ const (
 // TapeAutorunModes lists the valid values for tape.autorun.
 var TapeAutorunModes = []string{TapeAutorunOff, TapeAutorunAsk, TapeAutorunAuto}
 
+// DefaultTapeExtensions lists the tape file suffixes recognized when no
+// tape.extensions is configured. See TapeConfig.Extensions.
+var DefaultTapeExtensions = []string{".tape", ".tape.lua"}
+
 // HooksConfig holds shell command hooks for events.
 type HooksConfig map[string]any
 
@@ -379,6 +391,7 @@ func DefaultConfig() *UserConfig {
 		Tape: TapeConfig{
 			Autorun:    TapeAutorunAsk,
 			AutoReview: false,
+			Extensions: slices.Clone(DefaultTapeExtensions),
 		},
 		Keybindings: KeybindingsConfig{
 			LeaderKey:        "ctrl+b",
@@ -1243,6 +1256,9 @@ func ApplyNotificationConfig(cfg *UserConfig) {
 func fillMissingTape(cfg, defaultCfg *UserConfig) {
 	if !slices.Contains(TapeAutorunModes, cfg.Tape.Autorun) {
 		cfg.Tape.Autorun = defaultCfg.Tape.Autorun
+	}
+	if len(cfg.Tape.Extensions) == 0 {
+		cfg.Tape.Extensions = defaultCfg.Tape.Extensions
 	}
 }
 
