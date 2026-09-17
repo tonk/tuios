@@ -109,6 +109,39 @@ func TestMouseSelectionIsCopyable(t *testing.T) {
 	}
 }
 
+// TestSelectionPreservesLeadingIndentation pins a bug where copying a
+// selection dropped every line's leading whitespace: a single-line selection
+// through a final strings.TrimSpace, and a multi-line selection's middle
+// lines through getLineContentBounds clamping the start column to the first
+// non-blank cell instead of 0. Trailing padding past the line's content
+// should still be dropped.
+func TestSelectionPreservesLeadingIndentation(t *testing.T) {
+	t.Run("single line", func(t *testing.T) {
+		o, _ := selectPane(t, "    indented start")
+
+		pressAt(o, 0, 0)
+		dragTo(o, 30, 0)
+		release(o, 30, 0)
+
+		if got, want := copySelection(t, o), "    indented start"; got != want {
+			t.Errorf("copy produced %q, want %q", got, want)
+		}
+	})
+
+	t.Run("multi line", func(t *testing.T) {
+		o, _ := selectPane(t, "    first line\r\n    middle line\r\n    last line")
+
+		pressAt(o, 0, 0)
+		dragTo(o, 30, 2)
+		release(o, 30, 2)
+
+		want := "    first line\n    middle line\n    last line"
+		if got := copySelection(t, o); got != want {
+			t.Errorf("copy produced %q, want %q", got, want)
+		}
+	})
+}
+
 // The copy action must stay quiet when there is nothing selected, so a stray
 // key or a menu reached some other way cannot clear the clipboard.
 func TestCopySelectionWithNothingSelectedCopiesNothing(t *testing.T) {

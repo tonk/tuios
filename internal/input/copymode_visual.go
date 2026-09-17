@@ -23,10 +23,11 @@ func enterVisualLine(cm *terminal.CopyMode, window *terminal.Window) {
 	cm.State = terminal.CopyModeVisualLine
 	absY := getAbsoluteY(cm, window)
 
-	// Get line content bounds (first to last non-empty character)
-	startX, endX := getLineContentBounds(cm, window, absY)
+	// A whole-line selection starts at column 0 - including leading
+	// indentation - through the line's last non-empty character.
+	_, endX := getLineContentBounds(cm, window, absY)
 
-	cm.VisualStart = terminal.Position{X: startX, Y: absY}
+	cm.VisualStart = terminal.Position{X: 0, Y: absY}
 	cm.VisualEnd = terminal.Position{X: endX, Y: absY}
 }
 
@@ -56,8 +57,8 @@ func updateVisualEnd(cm *terminal.CopyMode, window *terminal.Window) {
 			startY, endY = endY, startY
 		}
 
-		// Get line content bounds for both lines
-		startLineStartX, _ := getLineContentBounds(cm, window, startY)
+		// A whole-line selection always starts at column 0 (including leading
+		// indentation); only the lower line's end needs clamping to its content.
 		_, endLineEndX := getLineContentBounds(cm, window, endY)
 
 		// If moving upwards (current Y < original start Y), we want:
@@ -65,11 +66,11 @@ func updateVisualEnd(cm *terminal.CopyMode, window *terminal.Window) {
 		// - End to be at end of the lower line (original start)
 		if absY < cm.VisualStart.Y {
 			// Moving upwards
-			cm.VisualEnd.X = startLineStartX
+			cm.VisualEnd.X = 0
 			cm.VisualStart.X = endLineEndX
 		} else {
 			// Moving downwards or same line
-			cm.VisualStart.X = startLineStartX
+			cm.VisualStart.X = 0
 			cm.VisualEnd.X = endLineEndX
 		}
 	}
@@ -115,7 +116,9 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 				}
 			}
 		}
-		return strings.TrimSpace(text.String())
+		// Trim trailing space only: the selection's own leading whitespace
+		// (indentation) is content the user dragged over, not padding.
+		return strings.TrimRight(text.String(), " ")
 	}
 
 	// Multi-line
@@ -130,7 +133,7 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 		}
 
 		// Clamp to line content bounds to avoid copying empty cells at end
-		lineStartX, lineEndX := getLineContentBounds(cm, window, y)
+		_, lineEndX := getLineContentBounds(cm, window, y)
 		switch y {
 		case start.Y:
 			// First line: keep user's start but clamp end to content
@@ -139,8 +142,8 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 			// Last line: keep user's end but clamp to content
 			endX = min(endX, lineEndX)
 		default:
-			// Middle lines: use full content bounds
-			startX = lineStartX
+			// Middle lines: keep leading indentation, but clamp the end to
+			// content so trailing padding isn't copied.
 			endX = lineEndX
 		}
 
@@ -205,7 +208,9 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 		}
 	}
 
-	return strings.TrimSpace(text.String())
+	// Trim trailing space only: leading whitespace on any line (including
+	// the first) is indentation the user selected, not padding.
+	return strings.TrimRight(text.String(), " ")
 }
 
 // getLineContentBounds returns the X positions of the first and last non-empty characters on a line
