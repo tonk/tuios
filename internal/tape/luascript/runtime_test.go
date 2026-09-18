@@ -137,6 +137,17 @@ func runScript(t *testing.T, script string, exec *fakeExecutor, timeout time.Dur
 // tests don't care and go through runScript's "" default.
 func runScriptInDir(t *testing.T, script string, exec *fakeExecutor, timeout time.Duration, dir string) error {
 	t.Helper()
+	return runScriptOpts(t, script, exec, timeout, dir, false)
+}
+
+// runScriptAllowSecrets is runScript with tape.allow_secrets enabled.
+func runScriptAllowSecrets(t *testing.T, script string, exec *fakeExecutor, timeout time.Duration) error {
+	t.Helper()
+	return runScriptOpts(t, script, exec, timeout, "", true)
+}
+
+func runScriptOpts(t *testing.T, script string, exec *fakeExecutor, timeout time.Duration, dir string, allowSecrets bool) error {
+	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -148,7 +159,7 @@ func runScriptInDir(t *testing.T, script string, exec *fakeExecutor, timeout tim
 	defer L.Close()
 	OpenSafeLibs(L)
 	L.SetContext(ctx)
-	Register(L, ce, exec, bridge, ctx, dir)
+	Register(L, ce, exec, bridge, ctx, dir, allowSecrets)
 
 	done := make(chan error, 1)
 	go func() { done <- L.DoString(script) }()
@@ -279,7 +290,7 @@ func TestContextCancellationStopsAScript(t *testing.T) {
 	defer L.Close()
 	OpenSafeLibs(L)
 	L.SetContext(ctx)
-	Register(L, ce, exec, bridge, ctx, "")
+	Register(L, ce, exec, bridge, ctx, "", false)
 
 	done := make(chan error, 1)
 	go func() { done <- L.DoString(`tuios.wait_until("never", 60000)`) }()
@@ -353,7 +364,7 @@ func TestWaitForIdleReturnsTrueOnceContentStopsChanging(t *testing.T) {
 	defer L.Close()
 	OpenSafeLibs(L)
 	L.SetContext(ctx)
-	Register(L, ce, exec, bridge, ctx, "")
+	Register(L, ce, exec, bridge, ctx, "", false)
 	L.SetGlobal("record", L.NewFunction(func(L *lua.LState) int {
 		result = L.ToBool(1)
 		return 0

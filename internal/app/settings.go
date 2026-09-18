@@ -836,6 +836,16 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setTape(func(t *config.TapeConfig) { t.AutoReview = !cur })
 				},
 			},
+			{
+				Label:   "Allow Lua secrets",
+				Desc:    "Let Lua tapes call tuios.secret() (pass/gopass/passage/keepassxc)",
+				Control: controlBool,
+				boolVal: func(m *OS) bool { return m.UserConfig != nil && m.UserConfig.Tape.AllowSecrets },
+				adjust: func(m *OS, _ int) {
+					cur := m.UserConfig != nil && m.UserConfig.Tape.AllowSecrets
+					m.setTape(func(t *config.TapeConfig) { t.AllowSecrets = !cur })
+				},
+			},
 			stringItem(
 				"Extensions",
 				"Filename suffixes listed in the tape manager (Ctrl+T) and tuios tape CLI; anything else (e.g. a shared .lua helper) is filtered out",

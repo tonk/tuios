@@ -129,6 +129,12 @@ type StartupConfig struct {
 // once / Trust and run / Never / Not now - and it never auto-opens for a denied
 // tape, an already-handled directory this session, or (in auto mode) a
 // trusted-unedited tape that runs on its own.
+//
+// AllowSecrets (default false) opts a machine into tuios.secret() for Lua
+// tapes: with it off, Lua still has no way to read a password manager; with it
+// on, tuios.secret("pass"|"gopass"|"passage"|"keepassxc", entry [, db]) can
+// resolve store entries. Off by default so a reviewed tape cannot pull secrets
+// unless the user explicitly enables it.
 type TapeConfig struct {
 	Autorun    string `toml:"autorun"`     // off | ask | auto (default: ask)
 	AutoReview bool   `toml:"auto_review"` // auto-open the review dialog on detection (default: false)
@@ -140,6 +146,9 @@ type TapeConfig struct {
 	// script; anything else is parsed as the .tape DSL. Default:
 	// [".tape", ".tape.lua"].
 	Extensions []string `toml:"extensions"`
+
+	// AllowSecrets enables tuios.secret() in Lua tapes (default: false).
+	AllowSecrets bool `toml:"allow_secrets"`
 }
 
 // DaemonConfig holds daemon-related settings
@@ -389,9 +398,10 @@ func DefaultConfig() *UserConfig {
 			StartInTerminalMode: false,
 		},
 		Tape: TapeConfig{
-			Autorun:    TapeAutorunAsk,
-			AutoReview: false,
-			Extensions: slices.Clone(DefaultTapeExtensions),
+			Autorun:      TapeAutorunAsk,
+			AutoReview:   false,
+			AllowSecrets: false,
+			Extensions:   slices.Clone(DefaultTapeExtensions),
 		},
 		Keybindings: KeybindingsConfig{
 			LeaderKey:        "ctrl+b",

@@ -61,7 +61,8 @@ func (m *OS) StartLuaPlayback(script, name, dir string) []tea.Cmd {
 	L := lua.NewState(lua.Options{SkipOpenLibs: true})
 	luascript.OpenSafeLibs(L)
 	L.SetContext(ctx)
-	luascript.Register(L, ce, m, bridge, ctx, dir)
+	allowSecrets := m.UserConfig != nil && m.UserConfig.Tape.AllowSecrets
+	luascript.Register(L, ce, m, bridge, ctx, dir, allowSecrets)
 
 	done := make(chan error, 1)
 	m.luaDone = done

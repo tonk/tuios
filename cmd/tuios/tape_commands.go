@@ -106,6 +106,7 @@ func newTapeInteractiveOS() *app.OS {
 	config.AnimationsEnabled = false
 
 	return &app.OS{
+		UserConfig:           userConfig,
 		FocusedWindow:        -1,
 		WindowExitChan:       make(chan string, 10),
 		StateSyncChan:        make(chan *session.SessionState, 10),

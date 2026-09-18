@@ -179,6 +179,7 @@ var exampleTables = []exampleTable{
 			{"autorun", `"ask"`, "Project tape (.tuios.tape) detection: off, ask, auto. See docs/PROJECT_TAPES.md."},
 			{"auto_review", "false", "Auto-open the tape review/trust dialog on detection, instead of only the passive banner."},
 			{"extensions", `[".tape", ".tape.lua"]`, "Filename suffixes listed in the tape manager (Ctrl+T) and tuios tape CLI; anything else (e.g. a shared .lua helper) is filtered out."},
+			{"allow_secrets", "false", "Allow Lua tapes to call tuios.secret() (pass, gopass, passage, keepassxc). Off by default so reviewed tapes cannot pull secrets unless you opt in."},
 		},
 	},
 	{

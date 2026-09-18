@@ -29,6 +29,10 @@ type binding struct {
 	// script performed itself, so it does not conflict with the sandbox having
 	// no io/os.
 	dir string
+	// allowSecrets gates tuios.secret(). It mirrors tape.allow_secrets from
+	// the user's config and defaults to false, so a Lua tape cannot pull
+	// secrets unless the operator opts in.
+	allowSecrets bool
 }
 
 // Register builds the global `tuios` table that .lua tape scripts call into.
@@ -36,9 +40,9 @@ type binding struct {
 // executes on the Bubble Tea Update() goroutine, the same as every other
 // mutation in the app; sleep and wait_until are the two exceptions and are
 // documented at their definitions below. dir is exposed to the script as
-// tuios.project_dir().
-func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, bridge *Bridge, ctx context.Context, dir string) {
-	b := &binding{ce: ce, executor: executor, bridge: bridge, ctx: ctx, dir: dir}
+// tuios.project_dir(). allowSecrets enables tuios.secret() (tape.allow_secrets).
+func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, bridge *Bridge, ctx context.Context, dir string, allowSecrets bool) {
+	b := &binding{ce: ce, executor: executor, bridge: bridge, ctx: ctx, dir: dir, allowSecrets: allowSecrets}
 	tbl := L.NewTable()
 	L.SetGlobal("tuios", tbl)
 
@@ -419,6 +423,35 @@ func Register(L *lua.LState, ce *tape.CommandExecutor, executor tape.Executor, b
 			return 0
 		}
 		L.Push(toLuaValue(L, data))
+		return 1
+	})
+
+	// secret resolves a named secret from a password manager. Gated by
+	// tape.allow_secrets (default false) so the sandbox stays closed unless
+	// the operator opts in. Does not go through the bridge: it is a host-side
+	// read, not a window-manager mutation.
+	//
+	// tuios.secret(source, name [, extra])
+	//   source: "pass" | "gopass" | "passage" | "keepassxc"
+	//   name:   entry path/title
+	//   extra:  keepassxc database path (or set TUIOS_KEEPASSXC_DATABASE)
+	reg("secret", func(b *binding, L *lua.LState) int {
+		if !b.allowSecrets {
+			L.RaiseError("tuios.secret is disabled; set tape.allow_secrets = true in your config")
+			return 0
+		}
+		source := L.CheckString(1)
+		name := L.CheckString(2)
+		var extras []string
+		if L.GetTop() >= 3 && L.Get(3).Type() != lua.LTNil {
+			extras = []string{L.CheckString(3)}
+		}
+		secret, err := resolveSecretFn(source, name, extras...)
+		if err != nil {
+			L.RaiseError("secret: %v", err)
+			return 0
+		}
+		L.Push(lua.LString(secret))
 		return 1
 	})
 }

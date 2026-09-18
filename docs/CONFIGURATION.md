@@ -1168,6 +1168,7 @@ session from it - after you review and trust the content.
 autorun = "ask"        # off | ask | auto (default: ask)
 auto_review = false    # auto-open the review dialog on detection (default: false)
 extensions = [".tape", ".tape.lua"]  # tape file suffixes shown in the tape manager (default: [".tape", ".tape.lua"])
+allow_secrets = false  # let Lua tapes call tuios.secret() (pass|gopass|passage|keepassxc; default: false)
 ```
 
 - `off` - no scanning, no indicators, feature invisible.
@@ -1186,6 +1187,13 @@ extensions = [".tape", ".tape.lua"]  # tape file suffixes shown in the tape mana
   `.lua` helper module required by other tape scripts) is filtered out. A
   suffix ending in `.lua` is played back as a Lua tape script; anything else
   is parsed as the `.tape` DSL.
+- `allow_secrets` - when `true`, Lua tapes may call `tuios.secret(source, entry)`
+  to resolve a password-manager entry. Supported sources: `pass`, `gopass`,
+  `passage`, and `keepassxc` (database path as a third argument or
+  `TUIOS_KEEPASSXC_DATABASE`; optional `TUIOS_KEEPASSXC_PASSWORD` /
+  `TUIOS_KEEPASSXC_KEYFILE` for unlock). Defaults to `false` so a reviewed tape
+  cannot pull secrets unless you opt in. Also toggleable from Settings → Tape →
+  "Allow Lua secrets".
 
 `TUIOS_TAPE_AUTORUN` overrides this for a single run. An untrusted tape is inert:
 it is never parsed as a program or executed until you review its content and

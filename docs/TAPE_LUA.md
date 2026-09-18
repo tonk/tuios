@@ -81,7 +81,9 @@ set-agent-state`. `source` (`report`, `osc`, `screen`, `stall`; default
 `tuios.sleep(ms)`, `tuios.wait_until(pattern, [timeout_ms], [window_id],
 [scrollback])`, `tuios.wait_for_idle(idle_ms, [timeout_ms], [window_id])`,
 `tuios.wait_for_exit([timeout_ms], [window_id])`, `tuios.focused_window_id()`,
-`tuios.window_content([window_id])`, `tuios.project_dir()`
+`tuios.window_content([window_id])`, `tuios.project_dir()`,
+`tuios.secret(source, name [, database])` (gated by `tape.allow_secrets`; see
+below)
 
 **Structured queries**: `tuios.get_window([id_or_name])`,
 `tuios.list_windows()`, `tuios.session_info()` — each returns a Lua table with
@@ -194,10 +196,11 @@ removed even though they're normally part of Lua's base library. Only `base`
 (language features, `pairs`/`pcall`/`type`/etc.), `table`, `string`, `math`
 and `coroutine` are open, plus the `tuios.*` table above.
 
-This means a Lua tape **cannot read a secret itself** — there's no
-`os.getenv` or `io.popen` to shell out to a password manager. If a workflow
-needs one (see `examples/lua/ssh_password_login.lua`), let the *shell being
-typed into* resolve it via command substitution when the command runs:
+This means a Lua tape **cannot read a secret itself** by default — there's no
+`os.getenv` or `io.popen` to shell out to a password manager. Two options:
+
+1. **Leave the sandbox closed (default).** Let the *shell being typed into*
+   resolve the secret via command substitution when the command runs:
 
 ```lua
 tuios.type('SSHPASS="$(pass show cust/passwd)" sshpass -e ssh user@example.com')
@@ -205,6 +208,26 @@ tuios.type('SSHPASS="$(pass show cust/passwd)" sshpass -e ssh user@example.com')
 
 The secret passes from `pass` to `sshpass` to `ssh` entirely inside that
 shell; Lua never sees it, and it's never written to the tape file.
+
+2. **Opt in with `tape.allow_secrets = true`.** Then `tuios.secret` can resolve
+   an entry from a supported password manager and return it to Lua (useful when
+   you need to type the secret at a raw prompt such as sudo's `password for`,
+   where the shell cannot expand `$(pass …)`):
+
+```lua
+-- requires [tape] allow_secrets = true in config (default: false)
+local pass = tuios.secret("pass", "cust/passwd")
+-- also: "gopass", "passage"
+-- KeePassXC needs the database path (or TUIOS_KEEPASSXC_DATABASE):
+-- local pass = tuios.secret("keepassxc", "Web/GitHub", "/path/to.kdbx")
+tuios.type(pass)
+tuios.enter()
+```
+
+Supported sources: `pass`, `gopass`, `passage`, `keepassxc`. Enabling the
+option does not open arbitrary process execution. KeePassXC unlock credentials
+may be supplied via `TUIOS_KEEPASSXC_PASSWORD` and/or `TUIOS_KEEPASSXC_KEYFILE`.
+See [CONFIGURATION.md](CONFIGURATION.md#project-tapes).
 
 ## Running a Lua tape as a project tape
 

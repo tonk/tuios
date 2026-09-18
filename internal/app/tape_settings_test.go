@@ -50,6 +50,38 @@ func TestTapeSettingsCategoryTogglesAutoReview(t *testing.T) {
 	}
 }
 
+// TestTapeSettingsCategoryTogglesAllowSecrets verifies the "Allow Lua secrets"
+// toggle flips tape.allow_secrets (default false).
+func TestTapeSettingsCategoryTogglesAllowSecrets(t *testing.T) {
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+
+	var secrets *settingItem
+	for _, c := range m.settingsCategories() {
+		if c.Name != "Tape" {
+			continue
+		}
+		for i := range c.Items {
+			if c.Items[i].Label == "Allow Lua secrets" {
+				secrets = &c.Items[i]
+			}
+		}
+	}
+	if secrets == nil {
+		t.Fatal("no Allow Lua secrets toggle in the Tape category")
+	}
+	if secrets.boolVal(m) {
+		t.Fatal("allow_secrets should default to false")
+	}
+	secrets.adjust(m, 1)
+	if !m.UserConfig.Tape.AllowSecrets {
+		t.Fatal("toggling the row did not set Tape.AllowSecrets")
+	}
+	secrets.adjust(m, 1)
+	if m.UserConfig.Tape.AllowSecrets {
+		t.Fatal("toggling again did not clear Tape.AllowSecrets")
+	}
+}
+
 // TestTapeSettingsAutorunCycles verifies the Autorun enum row cycles the config.
 func TestTapeSettingsAutorunCycles(t *testing.T) {
 	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
