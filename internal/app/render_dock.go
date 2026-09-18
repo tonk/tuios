@@ -349,6 +349,29 @@ func (m *OS) renderDockString() (string, int) {
 	var itemSpans []itemSpan
 	relX := 0
 
+	// Overflow gutters, measured as they are written so a click hit-tests the
+	// cells the marker was drawn on. Both sides are held open while the strip
+	// scrolls (blank when that end has nothing more), matching the workspace
+	// strip's always-open arrow gutters.
+	type overflowSpan struct{ x0, x1 int }
+	var leftOverflow, rightOverflow overflowSpan
+	overflowStyle := dr.background(lipgloss.NewStyle().Foreground(dockStripArrowFg(dr)))
+	writeOverflowGutter := func(marker string, live bool) overflowSpan {
+		if !layout.Scrolls {
+			return overflowSpan{}
+		}
+		if live {
+			dockItemsStr.WriteString(overflowStyle.Render(marker))
+			span := overflowSpan{relX, relX + lipgloss.Width(marker)}
+			relX = span.x1
+			return span
+		}
+		dockItemsStr.WriteString(dr.fill(strings.Repeat(" ", dockItemOverflowWidth)))
+		relX += dockItemOverflowWidth
+		return overflowSpan{}
+	}
+	leftOverflow = writeOverflowGutter("... ", layout.MoreLeft)
+
 	for _, dockItem := range layout.VisibleItems {
 		windowIndex := dockItem.WindowIndex
 		window := m.Windows[windowIndex]
@@ -403,19 +426,7 @@ func (m *OS) renderDockString() (string, int) {
 		itemNumber++
 	}
 
-	// The marker's own columns, measured as it is written for the same reason
-	// the entries' are: it is a target, and a target the renderer did not record
-	// is one the click path has to guess at.
-	overflowX0, overflowX1 := 0, 0
-	if layout.TruncatedCount > 0 {
-		marker := " ..."
-		// Drawn in the same ink as the strip's overflow arrows: it wears no fill
-		// of its own and, now that it opens the aggregate view, it is a control
-		// rather than a separator. FgMute measured 2.60:1 against the bare canvas.
-		dockItemsStr.WriteString(dr.background(lipgloss.NewStyle().Foreground(dockStripArrowFg(dr))).Render(marker))
-		overflowX0, overflowX1 = relX, relX+lipgloss.Width(marker)
-		relX = overflowX1
-	}
+	rightOverflow = writeOverflowGutter(" ...", layout.MoreRight)
 
 	// The strip sits between the mode pill and the stats, and records where each
 	// tab landed as it goes: both dock paths render through here, so the hit
@@ -616,13 +627,17 @@ func (m *OS) renderDockString() (string, int) {
 		}
 	}
 
-	m.dockOverflowHit = dockOverflowHit{}
-	if overflowX1 > overflowX0 {
-		m.dockOverflowHit = dockOverflowHit{
-			Active: true, X0: itemsX + overflowX0, X1: itemsX + overflowX1,
-			Y: itemY, Overflowed: layout.TruncatedCount,
+	m.dockOverflowHits = m.dockOverflowHits[:0]
+	recordOverflow := func(span overflowSpan) {
+		if span.x1 > span.x0 {
+			m.dockOverflowHits = append(m.dockOverflowHits, dockOverflowHit{
+				X0: itemsX + span.x0, X1: itemsX + span.x1,
+				Y: itemY, Overflowed: layout.TruncatedCount,
+			})
 		}
 	}
+	recordOverflow(leftOverflow)
+	recordOverflow(rightOverflow)
 
 	// Padding this style adds (rightInfo is right-aligned, so any padding
 	// lands before rightInfo's own already-rendered content) is the only part

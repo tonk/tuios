@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -164,6 +165,116 @@ func TestDockWindowListUsesWorkspacePillCaps(t *testing.T) {
 	if (pillLC != "" && strings.Contains(after, pillLC)) || (pillRC != "" && strings.Contains(after, pillRC)) {
 		t.Errorf("dock_window_list entries wore the minimized-only strip's caps instead:\n%s", after)
 	}
+}
+
+// TestDockWindowListKeepsTheFocusedPillInView: when dock_window_list overflows,
+// cycling focus past the last drawn entry must shift the strip so the focused
+// pill is among what is drawn - otherwise the title bar says one window and
+// the dock still highlights an earlier one (or none).
+func TestDockWindowListKeepsTheFocusedPillInView(t *testing.T) {
+	withDockWindowList(t, true)
+	prevASCII := config.UseASCIIOnly
+	config.UseASCIIOnly = true
+	t.Cleanup(func() { config.UseASCIIOnly = prevASCII })
+
+	m := &OS{
+		WorkspaceFocus:   map[int]int{},
+		NumWorkspaces:    9,
+		CurrentWorkspace: 1,
+		FocusedWindow:    0,
+		Width:            100,
+		Height:           30,
+	}
+	m.EffectiveWidth, m.EffectiveHeight = 100, 30
+	for i := range 20 {
+		m.Windows = append(m.Windows, &terminal.Window{
+			ID: fmt.Sprintf("w%d", i), CustomName: fmt.Sprintf("win%02d", i),
+			Workspace: 1,
+		})
+	}
+
+	drawn := func() map[int]bool {
+		_ = dockRow(t, m)
+		out := map[int]bool{}
+		for _, h := range m.dockItemHits {
+			out[h.WindowIndex] = true
+		}
+		return out
+	}
+
+	first := drawn()
+	if first[0] != true {
+		t.Fatalf("window 0 is not in the initial strip: %v", m.dockItemHits)
+	}
+	if first[19] {
+		t.Fatal("all 20 windows already fit; the scroll under test proves nothing")
+	}
+
+	// Focus a window past the right-hand end: the strip must shift left.
+	var offRight int
+	for i := range 20 {
+		if !first[i] {
+			offRight = i
+			break
+		}
+	}
+	m.FocusedWindow = offRight
+	after := drawn()
+	if !after[offRight] {
+		t.Errorf("focusing window %d left its pill off the strip: %v", offRight, m.dockItemHits)
+	}
+
+	// And back: focusing the first window must shift the strip right again.
+	m.FocusedWindow = 0
+	back := drawn()
+	if !back[0] {
+		t.Errorf("focusing window 0 left its pill off the strip: %v", m.dockItemHits)
+	}
+}
+
+// TestDockWindowListKeepsTheFocusedPillInViewOnResize: narrowing the dock can
+// start the strip scrolling without a focus change; the focused pill must stay
+// among what is drawn.
+func TestDockWindowListKeepsTheFocusedPillInViewOnResize(t *testing.T) {
+	withDockWindowList(t, true)
+	prevASCII := config.UseASCIIOnly
+	config.UseASCIIOnly = true
+	t.Cleanup(func() { config.UseASCIIOnly = prevASCII })
+
+	// Unnamed pills are short (" 1 ", " 2 ", …), so a wide dock holds all twenty
+	// and narrowing is what starts the scroll.
+	m := &OS{
+		WorkspaceFocus:   map[int]int{},
+		NumWorkspaces:    9,
+		CurrentWorkspace: 1,
+		FocusedWindow:    15,
+		Width:            200,
+		Height:           30,
+	}
+	m.EffectiveWidth, m.EffectiveHeight = 200, 30
+	for i := range 20 {
+		m.Windows = append(m.Windows, &terminal.Window{
+			ID: fmt.Sprintf("w%d", i), Workspace: 1,
+		})
+	}
+
+	_ = dockRow(t, m)
+	if layout := m.CalculateDockLayout(); layout.Scrolls {
+		t.Fatal("the strip already scrolls at 200 columns, so the narrowing proves nothing")
+	}
+
+	m.Width, m.EffectiveWidth = 60, 60
+	_ = dockRow(t, m)
+	layout := m.CalculateDockLayout()
+	if !layout.Scrolls {
+		t.Fatal("the strip did not start scrolling when the dock narrowed")
+	}
+	for _, h := range m.dockItemHits {
+		if h.WindowIndex == 15 {
+			return
+		}
+	}
+	t.Errorf("narrowing the dock pushed the focused window off the strip: %v", m.dockItemHits)
 }
 
 // TestActivityInBackgroundWindowSetsDockAttention is the generic ("something

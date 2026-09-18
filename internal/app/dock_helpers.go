@@ -32,7 +32,14 @@ type DockLayout struct {
 	RightWidth     int
 	TruncatedCount int        // Number of items that don't fit
 	VisibleItems   []DockItem // Items that fit and should be displayed
-	ModeInfo       ModeInfo   // Mode display information for styling
+	// MoreLeft / MoreRight are set when the entry strip scrolls: there are
+	// panes past the left or right end of the visible run. Scrolls is true
+	// whenever the strip overflows at all, so both overflow gutters stay open
+	// and the pills do not reflow as the focused window crosses an end.
+	MoreLeft       bool
+	MoreRight      bool
+	Scrolls        bool
+	ModeInfo       ModeInfo // Mode display information for styling
 	WorkspaceStrip dockWorkspaceStrip
 }
 
@@ -97,15 +104,19 @@ type dockIndicatorHit struct {
 	Kind      DockIndicatorKind
 }
 
-// dockOverflowHit is where the entries' overflow marker was drawn, and whether
-// there was one. The marker stands for the panes the bar had no room for, and
-// with no rectangle of its own it was the only object on the dock that could be
-// seen and not clicked. It opens the aggregate view, which lists them all.
+// dockOverflowHit is where one of the entries' overflow markers was drawn.
+// The markers stand for the panes the bar had no room for, and with no
+// rectangle of their own they were the only objects on the dock that could be
+// seen and not clicked. A click opens the aggregate view, which lists them all.
 type dockOverflowHit struct {
-	Active     bool
 	X0, X1, Y  int
 	Overflowed int
 }
+
+// dockItemOverflowWidth is one overflow gutter: " ..." (or "... ") and nothing
+// else. Both gutters are held open for as long as the strip scrolls, so the
+// focused pill crossing an end does not reflow the run under the pointer.
+const dockItemOverflowWidth = 4
 
 // dockWorkspacePillGap is the bare column between two pills. The pills carry a
 // fill of their own, so the gap is what makes them read as separate things
@@ -510,7 +521,7 @@ func (m *OS) CalculateDockLayout() DockLayout {
 	layout.RightWidth = min(want, room)
 
 	// Calculate how many items fit and their positions
-	layout.calculateItemPositions(barWidth, allItems)
+	m.calculateItemPositions(&layout, barWidth, allItems)
 
 	return layout
 }
@@ -915,60 +926,124 @@ func dockBlinkOn() bool {
 // fast enough to catch the eye, slow enough not to read as a glitch.
 const dockBlinkPeriodMs = 500
 
-// calculateItemPositions determines which items fit and their X positions
-func (layout *DockLayout) calculateItemPositions(screenWidth int, allItems []DockItem) {
+// calculateItemPositions determines which items fit and their X positions.
+// When the strip overflows, the offset is pulled so the focused window's pill
+// stays in view - the same rule the workspace strip uses for the current
+// workspace - otherwise cycling past the last visible entry would leave the
+// dock pointing at a window that is no longer drawn.
+func (m *OS) calculateItemPositions(layout *DockLayout, screenWidth int, allItems []DockItem) {
 	// Calculate total width of all items (including spaces between)
-	totalItemsWidth := 0
-	for i, item := range allItems {
-		totalItemsWidth += item.Width
-		if i > 0 {
-			totalItemsWidth++ // Space between items
-		}
-	}
+	totalItemsWidth := dockItemsWidth(allItems)
 
 	// Calculate available space for dock items
 	availableSpace := screenWidth - layout.LeftWidth - layout.RightWidth - totalItemsWidth
 	if availableSpace < 0 {
-		// Items don't fit - need to truncate
-		layout.truncateItems(screenWidth, allItems)
+		// Items don't fit - need to truncate / scroll
+		m.truncateItems(layout, screenWidth, allItems)
 		return
 	}
 
 	// All items fit.
+	m.dockItemScroll, m.dockItemScrollFor, m.dockItemScrollAt = 0, m.FocusedWindow, 0
 	layout.VisibleItems = allItems
 	layout.TruncatedCount = 0
+	layout.MoreLeft, layout.MoreRight, layout.Scrolls = false, false, false
 }
 
-// truncateItems calculates which items fit when space is limited
-func (layout *DockLayout) truncateItems(screenWidth int, allItems []DockItem) {
-	const truncationIndicatorWidth = 4 // " ..." width
-
-	// Calculate max width available for items
-	maxItemsWidth := max(screenWidth-layout.LeftWidth-layout.RightWidth-truncationIndicatorWidth-4, 0)
-
-	// Find how many complete items fit
-	currentWidth := 0
-	visibleCount := 0
-
-	for i, item := range allItems {
-		itemWidthWithSpace := item.Width
-		if i > 0 {
-			itemWidthWithSpace++ // Space before item
+// focusedDockItemIndex is where the focused window sits in the dock strip, or
+// -1 when it is not listed (minimized-only mode with the focus on a live pane).
+func focusedDockItemIndex(items []DockItem, focusedWindow int) int {
+	for i, it := range items {
+		if it.WindowIndex == focusedWindow {
+			return i
 		}
+	}
+	return -1
+}
 
-		if currentWidth+itemWidthWithSpace <= maxItemsWidth {
-			currentWidth += itemWidthWithSpace
-			visibleCount++
-		} else {
+// dockItemsSpan is the width of items[from:to) laid out with their gaps.
+func dockItemsSpan(items []DockItem, from, to int) int {
+	w := 0
+	for i := from; i < to; i++ {
+		if i > from {
+			w++
+		}
+		w += items[i].Width
+	}
+	return w
+}
+
+// dockItemsFitting is how many whole items from first fit in width cells.
+func dockItemsFitting(items []DockItem, first, width int) int {
+	n := 0
+	for i := first; i < len(items); i++ {
+		if dockItemsSpan(items, first, i+1) > width {
 			break
 		}
+		n++
 	}
+	return n
+}
 
-	// Set visible items
-	if visibleCount > 0 {
-		layout.VisibleItems = allItems[:visibleCount]
-	} else {
-		layout.VisibleItems = []DockItem{}
+// dockItemScrollToShow is the smallest move from first that brings item active
+// into the viewport, scrolling back for one off the left end and forward for
+// one off the right.
+func dockItemScrollToShow(items []DockItem, active, first, inner int) int {
+	if active < first {
+		return active
 	}
-	layout.TruncatedCount = len(allItems) - visibleCount
+	for first < active && first+dockItemsFitting(items, first, inner) <= active {
+		first++
+	}
+	return first
+}
+
+// dockItemLastScrollOffset is the furthest the strip can scroll: the first
+// offset whose run reaches the final item.
+func dockItemLastScrollOffset(items []DockItem, inner int) int {
+	for i := 0; i < len(items); i++ {
+		if dockItemsSpan(items, i, len(items)) <= inner {
+			return i
+		}
+	}
+	return max(len(items)-1, 0)
+}
+
+// truncateItems calculates which items fit when space is limited, scrolling the
+// strip so the focused window's pill stays among them when it is listed.
+func (m *OS) truncateItems(layout *DockLayout, screenWidth int, allItems []DockItem) {
+	// Both overflow gutters are reserved up front so the visible run does not
+	// reflow when the focused pill crosses an end (mirroring the workspace
+	// strip's always-open arrow gutters).
+	maxItemsWidth := max(screenWidth-layout.LeftWidth-layout.RightWidth-2*dockItemOverflowWidth-4, 0)
+	layout.Scrolls = true
+
+	active := focusedDockItemIndex(allItems, m.FocusedWindow)
+	first := m.dockItemScroll
+	// A focus change pulls the strip to the pill it made current, and so does a
+	// resize: a viewport that just narrowed can leave the focused pill outside a
+	// run the user never scrolled.
+	if active >= 0 && (m.FocusedWindow != m.dockItemScrollFor || maxItemsWidth != m.dockItemScrollAt) {
+		m.dockItemScrollFor, m.dockItemScrollAt = m.FocusedWindow, maxItemsWidth
+		first = dockItemScrollToShow(allItems, active, first, maxItemsWidth)
+	} else if active < 0 {
+		// Focused pane is not in the strip (minimized-only mode): keep the
+		// oldest-first prefix, which is how the strip has always read.
+		m.dockItemScrollFor, m.dockItemScrollAt = m.FocusedWindow, maxItemsWidth
+		first = 0
+	}
+	first = min(max(first, 0), dockItemLastScrollOffset(allItems, maxItemsWidth))
+	m.dockItemScroll = first
+
+	count := dockItemsFitting(allItems, first, maxItemsWidth)
+	if count == 0 {
+		layout.VisibleItems = nil
+		layout.TruncatedCount = len(allItems)
+		layout.MoreLeft, layout.MoreRight = false, false
+		return
+	}
+	layout.VisibleItems = allItems[first : first+count]
+	layout.MoreLeft = first > 0
+	layout.MoreRight = first+count < len(allItems)
+	layout.TruncatedCount = len(allItems) - count
 }

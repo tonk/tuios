@@ -158,11 +158,15 @@ func (m *OS) DockItemAt(x, y int) int {
 	return -1
 }
 
-// DockOverflowAt reports whether the absolute cell (x, y) is on the marker
-// standing for the minimized panes the bar had no room for.
+// DockOverflowAt reports whether the absolute cell (x, y) is on a marker
+// standing for the panes the bar had no room for.
 func (m *OS) DockOverflowAt(x, y int) bool {
-	h := m.dockOverflowHit
-	return h.Active && y == h.Y && x >= h.X0 && x < h.X1
+	for _, h := range m.dockOverflowHits {
+		if y == h.Y && x >= h.X0 && x < h.X1 {
+			return true
+		}
+	}
+	return false
 }
 
 // OpenAggregateView shows the all-windows panel, which is where the panes the

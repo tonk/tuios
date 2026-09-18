@@ -169,8 +169,11 @@ func TestDockOverflowMarkerIsClickableWhereItIsDrawn(t *testing.T) {
 	if m.DockOverflowAt(x0, y-1) || m.DockOverflowAt(x0, y+1) {
 		t.Error("the marker's rectangle covers a row it was not drawn on")
 	}
-	if m.dockOverflowHit.Overflowed != layout.TruncatedCount {
-		t.Errorf("the marker stands for %d entries, %d were dropped", m.dockOverflowHit.Overflowed, layout.TruncatedCount)
+	if len(m.dockOverflowHits) == 0 {
+		t.Fatal("the overflow marker was drawn but recorded no rectangle")
+	}
+	if m.dockOverflowHits[0].Overflowed != layout.TruncatedCount {
+		t.Errorf("the marker stands for %d entries, %d were dropped", m.dockOverflowHits[0].Overflowed, layout.TruncatedCount)
 	}
 }
 
