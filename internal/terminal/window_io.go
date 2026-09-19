@@ -505,8 +505,8 @@ func (w *Window) handleIOOperations() {
 					// Debug: Log all data from PTY (applications sending queries)
 					if os.Getenv("TUIOS_DEBUG_INTERNAL") == "1" {
 						if len(buf[:n]) >= 2 && buf[0] == '\x1b' {
-							debugMsg := fmt.Sprintf("[%s] PTY->Terminal query: %q (hex: % x)\n",
-								time.Now().Format("15:04:05.000"), string(buf[:n]), buf[:n])
+							debugMsg := fmt.Sprintf("[%s] PTY->Terminal [%s] query: %q (hex: % x)\n",
+								time.Now().Format("15:04:05.000"), shortID(w.ID), string(buf[:n]), buf[:n])
 							if f, err := os.OpenFile("/tmp/tuios-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
 								_, _ = f.WriteString(debugMsg)
 								_ = f.Close()
