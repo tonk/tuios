@@ -82,11 +82,18 @@ func (w *Window) applyStreamResize(chunk outputChunk) {
 	// set and the daemon has not been told to forget. A subscribe states the
 	// pane's size whether or not the client has it already, so this is the
 	// common case rather than an odd one.
-	if w.Terminal != nil && w.outputEpoch.Load() == chunk.epoch &&
-		(w.Terminal.Width() != chunk.width || w.Terminal.Height() != chunk.height) {
+	changed := w.Terminal != nil && w.outputEpoch.Load() == chunk.epoch &&
+		(w.Terminal.Width() != chunk.width || w.Terminal.Height() != chunk.height)
+	if changed {
 		w.Terminal.Resize(chunk.width, chunk.height)
 	}
 	w.ioMu.Unlock()
+	if !changed {
+		// The subscribe-time size echo restating a size the client already
+		// has: a true no-op, not guest activity, so it must not trip the
+		// dock's "new output" attention flag.
+		return
+	}
 	// Dirty flags belong to the UI goroutine; these two are what the write
 	// path signals from here, and MarkTerminalsWithNewContent does the rest.
 	w.HasNewOutput.Store(true)
