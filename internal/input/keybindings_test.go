@@ -35,6 +35,33 @@ func TestGetModParam(t *testing.T) {
 	}
 }
 
+// TestGetRawKeyBytesCtrlAlt guards against Ctrl+Alt+<key> collapsing to plain
+// Ctrl+<key>: the Ctrl branch used to return before the Alt modifier was ever
+// consulted, silently dropping the ESC prefix Alt-only combinations get.
+func TestGetRawKeyBytesCtrlAlt(t *testing.T) {
+	tests := []struct {
+		name     string
+		msg      tea.KeyPressMsg
+		expected []byte
+	}{
+		{"ctrl+v", tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl}, []byte{0x16}},
+		{"ctrl+alt+v", tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl | tea.ModAlt}, []byte{0x1b, 0x16}},
+		{"ctrl+shift+v uppercase", tea.KeyPressMsg{Code: 'V', Mod: tea.ModCtrl | tea.ModShift}, []byte{0x16}},
+		{"ctrl+alt+shift+v uppercase", tea.KeyPressMsg{Code: 'V', Mod: tea.ModCtrl | tea.ModAlt | tea.ModShift}, []byte{0x1b, 0x16}},
+		{"ctrl+backspace", tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModCtrl}, []byte{0x08}},
+		{"ctrl+alt+backspace", tea.KeyPressMsg{Code: tea.KeyBackspace, Mod: tea.ModCtrl | tea.ModAlt}, []byte{0x1b, 0x08}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getRawKeyBytes(tt.msg)
+			if !bytes.Equal(result, tt.expected) {
+				t.Errorf("getRawKeyBytes(%+v) = %v, want %v", tt.msg, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetCursorSequence(t *testing.T) {
 	tests := []struct {
 		name     string

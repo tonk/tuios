@@ -108,31 +108,46 @@ func getRawKeyBytesWithMode(msg tea.KeyPressMsg, applicationCursorKeys bool) []b
 
 		// Handle Ctrl+letter combinations (standard control codes)
 		if actualMod&tea.ModCtrl != 0 {
+			var ctrlByte byte
+			matched := true
+
 			// Special Ctrl key combinations
 			switch key.Code {
 			case tea.KeySpace:
-				return []byte{0x00} // Ctrl+Space = NUL
+				ctrlByte = 0x00 // Ctrl+Space = NUL
 			case tea.KeyBackspace:
-				return []byte{0x08} // Ctrl+H
+				ctrlByte = 0x08 // Ctrl+H
 			case tea.KeyTab:
-				return []byte{0x09} // Ctrl+I
+				ctrlByte = 0x09 // Ctrl+I
 			case tea.KeyEnter:
-				return []byte{0x0A} // Ctrl+J
+				ctrlByte = 0x0A // Ctrl+J
 			case tea.KeyEscape:
-				return []byte{0x1B} // Ctrl+[
+				ctrlByte = 0x1B // Ctrl+[
+			default:
+				switch {
+				// For Ctrl+letter, convert to control codes (1-26)
+				case key.Code >= 'a' && key.Code <= 'z':
+					ctrlByte = byte(key.Code - 'a' + 1)
+				case key.Code >= 'A' && key.Code <= 'Z':
+					ctrlByte = byte(key.Code - 'A' + 1)
+				default:
+					// Check the Ctrl symbol map for other combinations
+					if code, ok := ctrlKeyMap[key.Code]; ok {
+						ctrlByte = code
+					} else {
+						matched = false
+					}
+				}
 			}
 
-			// For Ctrl+letter, convert to control codes (1-26)
-			if key.Code >= 'a' && key.Code <= 'z' {
-				return []byte{byte(key.Code - 'a' + 1)}
-			}
-			if key.Code >= 'A' && key.Code <= 'Z' {
-				return []byte{byte(key.Code - 'A' + 1)}
-			}
-
-			// Check the Ctrl symbol map for other combinations
-			if ctrlCode, ok := ctrlKeyMap[key.Code]; ok {
-				return []byte{ctrlCode}
+			if matched {
+				// Alt held alongside Ctrl gets the same ESC prefix the
+				// Alt-only case below uses, so Ctrl+Alt+<key> isn't silently
+				// flattened to plain Ctrl+<key> (Alt dropped).
+				if actualMod&tea.ModAlt != 0 {
+					return []byte{0x1b, ctrlByte}
+				}
+				return []byte{ctrlByte}
 			}
 		}
 
