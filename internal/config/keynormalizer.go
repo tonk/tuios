@@ -419,7 +419,7 @@ func (kn *KeyNormalizer) ValidateKey(key string) (bool, string) {
 		"leftshift": true, "rightshift": true, "leftsuper": true, "rightsuper": true,
 		"leftmeta": true, "rightmeta": true, "lefthyper": true, "righthyper": true,
 		"enter": true, "return": true, "esc": true, "escape": true,
-		"tab": true, "space": true, "backspace": true, "delete": true,
+		"tab": true, "space": true, "backspace": true, "delete": true, "insert": true,
 		"up": true, "down": true, "left": true, "right": true,
 		"home": true, "end": true, "pgup": true, "pageup": true,
 		"pgdown": true, "pagedown": true,
