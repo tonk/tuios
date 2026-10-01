@@ -46,6 +46,7 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           make package VERSION="${VERSION}"
           make package-pam-helper VERSION="${VERSION}"
+          make package-windows VERSION="${VERSION}"
           make checksums
 
       - name: List built artifacts

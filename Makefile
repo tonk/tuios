@@ -26,7 +26,7 @@ LINUX_ARCHES := amd64 arm64
 # revisit if arm64 is ever actually needed.
 PAM_HELPER_ARCH := amd64
 
-.PHONY: all build tuios tuios-web install clean dist package checksums \
+.PHONY: all build tuios tuios-web install clean dist package package-windows checksums \
 	pam-helper install-pam-helper dist-pam-helper package-pam-helper check-pam-headers
 
 all: build
@@ -84,6 +84,21 @@ package: dist $(DIST)/tuios-web-config.toml.example
 			done; \
 		done; \
 	done
+
+# package-windows builds tuios.exe for Windows/amd64 and zips it as
+# tuios_<version>_windows_amd64.zip. tuios only: tuios-web depends on the
+# Unix-only PAM/classroom paths. Windows ARM is skipped, as in .goreleaser.yml.
+# The exe is built in a scratch dir so the zip holds a plain "tuios.exe" and
+# dist/ keeps no stray directory for `checksums` to trip over.
+package-windows:
+	mkdir -p $(DIST)
+	rm -rf $(DIST)/windows_amd64
+	mkdir -p $(DIST)/windows_amd64
+	@echo "==> tuios windows/amd64"
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" \
+		-o $(DIST)/windows_amd64/tuios.exe ./cmd/tuios
+	cd $(DIST)/windows_amd64 && zip -q $(DIST)/tuios_$(VERSION)_windows_amd64.zip tuios.exe
+	rm -rf $(DIST)/windows_amd64
 
 checksums:
 	cd $(DIST) && sha256sum * > checksums.txt
