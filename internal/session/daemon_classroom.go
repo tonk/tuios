@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"syscall"
 	"time"
 
 	"github.com/tonk/tuios/internal/pamauth"
@@ -197,14 +196,10 @@ func (d *Daemon) handleClassroomHandoff(conn net.Conn) {
 // fd from conn.
 func readClassroomHandoff(conn *net.UnixConn) (sessionName, username string, cols, rows int, loginFile *os.File, err error) {
 	buf := make([]byte, 8+2*(4+classroomHandoffMaxField))
-	oob := make([]byte, syscall.CmsgSpace(4))
 
-	n, oobn, flags, _, err := conn.ReadMsgUnix(buf, oob)
+	n, oob, err := readMsgWithOOB(conn, buf)
 	if err != nil {
-		return "", "", 0, 0, nil, fmt.Errorf("reading handoff message: %w", err)
-	}
-	if flags&syscall.MSG_CTRUNC != 0 {
-		return "", "", 0, 0, nil, fmt.Errorf("ancillary data truncated (MSG_CTRUNC)")
+		return "", "", 0, 0, nil, err
 	}
 
 	r := buf[:n]
@@ -222,21 +217,14 @@ func readClassroomHandoff(conn *net.UnixConn) (sessionName, username string, col
 	cols = int(binary.BigEndian.Uint32(r[0:4]))
 	rows = int(binary.BigEndian.Uint32(r[4:8]))
 
-	if oobn == 0 {
+	if len(oob) == 0 {
 		return "", "", 0, 0, nil, fmt.Errorf("handoff message carried no ancillary data (no fd)")
 	}
-	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
+	fd, err := parseSingleFD(oob)
 	if err != nil {
-		return "", "", 0, 0, nil, fmt.Errorf("parsing control message: %w", err)
+		return "", "", 0, 0, nil, err
 	}
-	if len(scms) != 1 {
-		return "", "", 0, 0, nil, fmt.Errorf("expected 1 control message, got %d", len(scms))
-	}
-	fds, err := syscall.ParseUnixRights(&scms[0])
-	if err != nil || len(fds) != 1 {
-		return "", "", 0, 0, nil, fmt.Errorf("expected 1 fd, got %d (err=%v)", len(fds), err)
-	}
-	return sessionName, username, cols, rows, os.NewFile(uintptr(fds[0]), "pam-login"), nil
+	return sessionName, username, cols, rows, os.NewFile(uintptr(fd), "pam-login"), nil
 }
 
 // readClassroomField reads one length-prefixed field and returns the rest of
@@ -300,7 +288,7 @@ func SendClassroomLogin(daemonSocketPath, sessionName, username string, loginFD 
 	binary.BigEndian.PutUint32(sz[4:8], uint32(rows))
 	buf = append(buf, sz[:]...)
 
-	oob := syscall.UnixRights(int(loginFD.Fd()))
+	oob := unixRightsOOB(int(loginFD.Fd()))
 	if _, _, err := uconn.WriteMsgUnix(buf, oob, nil); err != nil {
 		return fmt.Errorf("sending handoff message: %w", err)
 	}

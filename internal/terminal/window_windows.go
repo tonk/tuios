@@ -31,3 +31,7 @@ func (w *Window) HasForegroundProcess() bool {
 func (w *Window) SetPtyPixelSize(cols, rows, xpixel, ypixel int) error {
 	return nil
 }
+
+// waitForAdoptedExit is a stub for Windows. Adopted PIDs come from the PAM
+// helper, which is Unix-only, so there is never a process to wait on.
+func waitForAdoptedExit(_ int) {}
