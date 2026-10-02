@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -506,6 +507,21 @@ func shortID(s string) string {
 	return s[:8]
 }
 
+// clientSeq numbers the connections this daemon has accepted.
+var clientSeq atomic.Uint64
+
+// newClientID names a new connection. The ID keys d.clients, so two live
+// connections must never share one. The timestamp alone did not guarantee
+// that: Windows' wall clock ticks coarsely, so two connections accepted
+// back to back got the same ID, the second replaced the first in d.clients,
+// and every broadcast after that skipped the first client (a killed session
+// left it attached to nothing). The sequence number makes each ID unique;
+// the timestamp keeps it distinct from IDs a previous daemon handed out,
+// which a restored state can still carry as its source.
+func newClientID() string {
+	return fmt.Sprintf("client-%d-%d", time.Now().UnixNano(), clientSeq.Add(1))
+}
+
 func (d *Daemon) handleConnection(conn net.Conn) {
 	// A panic on the untrusted client-parsed message surface must not take down
 	// the daemon and every other session. Recover, log, and drop just this
@@ -519,7 +535,7 @@ func (d *Daemon) handleConnection(conn net.Conn) {
 		}
 	}()
 
-	clientID := fmt.Sprintf("client-%d", time.Now().UnixNano())
+	clientID := newClientID()
 
 	cs := &connState{
 		conn:             conn,
