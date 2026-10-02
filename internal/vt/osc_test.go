@@ -177,3 +177,52 @@ func TestModeSynchronizedOutput(t *testing.T) {
 		t.Fatal("Timeout waiting for DECRQM response")
 	}
 }
+
+// TestHyperlinkOSC8 checks OSC 8 ; params ; URI ST: the parameters come
+// first and the URI last. They used to be read the other way round, so every
+// link was stored with an empty URL and re-emitted as a link terminator.
+func TestHyperlinkOSC8(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantURL    string
+		wantParams string
+		linkedCols int // cells from column 0 that carry the link
+	}{
+		{"plain link", "\x1b]8;;https://example.com\x1b\\ab\x1b]8;;\x1b\\cd", "https://example.com", "", 2},
+		{"with id parameter", "\x1b]8;id=42;https://example.com/x\x07ab\x1b]8;;\x07", "https://example.com/x", "id=42", 2},
+		{"semicolon in the URI", "\x1b]8;;https://example.com/a;b\x1b\\ab\x1b]8;;\x1b\\", "https://example.com/a;b", "", 2},
+		{"malformed is ignored", "\x1b]8;https://example.com\x1b\\ab", "", "", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := NewEmulator(10, 1)
+			defer e.Close()
+			_, _ = e.WriteString(tt.input)
+
+			for x := range 4 {
+				c := e.CellAt(x, 0)
+				if x < tt.linkedCols {
+					if c.Link.URL != tt.wantURL || c.Link.Params != tt.wantParams {
+						t.Errorf("cell %d link = {URL %q, Params %q}, want {URL %q, Params %q}",
+							x, c.Link.URL, c.Link.Params, tt.wantURL, tt.wantParams)
+					}
+				} else if c.Link.URL != "" {
+					t.Errorf("cell %d link URL = %q, want none (link closed)", x, c.Link.URL)
+				}
+			}
+
+			// What the emulator renders back must be the same OSC 8, so the
+			// host terminal sees a working link.
+			if tt.linkedCols > 0 {
+				want := ansi.SetHyperlink(tt.wantURL, tt.wantParams)
+				if tt.wantParams == "" {
+					want = ansi.SetHyperlink(tt.wantURL)
+				}
+				if got := e.Render(); !strings.Contains(got, want) {
+					t.Errorf("Render() = %q, want it to contain %q", got, want)
+				}
+			}
+		})
+	}
+}
