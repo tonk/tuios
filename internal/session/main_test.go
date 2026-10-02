@@ -53,3 +53,13 @@ func skipWithoutUnixPTY(t *testing.T) {
 		t.Skip("creack/pty cannot open a PTY on windows")
 	}
 }
+
+// skipIfShellRetitles skips a test that asserts the exact event stream a pane
+// raises. On Windows, ConPTY titles the pane after cmd.exe on its own
+// schedule, and that window-retitled event lands anywhere in the stream.
+func skipIfShellRetitles(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("conpty retitles the pane at a time of its choosing")
+	}
+}

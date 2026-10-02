@@ -239,6 +239,7 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 // resurrection, since the shape that matters here - session exists,
 // ClassroomSpawner() is nil - is identical either way.
 func TestClassroomHandoffReplacesAStaleResurrectedSession(t *testing.T) {
+	testutil.RequireUnixPacket(t)
 	d := NewDaemon(&DaemonConfig{DisableAutoRestore: true})
 	defer d.Stop()
 	mainSocketPath := filepath.Join(testutil.ShortTempDir(t), "daemon.sock")

@@ -20,6 +20,7 @@ import (
 // client's emulator from the daemon's snapshot would hand it the daemon's own
 // layout and hide exactly the disagreement this exists to see.
 func TestResizeSeamStaysClosed(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	r := newRig(t, 1)
 	ptyID := r.win(0).PTYID
 	r.feedPTY(ptyID, `printf 'SW-READY\n'`, "SW-READY")

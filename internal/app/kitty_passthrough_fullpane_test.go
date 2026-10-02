@@ -38,6 +38,8 @@ func feedTBFrameBorder(t *testing.T, stream []byte, screenW, screenH, border int
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Closed before t.TempDir removes it: Windows will not delete an open file.
+	t.Cleanup(func() { _ = hostFile.Close() })
 	kp := NewKittyPassthroughWithOptions(KittyPassthroughOptions{Output: hostFile})
 	if !kp.IsEnabled() {
 		t.Fatal("passthrough not enabled")

@@ -130,6 +130,7 @@ func TestReviewTrustedTapeRunsAndRevokes(t *testing.T) {
 }
 
 func TestReviewIneligibleOffersNoRun(t *testing.T) {
+	skipWithoutUnixPermissions(t)
 	m, _ := newDetectOS(t, config.TapeAutorunAsk)
 	dir := tapeDir(t, "Type \"echo hi\" Enter\n")
 	// Group/world-writable makes the tape ineligible.
@@ -337,6 +338,7 @@ func TestAutoReviewDoesNotRepopSameDir(t *testing.T) {
 }
 
 func TestAutoReviewIneligibleKeepsPassive(t *testing.T) {
+	skipWithoutUnixPermissions(t)
 	m, _ := newDetectOS(t, config.TapeAutorunAsk)
 	m.UserConfig.Tape.AutoReview = true
 	dir := tapeDir(t, "Type \"echo hi\" Enter\n")

@@ -150,6 +150,7 @@ func newTUIWindow(t *testing.T, sess *Session, state *SessionState, id, title st
 // daemon performed it headlessly or an attached TUI did. Previously the attached
 // case produced no window lifecycle events at all.
 func TestLifecycleEventsMatchHeadlessAndAttached(t *testing.T) {
+	skipIfShellRetitles(t)
 	d, sp := startTestDaemon(t)
 
 	// Headless: no client attached, the daemon mutates its own state.
@@ -265,6 +266,7 @@ func TestTUIDrivenWindowLifecycleIsObserved(t *testing.T) {
 // double-emit now that it converges through the same diff as the TUI path, and
 // that a redundant state sync (identical state pushed again) emits nothing.
 func TestLifecycleEventsFireExactlyOnce(t *testing.T) {
+	skipIfShellRetitles(t)
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
 	sub := subscribeTo(t, sp, "work", lifecycleTypes...)
@@ -475,6 +477,7 @@ func TestRestoredSessionRaisesWindowCreated(t *testing.T) {
 // creation is preserved through reconciliation, so the sync is a no-op and the
 // stream stays silent.
 func TestStaleClientSyncRaisesNoPhantomEvents(t *testing.T) {
+	skipIfShellRetitles(t)
 	d, sp := startTestDaemon(t)
 	sess, err := d.manager.CreateSession("phantom", &SessionConfig{}, 80, 24)
 	if err != nil {

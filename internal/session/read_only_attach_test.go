@@ -1,6 +1,7 @@
 package session
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -95,6 +96,11 @@ func TestReadOnlyClosePTYRefused(t *testing.T) {
 // echoes anything it receives on stdin straight to stdout, so a silent,
 // deterministic pass/fail is the PTY's outputSeq staying flat.
 func TestReadOnlyInputNeverReachesPTY(t *testing.T) {
+	// ConPTY repaints the pane by itself, so on Windows output appearing is
+	// no evidence that input arrived.
+	if runtime.GOOS == "windows" {
+		t.Skip("conpty writes output of its own")
+	}
 	d, _ := startTestDaemon(t)
 	sess, err := d.manager.CreateSession("ro-input", &SessionConfig{Shell: testutil.Cat(t)}, 80, 24)
 	if err != nil {

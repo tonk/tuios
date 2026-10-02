@@ -34,6 +34,7 @@ func TestAddDaemonWindowAppliesInitialTitleFormat(t *testing.T) {
 // process's own service account - otherwise every trainee pane would be
 // titled "tuios-web@…" under a shared appearance.initial_title_format.
 func TestAddDaemonWindowClassroomUsesTraineeInInitialTitleFormat(t *testing.T) {
+	skipWithoutUnixPTY(t)
 	prev := config.InitialTitleFormat
 	config.InitialTitleFormat = "{user}@lab"
 	t.Cleanup(func() { config.InitialTitleFormat = prev })

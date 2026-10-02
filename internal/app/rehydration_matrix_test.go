@@ -389,6 +389,7 @@ var rehydrationRoutes = []routeCase{
 }
 
 func TestRehydrationMatrix(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	for _, rt := range rehydrationRoutes {
 		for _, shape := range rehydrationShapes {
 			t.Run(rt.name+"/"+shape.name, func(t *testing.T) {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,26 @@ type rig struct {
 func ownSocket(t *testing.T) {
 	t.Helper()
 	testutil.SocketDir(t)
+}
+
+// skipWithoutPOSIXShell skips a test that types POSIX shell commands (printf,
+// a for loop) into its panes. Windows panes run cmd.exe, which runs none of
+// them, so the test would only wait out its timeouts there.
+func skipWithoutPOSIXShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the panes here are driven with POSIX shell commands")
+	}
+}
+
+// skipWithoutUnixPermissions skips a test that makes a file ineligible by
+// making it group or world writable. Windows has no such mode bits, so chmod
+// cannot express it there.
+func skipWithoutUnixPermissions(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("windows has no group or world write bit to set")
+	}
 }
 
 // newRig brings up a daemon, creates a session with panes windows, and attaches

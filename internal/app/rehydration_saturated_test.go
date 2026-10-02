@@ -8,6 +8,7 @@ import "testing"
 // reports is a property of priming a saturated survivor, not of the resize
 // ordering that shape exists to test.
 func TestSaturatedSwitchNoResize(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	r := newRig(t, 1)
 	ptyID := r.win(0).PTYID
 	r.feedPTY(ptyID, `printf 'SAT-READY\n'`, "SAT-READY")

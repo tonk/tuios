@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -199,6 +200,7 @@ func TestDetectionDeniedTapeIsSilent(t *testing.T) {
 // TestDetectionIneligibleTape: a world-writable tape is reported as ignored, not
 // offered for trust.
 func TestDetectionIneligibleTape(t *testing.T) {
+	skipWithoutUnixPermissions(t)
 	if os.Getuid() == 0 {
 		t.Skip("running as root defeats the ownership/permission checks")
 	}
@@ -262,6 +264,11 @@ func TestCwdCallbackDeliversToChannel(t *testing.T) {
 // TestLocalCwdPathParsing covers the OSC 7 payload parsing, including the remote
 // host rejection that keeps tuios from scanning files it cannot read.
 func TestLocalCwdPathParsing(t *testing.T) {
+	// OSC 7 carries a POSIX path, and these cases are all POSIX paths, which
+	// are not absolute on Windows.
+	if runtime.GOOS == "windows" {
+		t.Skip("the cases are POSIX paths")
+	}
 	cases := []struct {
 		raw     string
 		want    string

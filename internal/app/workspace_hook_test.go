@@ -13,6 +13,7 @@ import (
 // validation accepted and nothing ever raised, so a user's command sat in
 // config.toml doing nothing. SwitchToWorkspace now fires it.
 func TestSwitchToWorkspaceFiresHook(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	marker := filepath.Join(t.TempDir(), "switched")
 
 	mgr := hooks.NewManager()

@@ -45,6 +45,22 @@ func waitFor(t *testing.T, what string, cond func() bool) {
 	}
 }
 
+// waitQuiet waits until the pane has printed nothing for a while, and drops
+// what it printed until then.
+func waitQuiet(t *testing.T, c *collector) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		time.Sleep(300 * time.Millisecond)
+		if len(c.take()) == 0 {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the pane never went quiet")
+		}
+	}
+}
+
 func TestResubscribeOverTheWireReplaysOnlyWhatWasMissed(t *testing.T) {
 	d, _ := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "switching")
@@ -56,6 +72,11 @@ func TestResubscribeOverTheWireReplaysOnlyWhatWasMissed(t *testing.T) {
 	if err := client.SubscribePTY(ptyID, 0, got.add); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
+
+	// Let the shell finish starting first. Its own prompt (bash 3.2's on macOS,
+	// cmd's banner on Windows) is live output, and arriving during the cycles
+	// below it would read as a replay.
+	waitQuiet(t, &got)
 
 	// Output stands in for fish's banner: whatever the pane printed, the client
 	// has now seen it. Injected rather than driven through a shell so the test
