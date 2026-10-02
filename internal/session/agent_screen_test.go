@@ -424,12 +424,13 @@ func TestIdlePaneArmsNoTimers(t *testing.T) {
 func TestExplainAgentScreenVerbShowsWhatTheClassifierSaw(t *testing.T) {
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, sess)
 	ids := sess.ListPTYIDs()
 	feedVT(t, sess.GetPTY(ids[0]), claudePermissionPrompt)
 
 	c := dialVerb(t, sp)
 	res := result(t, c.call(t,
-		`{"id":1,"verb":"explain-agent-screen","params":{"session":"work","window":"Window","harness":"claude-code"}}`))
+		`{"id":1,"verb":"explain-agent-screen","params":{"session":"work","window":"`+wid+`","harness":"claude-code"}}`))
 
 	if res["matched"] != true {
 		t.Fatalf("the prompt on the screen did not match: %v", res)
@@ -477,11 +478,11 @@ func TestExplainAgentScreenVerbShowsWhatTheClassifierSaw(t *testing.T) {
 // saying so is the answer rather than an error.
 func TestExplainAgentScreenVerbAnswersForAPaneWithNoHarness(t *testing.T) {
 	d, sp := startTestDaemon(t)
-	makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, makeSessionWithWindow(t, d, "work"))
 
 	c := dialVerb(t, sp)
 	res := result(t, c.call(t,
-		`{"id":1,"verb":"explain-agent-screen","params":{"session":"work","window":"Window"}}`))
+		`{"id":1,"verb":"explain-agent-screen","params":{"session":"work","window":"`+wid+`"}}`))
 	if res["harness_id"] != "" {
 		t.Fatalf("harness_id = %v, want empty", res["harness_id"])
 	}

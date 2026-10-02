@@ -41,11 +41,12 @@ func TestParseAgentState(t *testing.T) {
 func TestSetAgentStateVerbRoundTrip(t *testing.T) {
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, sess)
 	before := sess.GetState().Version
 
 	c := dialVerb(t, sp)
 
-	res := result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"needs_input","message":"awaiting approval"}}`))
+	res := result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"needs_input","message":"awaiting approval"}}`))
 	if res["state"] != "needs_input" {
 		t.Fatalf("set-agent-state returned state %v, want needs_input", res["state"])
 	}
@@ -55,7 +56,7 @@ func TestSetAgentStateVerbRoundTrip(t *testing.T) {
 		t.Fatalf("version did not bump: before=%d after=%d", before, after)
 	}
 
-	got := result(t, c.call(t, `{"id":2,"verb":"get-agent-state","params":{"session":"work","window":"Window"}}`))
+	got := result(t, c.call(t, `{"id":2,"verb":"get-agent-state","params":{"session":"work","window":"`+wid+`"}}`))
 	if got["state"] != "needs_input" {
 		t.Fatalf("get-agent-state returned state %v, want needs_input", got["state"])
 	}
@@ -64,8 +65,8 @@ func TestSetAgentStateVerbRoundTrip(t *testing.T) {
 	}
 
 	// Clearing with none round-trips back to none.
-	_ = result(t, c.call(t, `{"id":3,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"none"}}`))
-	cleared := result(t, c.call(t, `{"id":4,"verb":"get-agent-state","params":{"session":"work","window":"Window"}}`))
+	_ = result(t, c.call(t, `{"id":3,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"none"}}`))
+	cleared := result(t, c.call(t, `{"id":4,"verb":"get-agent-state","params":{"session":"work","window":"`+wid+`"}}`))
 	if cleared["state"] != "none" {
 		t.Fatalf("after clearing, get-agent-state returned %v, want none", cleared["state"])
 	}

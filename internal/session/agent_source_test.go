@@ -55,9 +55,10 @@ func TestAgentSourceRanking(t *testing.T) {
 func TestLowerSourceCannotOverwriteHigher(t *testing.T) {
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, sess)
 	c := dialVerb(t, sp)
 
-	res := result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"needs_input","source":"report"}}`))
+	res := result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"needs_input","source":"report"}}`))
 	if res["applied"] != true {
 		t.Fatalf("report was not applied: %v", res)
 	}
@@ -65,7 +66,7 @@ func TestLowerSourceCannotOverwriteHigher(t *testing.T) {
 	held := sess.GetState().Version
 
 	// A lower-ranked source loses, and is told so rather than getting an error.
-	refused := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"working","source":"screen"}}`))
+	refused := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"working","source":"screen"}}`))
 	if refused["applied"] != false {
 		t.Fatalf("a screen report overwrote a harness report: %v", refused)
 	}
@@ -80,7 +81,7 @@ func TestLowerSourceCannotOverwriteHigher(t *testing.T) {
 	}
 
 	// The same source updating its own claim is allowed.
-	again := result(t, c.call(t, `{"id":3,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"done","source":"report"}}`))
+	again := result(t, c.call(t, `{"id":3,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"done","source":"report"}}`))
 	if again["applied"] != true || again["state"] != "done" {
 		t.Fatalf("a source could not update its own claim: %v", again)
 	}
@@ -91,10 +92,11 @@ func TestLowerSourceCannotOverwriteHigher(t *testing.T) {
 func TestHigherSourceOverwritesLower(t *testing.T) {
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, sess)
 	c := dialVerb(t, sp)
 
-	_ = result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"working","source":"screen"}}`))
-	res := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"needs_input","source":"osc"}}`))
+	_ = result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"working","source":"screen"}}`))
+	res := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"needs_input","source":"osc"}}`))
 	if res["applied"] != true {
 		t.Fatalf("osc did not outrank screen: %v", res)
 	}
@@ -109,13 +111,14 @@ func TestHigherSourceOverwritesLower(t *testing.T) {
 func TestSetAgentStateWithoutSourceIsUnchanged(t *testing.T) {
 	d, sp := startTestDaemon(t)
 	sess := makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, sess)
 	c := dialVerb(t, sp)
 
 	// A screen rule got there first.
-	_ = result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"working","source":"screen"}}`))
+	_ = result(t, c.call(t, `{"id":1,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"working","source":"screen"}}`))
 
 	// The pre-existing call shape, with no source at all.
-	res := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"needs_input","message":"awaiting approval"}}`))
+	res := result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"needs_input","message":"awaiting approval"}}`))
 	if res["applied"] != true {
 		t.Fatalf("a sourceless report was refused: %v", res)
 	}
@@ -135,16 +138,16 @@ func TestSetAgentStateWithoutSourceIsUnchanged(t *testing.T) {
 // no harness, which is what it looked like before sources existed.
 func TestGetAgentStateReportsSourceAndHarness(t *testing.T) {
 	d, sp := startTestDaemon(t)
-	makeSessionWithWindow(t, d, "work")
+	wid := onlyWindowID(t, makeSessionWithWindow(t, d, "work"))
 	c := dialVerb(t, sp)
 
-	fresh := result(t, c.call(t, `{"id":1,"verb":"get-agent-state","params":{"session":"work","window":"Window"}}`))
+	fresh := result(t, c.call(t, `{"id":1,"verb":"get-agent-state","params":{"session":"work","window":"`+wid+`"}}`))
 	if fresh["source"] != "report" || fresh["harness_id"] != "" {
 		t.Fatalf("unclaimed window reads as %v, want source report and no harness", fresh)
 	}
 
-	_ = result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"Window","state":"working","source":"osc","harness":"claude-code"}}`))
-	got := result(t, c.call(t, `{"id":3,"verb":"get-agent-state","params":{"session":"work","window":"Window"}}`))
+	_ = result(t, c.call(t, `{"id":2,"verb":"set-agent-state","params":{"session":"work","window":"`+wid+`","state":"working","source":"osc","harness":"claude-code"}}`))
+	got := result(t, c.call(t, `{"id":3,"verb":"get-agent-state","params":{"session":"work","window":"`+wid+`"}}`))
 	if got["source"] != "osc" {
 		t.Fatalf("get-agent-state source = %v, want osc", got["source"])
 	}

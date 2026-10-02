@@ -122,6 +122,19 @@ func makeSessionWithWindow(t *testing.T, d *Daemon, name string) *Session {
 	return sess
 }
 
+// onlyWindowID is the ID of the session's one window, for a verb call that has
+// to address it. The window is created with the title "Window", but a title is
+// whatever the pane last set: on Windows, ConPTY retitles it to cmd.exe's path
+// soon after it starts, and a call made by title then finds no window.
+func onlyWindowID(t *testing.T, sess *Session) string {
+	t.Helper()
+	windows := sess.GetState().Windows
+	if len(windows) != 1 {
+		t.Fatalf("session has %d windows, want 1", len(windows))
+	}
+	return windows[0].ID
+}
+
 func TestVerbListVerbs(t *testing.T) {
 	_, sp := startTestDaemon(t)
 	c := dialVerb(t, sp)
