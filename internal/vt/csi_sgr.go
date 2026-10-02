@@ -96,6 +96,8 @@ func (e *Emulator) readStyleWithTheme(params ansi.Params, pen *uv.Style) {
 			pen.Attrs |= uv.AttrConceal
 		case 9: // Crossed-out/Strikethrough
 			pen.Attrs |= uv.AttrStrikethrough
+		case 21: // Doubly underlined (xterm, ECMA-48)
+			pen.Underline = ansi.UnderlineDouble
 		case 22: // Normal Intensity
 			pen.Attrs &^= uv.AttrBold | uv.AttrFaint
 		case 23: // Not italic

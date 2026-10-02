@@ -65,3 +65,12 @@ func paramsString(cmd ansi.Cmd, params ansi.Params) string {
 	}
 	return s.String()
 }
+
+// countParam returns the first parameter as a repeat count. A count of zero
+// means one, the same as a missing parameter, for every sequence that moves or
+// edits by a count (ECMA-48 and xterm both treat CSI 0 A as CSI A); Param only
+// falls back to the default when the parameter is absent.
+func countParam(params ansi.Params) int {
+	n, _, _ := params.Param(0, 1)
+	return max(n, 1)
+}

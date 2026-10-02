@@ -1,6 +1,7 @@
 package vt
 
 import (
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/ansi/parser"
 )
@@ -44,4 +45,14 @@ func (e *Emulator) fullReset() {
 		e.kittyKbd.Reset()
 		e.updateKittyKeyboardCache()
 	}
+}
+
+// screenAlignment fills the screen with 'E' as in [ansi.DECALN], the VT100
+// alignment test pattern. Like xterm it also resets the margins to the whole
+// screen and homes the cursor. The cells take the default rendition.
+func (e *Emulator) screenAlignment() {
+	e.scr.scroll = e.scr.Bounds()
+	cell := uv.Cell{Content: "E", Width: 1}
+	e.scr.Fill(&cell)
+	e.setCursor(0, 0)
 }

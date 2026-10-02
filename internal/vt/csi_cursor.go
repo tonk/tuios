@@ -124,3 +124,28 @@ func (e *Emulator) repeatPreviousCharacter(n int) {
 		e.handlePrint(e.lastChar)
 	}
 }
+
+// cursorPositionParams moves the cursor to the row and column a CUP or HVP
+// sequence names. Both are 1-based with 0 or a missing value meaning 1, and
+// both are relative to the margins when [ansi.DECOM] is set.
+func (e *Emulator) cursorPositionParams(params ansi.Params) {
+	row, _, _ := params.Param(0, 1)
+	col, _, _ := params.Param(1, 1)
+	e.setCursorPosition(max(col, 1)-1, max(row, 1)-1)
+}
+
+// originCursorPosition returns the cursor position in the coordinates
+// [ansi.DECOM] addresses it by: relative to the top-left margin when origin
+// mode is set, and to the screen otherwise. It is what setCursorPosition takes,
+// so a sequence that changes one coordinate (HPA, VPA, HPR, VPR) keeps the
+// other in the same frame instead of adding the margin offset twice, and what
+// CPR reports.
+func (e *Emulator) originCursorPosition() (x, y int) {
+	x, y = e.scr.CursorPosition()
+	if e.isModeSet(ansi.ModeOrigin) {
+		region := e.scr.ScrollRegion()
+		x -= region.Min.X
+		y -= region.Min.Y
+	}
+	return x, y
+}

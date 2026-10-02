@@ -40,8 +40,8 @@ func (e *Emulator) horizontalTabSet() {
 	e.tabstops.Set(x)
 }
 
-// reverseIndex moves the cursor up one line, or scrolling down. This does not
-// reset the phantom state i.e. pending wrap state.
+// reverseIndex moves the cursor up one line, or scrolling down. Like index,
+// it resets the phantom state i.e. pending wrap state, as xterm does.
 func (e *Emulator) reverseIndex() {
 	x, y := e.scr.CursorPosition()
 	scroll := e.scr.ScrollRegion()
@@ -50,6 +50,7 @@ func (e *Emulator) reverseIndex() {
 	} else {
 		e.scr.moveCursor(0, -1)
 	}
+	e.atPhantom = false
 }
 
 // backspace moves the cursor back one cell, if possible.

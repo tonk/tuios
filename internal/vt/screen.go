@@ -12,6 +12,12 @@ type Screen struct {
 	buf *uv.RenderBuffer
 	// The cur of the screen.
 	cur, saved Cursor
+	// savedState is the rest of what DECSC saved alongside saved.
+	savedState savedCursorState
+	// phantom holds the emulator's pending-wrap flag for this screen while
+	// the other screen is active, so a screen switch neither carries a wrap
+	// pending on one screen over to the other nor loses it.
+	phantom bool
 	// scroll is the scroll region.
 	scroll uv.Rectangle
 	// scrollback is the scrollback buffer for lines that have scrolled off the top.
@@ -34,6 +40,8 @@ func (s *Screen) Reset() {
 	s.buf.Clear()
 	s.cur = Cursor{}
 	s.saved = Cursor{}
+	s.savedState = savedCursorState{}
+	s.phantom = false
 	s.scroll = s.buf.Bounds()
 }
 
@@ -120,16 +128,29 @@ func (s *Screen) FillArea(c *uv.Cell, area uv.Rectangle) {
 	s.buf.FillArea(c, area)
 }
 
-// setHorizontalMargins sets the horizontal margins.
+// setHorizontalMargins sets the horizontal margins. They are clamped to the
+// screen, because every line and cell operation indexes the buffer by them and
+// a margin past the edge would run off the end of a line.
 func (s *Screen) setHorizontalMargins(left, right int) {
-	s.scroll.Min.X = left
-	s.scroll.Max.X = right
+	w := s.buf.Width()
+	s.scroll.Min.X = clamp(left, 0, w)
+	s.scroll.Max.X = clamp(right, s.scroll.Min.X, w)
 }
 
-// setVerticalMargins sets the vertical margins.
+// setVerticalMargins sets the vertical margins, clamped to the screen for the
+// same reason as setHorizontalMargins.
 func (s *Screen) setVerticalMargins(top, bottom int) {
-	s.scroll.Min.Y = top
-	s.scroll.Max.Y = bottom
+	h := s.buf.Height()
+	s.scroll.Min.Y = clamp(top, 0, h)
+	s.scroll.Max.Y = clamp(bottom, s.scroll.Min.Y, h)
+}
+
+// region returns the scroll region clipped to the screen. Margins are clamped
+// when set, so this only differs from scroll if something assigned it
+// directly; the line and cell operations use it so that can never index past
+// the buffer.
+func (s *Screen) region() uv.Rectangle {
+	return s.scroll.Intersect(s.buf.Bounds())
 }
 
 // setCursorX sets the cursor X position. If margins is true, the cursor is
@@ -156,37 +177,43 @@ func (s *Screen) setCursor(x, y int, margins bool) {
 	}
 }
 
-// moveCursor moves the cursor by the given x and y deltas. If the cursor
-// position is inside the scroll region, it is bounded by the scroll region.
-// Otherwise, it is bounded by the screen bounds.
+// moveCursor moves the cursor by the given x and y deltas. Each axis is
+// bounded on its own, as in xterm: moving up stops at the top margin when the
+// cursor starts on or below it and at the top of the screen otherwise, moving
+// down stops at the bottom margin when the cursor starts on or above it, and
+// left and right do the same with the left and right margins.
 // This follows how [ansi.CUU], [ansi.CUD], [ansi.CUF], [ansi.CUB], [ansi.CNL],
 // [ansi.CPL].
 func (s *Screen) moveCursor(dx, dy int) {
-	scroll := s.scroll
+	scroll := s.region()
 	old := s.cur.Position
-	if old.X < scroll.Min.X {
-		scroll.Min.X = 0
-	}
-	if old.X >= scroll.Max.X {
-		scroll.Max.X = s.buf.Width()
-	}
-
-	pt := uv.Pos(s.cur.X+dx, s.cur.Y+dy)
-
-	var x, y int
-	if old.In(scroll) {
-		y = clamp(pt.Y, scroll.Min.Y, scroll.Max.Y-1)
-		x = clamp(pt.X, scroll.Min.X, scroll.Max.X-1)
-	} else {
-		y = clamp(pt.Y, 0, s.buf.Height()-1)
-		x = clamp(pt.X, 0, s.buf.Width()-1)
-	}
+	x := moveWithin(old.X, dx, scroll.Min.X, scroll.Max.X-1, s.buf.Width()-1)
+	y := moveWithin(old.Y, dy, scroll.Min.Y, scroll.Max.Y-1, s.buf.Height()-1)
 
 	s.cur.X, s.cur.Y = x, y
 
 	if s.cb.CursorPosition != nil && (old.X != x || old.Y != y) {
 		s.cb.CursorPosition(old, uv.Pos(x, y))
 	}
+}
+
+// moveWithin moves pos by delta along one axis, stopping at the near margin
+// (low moving back, high moving forward) when pos starts on the inner side of
+// it, and at the screen edge (0 or last) otherwise.
+func moveWithin(pos, delta, low, high, last int) int {
+	target := pos + delta
+	if delta < 0 {
+		limit := 0
+		if pos >= low {
+			limit = low
+		}
+		return clamp(max(target, limit), 0, last)
+	}
+	limit := last
+	if pos <= high {
+		limit = high
+	}
+	return clamp(min(target, limit), 0, last)
 }
 
 // Cursor returns the cursor.
@@ -209,10 +236,16 @@ func (s *Screen) SaveCursor() {
 	s.saved = s.cur
 }
 
-// RestoreCursor restores the cursor.
+// RestoreCursor restores the cursor. Visibility (DECTCEM) and shape (DECSCUSR)
+// are not part of what DECSC saves, so they are kept as they are, and the
+// position is clamped in case the screen shrank since the save.
 func (s *Screen) RestoreCursor() {
 	old := s.cur.Position
+	hidden, style, steady := s.cur.Hidden, s.cur.Style, s.cur.Steady
 	s.cur = s.saved
+	s.cur.Hidden, s.cur.Style, s.cur.Steady = hidden, style, steady
+	s.cur.X = clamp(s.cur.X, 0, s.buf.Width()-1)
+	s.cur.Y = clamp(s.cur.Y, 0, s.buf.Height()-1)
 
 	if s.cb.CursorPosition != nil && (old.X != s.cur.X || old.Y != s.cur.Y) {
 		s.cb.CursorPosition(old, s.cur.Position)
@@ -273,7 +306,7 @@ func (s *Screen) InsertCell(n int) {
 	if !ok {
 		return
 	}
-	right := s.scroll.Max.X
+	right := s.region().Max.X
 
 	// Copied by assignment rather than through the buffer's Set, which blanks
 	// the other half of any wide rune it lands on. That is right for an
@@ -303,7 +336,7 @@ func (s *Screen) DeleteCell(n int) {
 	if !ok {
 		return
 	}
-	right := s.scroll.Max.X
+	right := s.region().Max.X
 
 	for i := x; i < right-n; i++ {
 		line[i] = line[i+n]
@@ -321,7 +354,7 @@ func (s *Screen) DeleteCell(n int) {
 // margin. It reports false when the position is outside the margins or the
 // screen, which is the case every caller treats as a no-op.
 func (s *Screen) shiftBounds(x, y, n int) (uv.Line, int, bool) {
-	area := s.scroll
+	area := s.region()
 	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || y >= s.buf.Height() ||
 		x < area.Min.X || x >= area.Max.X || x >= s.buf.Width() {
 		return nil, 0, false
@@ -515,15 +548,16 @@ func (s *Screen) InsertLine(n int) bool {
 		return false
 	}
 
+	scroll := s.region()
 	x, y := s.cur.X, s.cur.Y
 
 	// Only operate if cursor Y is within scroll region
-	if y < s.scroll.Min.Y || y >= s.scroll.Max.Y ||
-		x < s.scroll.Min.X || x >= s.scroll.Max.X {
+	if y < scroll.Min.Y || y >= scroll.Max.Y ||
+		x < scroll.Min.X || x >= scroll.Max.X {
 		return false
 	}
 
-	s.buf.InsertLineArea(y, n, s.blankCell(), s.scroll)
+	s.buf.InsertLineArea(y, n, s.blankCell(), scroll)
 
 	return true
 }
@@ -537,7 +571,7 @@ func (s *Screen) DeleteLine(n int) bool {
 		return false
 	}
 
-	scroll := s.scroll
+	scroll := s.region()
 	x, y := s.cur.X, s.cur.Y
 
 	// Only operate if cursor Y is within scroll region

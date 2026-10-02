@@ -484,7 +484,8 @@ func (e *Emulator) IsCursorHidden() bool {
 // This is important for mouse event forwarding - mouse events should only be forwarded
 // to applications when they are in alternate screen mode.
 func (e *Emulator) IsAltScreen() bool {
-	return e.isModeSet(ansi.ModeAltScreen) || e.isModeSet(ansi.ModeAltScreenSaveCursor)
+	return e.isModeSet(ansi.ModeAltScreen) || e.isModeSet(ansi.ModeAltScreenSaveCursor) ||
+		e.isModeSet(modeAltScreenLegacy)
 }
 
 // ActiveScreenIsAlt reports whether the active screen pointer currently
@@ -834,7 +835,9 @@ func (e *Emulator) Resize(width int, height int) {
 
 	e.scrs[0].Resize(width, height)
 	e.scrs[1].Resize(width, height)
-	e.tabstops = uv.DefaultTabStops(width)
+	// Keep the stops the guest set; only columns the resize adds get the
+	// default every-8 stops.
+	e.tabstops.Resize(width)
 
 	e.setCursor(x, y)
 
@@ -874,7 +877,20 @@ func (e *Emulator) Write(p []byte) (n int, err error) {
 	}
 
 	for i := range p {
-		e.parser.Advance(p[i])
+		if st := e.parser.State(); st != parser.GroundState && executesInPlace(st, p[i]) {
+			// A C0 control inside an escape or control sequence is executed
+			// and the sequence carries on, as in xterm. x/ansi executes it
+			// too, but records the control byte as the sequence's command on
+			// the way, wiping the private prefix and intermediate collected so
+			// far and OR-ing the final byte into the control: CSI 2 CR C
+			// dispatched as CSI 2 O, and CSI BS C as CSI K, an erase. Running
+			// the control here and not feeding it to the parser leaves the
+			// sequence state untouched, and that state lives in the parser, so
+			// a sequence split across Write calls is covered too.
+			e.handleControl(p[i])
+		} else {
+			e.parser.Advance(p[i])
+		}
 		state := e.parser.State()
 		// flush grapheme if we transitioned to a non-utf8 state or we have
 		// written the whole byte slice.
@@ -890,6 +906,17 @@ func (e *Emulator) Write(p []byte) (n int, err error) {
 		e.lastState = state
 	}
 	return len(p), nil
+}
+
+// executesInPlace reports whether the parser, in state st, would execute b as
+// a control and stay in st: a C0 control in the middle of an escape or control
+// sequence.
+func executesInPlace(st parser.State, b byte) bool {
+	if st == parser.Utf8State {
+		return false
+	}
+	next, action := parser.Table.Transition(st, b)
+	return action == parser.ExecuteAction && next == st
 }
 
 // WriteString writes a string to the terminal output buffer.
