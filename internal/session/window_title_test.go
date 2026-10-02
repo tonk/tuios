@@ -2,13 +2,19 @@ package session
 
 import (
 	"testing"
+	"time"
 )
 
 // feedVT writes bytes to a PTY's daemon-side emulator the way its output reader
 // would, so a test can hand a window the escape sequence an application uses to
 // set its title.
+//
+// It waits for the pane's own shell to go quiet first. The shell is real and
+// still starting, and on Windows ConPTY repaints the whole screen as cmd.exe
+// comes up, which can land after the fed bytes and paint over them.
 func feedVT(t *testing.T, p *PTY, data string) {
 	t.Helper()
+	waitPTYQuiet(t, p)
 	p.terminalMu.Lock()
 	defer p.terminalMu.Unlock()
 	if _, err := p.terminal.Write([]byte(data)); err != nil {
@@ -63,5 +69,25 @@ func TestCustomNameOutranksTheLiveTitle(t *testing.T) {
 
 	if got := sess.Info().Windows[0].Title; got != "logs" {
 		t.Errorf("listed title = %q, want the custom name %q", got, "logs")
+	}
+}
+
+// waitPTYQuiet waits until p has produced no output for a short while,
+// counting from the call, so a pane that has not started printing yet is
+// given the same grace as one that just stopped.
+func waitPTYQuiet(t *testing.T, p *PTY) {
+	t.Helper()
+	const quiet = 300 * time.Millisecond
+	start := time.Now().UnixNano()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		last := max(p.LastOutput(), start)
+		if time.Since(time.Unix(0, last)) >= quiet {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the pane's shell never went quiet")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }
