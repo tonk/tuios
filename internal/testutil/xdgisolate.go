@@ -40,7 +40,12 @@ var windowsHomeVars = []string{"USERPROFILE", "LOCALAPPDATA", "APPDATA"}
 // isolateXDG points every XDG directory at a throwaway tree and returns that
 // tree's path along with a function that removes it and reports whether the
 // redirect was still in force when the run ended.
+// preIsolationEnv is the environment as it was before isolateXDG redirected
+// it, for asking the go command where the developer's own caches are.
+var preIsolationEnv []string
+
 func isolateXDG() (dir string, check func() error) {
+	preIsolationEnv = os.Environ()
 	tmp, err := os.MkdirTemp("", "tuios-test-xdg")
 	if err != nil {
 		panic(fmt.Sprintf("testutil: create XDG tree: %v", err))

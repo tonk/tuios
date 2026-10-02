@@ -135,9 +135,16 @@ func runSuite(t *testing.T, home string) (string, error) {
 	return string(out), err
 }
 
+// goEnv asks the go command for a setting as the developer's environment
+// resolves it. This process is already isolated, so its own environment
+// would answer from inside the throwaway tree: GOMODCACHE follows HOME
+// there, and the child suite then downloaded every module into a cache Go
+// writes read-only, which the tree's cleanup could not remove.
 func goEnv(t *testing.T, name string) string {
 	t.Helper()
-	out, err := exec.Command("go", "env", name).Output()
+	cmd := exec.Command("go", "env", name)
+	cmd.Env = preIsolationEnv
+	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("go env %s: %v", name, err)
 	}
