@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // fakeHelper is a minimal stand-in for tuios-pam-helper, implementing just
@@ -28,7 +29,8 @@ type fakeHelper struct {
 
 func newFakeHelper(t *testing.T) *fakeHelper {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pam-helper.sock")
+	testutil.RequireUnixPacket(t)
+	path := filepath.Join(testutil.ShortTempDir(t), "pam-helper.sock")
 	ln, err := net.Listen("unixpacket", path)
 	if err != nil {
 		t.Fatalf("listen: %v", err)

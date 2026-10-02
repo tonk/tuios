@@ -12,6 +12,7 @@ import (
 // contract is checked against what a user's script would actually see, not
 // against the struct the runner was handed.
 func TestAgentStateHookEnvironmentContract(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "env")
 
@@ -54,6 +55,7 @@ func TestAgentStateHookEnvironmentContract(t *testing.T) {
 // TestAgentStateHookMessageWithShellMetacharacters is why the contract is
 // environment and not argv: an agent message is free text from a harness.
 func TestAgentStateHookMessageWithShellMetacharacters(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	dir := t.TempDir()
 	out := filepath.Join(dir, "msg")
 	nasty := `"; rm -rf $HOME; echo '`

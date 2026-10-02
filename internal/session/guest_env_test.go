@@ -3,6 +3,8 @@ package session
 import (
 	"slices"
 	"testing"
+
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // Guest processes pick their image protocol from the environment, so a shell
@@ -35,7 +37,7 @@ func TestBuildEnvAdvertisesGraphicsCapabilities(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sess, err := NewSession("env", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+			sess, err := NewSession("env", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 			if err != nil {
 				t.Fatalf("NewSession: %v", err)
 			}

@@ -183,6 +183,9 @@ argv0 = ["zzagent"]
 // process as the one process guaranteed to be there. It is the read that lets the
 // detector see past a process that renamed itself.
 func TestReadExe(t *testing.T) {
+	if _, err := os.Lstat("/proc/self/exe"); err != nil {
+		t.Skip("no procfs here, so there is no exe link to read")
+	}
 	got := readExe(os.Getpid())
 	if got == "" {
 		t.Fatal("readExe returned nothing for the running test process")

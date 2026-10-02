@@ -1,6 +1,7 @@
 package input
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -139,6 +140,13 @@ func TestMacOptionChordSwitchesPaneInTerminalMode(t *testing.T) {
 
 // Off darwin the same glyphs are ordinary characters that belong to the shell.
 func TestComposedGlyphsAreNotChordsOffDarwin(t *testing.T) {
+	// The registry is built with the host's own key normalizer, and on a Mac
+	// that expands the bindings to the glyphs Option composes, so the glyphs
+	// are bound directly. Only a host that is not darwin builds the registry
+	// this is about.
+	if runtime.GOOS == "darwin" {
+		t.Skip("the default config is darwin's own here")
+	}
 	prev := darwinHost
 	darwinHost = false
 	t.Cleanup(func() { darwinHost = prev })

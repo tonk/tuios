@@ -1,6 +1,10 @@
 package session
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tonk/tuios/internal/testutil"
+)
 
 // clientSnapshot is what an attached TUI pushes: whatever it last saw from the
 // daemon, stamped with the version it saw it at.
@@ -28,7 +32,7 @@ func windowByID(t *testing.T, state *SessionState, id string) *WindowState {
 // window vanished, which is why every mutating verb was routed to the TUI
 // instead of being executed by the owner of the state.
 func TestStaleClientSyncKeepsDaemonCreatedWindow(t *testing.T) {
-	sess, err := NewSession("stale", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("stale", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -59,7 +63,7 @@ func TestStaleClientSyncKeepsDaemonCreatedWindow(t *testing.T) {
 // fields: a rename, a workspace move and a minimize performed daemon-side must
 // all survive a client push that still carries the old values.
 func TestStaleClientSyncKeepsDaemonMetadata(t *testing.T) {
-	sess, err := NewSession("meta", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("meta", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -112,7 +116,7 @@ func TestStaleClientSyncKeepsDaemonMetadata(t *testing.T) {
 // stale, and closing a window closes its PTY first, which is how a close is told
 // apart from a window the daemon created that the client has not seen yet.
 func TestStaleClientSyncKeepsClientClose(t *testing.T) {
-	sess, err := NewSession("closed", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("closed", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -159,7 +163,7 @@ func TestStaleClientSyncKeepsClientClose(t *testing.T) {
 // its push applies unchanged. This is the interactive path, so it must keep the
 // pre-versioning behavior exactly.
 func TestCurrentClientSyncIsTakenAsSent(t *testing.T) {
-	sess, err := NewSession("current", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("current", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -192,7 +196,7 @@ func TestCurrentClientSyncIsTakenAsSent(t *testing.T) {
 // client that predates state versioning sends no BaseVersion and cannot say what
 // it saw, so its syncs behave exactly as they did before: applied as sent.
 func TestUnversionedClientSyncIsTakenAtFaceValue(t *testing.T) {
-	sess, err := NewSession("legacy", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("legacy", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -220,7 +224,7 @@ func TestUnversionedClientSyncIsTakenAtFaceValue(t *testing.T) {
 // still current; if a sync advanced it, every client would be permanently one
 // version behind and every push would be reconciled.
 func TestClientSyncDoesNotAdvanceVersion(t *testing.T) {
-	sess, err := NewSession("versions", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("versions", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -247,7 +251,7 @@ func TestClientSyncDoesNotAdvanceVersion(t *testing.T) {
 // TestClientSyncKeepsDaemonExclusiveFields covers the fields no client ever
 // sets. A sync that simply omits them must not wipe them.
 func TestClientSyncKeepsDaemonExclusiveFields(t *testing.T) {
-	sess, err := NewSession("exclusive", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("exclusive", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}
@@ -297,7 +301,7 @@ func TestClientSyncKeepsDaemonExclusiveFields(t *testing.T) {
 // Clients do not create windows any more, so an incoming window the daemon does
 // not know is never news. It is always a snapshot from before a close.
 func TestStaleClientSyncCannotResurrectAClosedWindow(t *testing.T) {
-	sess, err := NewSession("resurrect", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := NewSession("resurrect", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("NewSession: %v", err)
 	}

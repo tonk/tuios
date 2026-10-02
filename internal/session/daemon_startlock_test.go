@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // TestConcurrentStartsProduceOneDaemon pins what happens when two clients decide
@@ -16,7 +18,7 @@ import (
 // leaving the winner listening on an inode no client can reach and its restored
 // sessions unreachable with it.
 func TestConcurrentStartsProduceOneDaemon(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	testutil.SocketDir(t)
 	t.Cleanup(useResurrectionDir(t.TempDir()))
 
 	const starters = 4
@@ -75,7 +77,7 @@ func TestConcurrentStartsProduceOneDaemon(t *testing.T) {
 // TestStartLockIsReleasedOnShutdown pins that a daemon that has stopped does not
 // keep the next one out.
 func TestStartLockIsReleasedOnShutdown(t *testing.T) {
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	testutil.SocketDir(t)
 	t.Cleanup(useResurrectionDir(t.TempDir()))
 
 	first := NewDaemon(&DaemonConfig{Version: "test", DisableAutoRestore: true})

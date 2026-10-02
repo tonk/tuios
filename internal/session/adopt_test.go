@@ -22,6 +22,7 @@ import (
 // still reports as signalable, and the pid-liveness poll under test
 // (waitForAdoptedExit) would never see it go away.
 func TestAdoptDaemonWindow(t *testing.T) {
+	skipWithoutUnixPTY(t)
 	sess := newTestSession(t)
 
 	cmd := exec.Command("sh")

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -32,6 +33,10 @@ var xdgVars = []string{
 	"XDG_CACHE_HOME", "XDG_RUNTIME_DIR",
 }
 
+// windowsHomeVars are the per-user directories Windows resolves from its own
+// variables rather than from HOME or XDG.
+var windowsHomeVars = []string{"USERPROFILE", "LOCALAPPDATA", "APPDATA"}
+
 // isolateXDG points every XDG directory at a throwaway tree and returns that
 // tree's path along with a function that removes it and reports whether the
 // redirect was still in force when the run ended.
@@ -51,6 +56,15 @@ func isolateXDG() (dir string, check func() error) {
 	if err := os.Setenv("HOME", tmp); err != nil {
 		panic(fmt.Sprintf("testutil: set HOME: %v", err))
 	}
+	// Windows reads none of the above for these. os.UserHomeDir there is
+	// USERPROFILE, and the daemon socket lives under LOCALAPPDATA.
+	if runtime.GOOS == "windows" {
+		for _, name := range windowsHomeVars {
+			if err := os.Setenv(name, tmp); err != nil {
+				panic(fmt.Sprintf("testutil: set %s: %v", name, err))
+			}
+		}
+	}
 	xdg.Reload()
 
 	return tmp, func() error {
@@ -68,7 +82,13 @@ func isolateXDG() (dir string, check func() error) {
 // first out, so the reload went first and re-resolved onto the very temp
 // directory it was meant to be leaving, moments before that directory was
 // deleted.
+//
+// HOME is checked through os.UserHomeDir, which is what the app builds paths
+// from, and not through xdg.Home: on Windows xdg asks the shell for the
+// profile directory and ignores the environment, so xdg.Home names the real
+// profile however well the run is isolated.
 func stillRedirected(tmp string) error {
+	home, _ := os.UserHomeDir()
 	var escaped []string
 	for name, path := range map[string]string{
 		"XDG_CONFIG_HOME": xdg.ConfigHome,
@@ -76,7 +96,7 @@ func stillRedirected(tmp string) error {
 		"XDG_STATE_HOME":  xdg.StateHome,
 		"XDG_CACHE_HOME":  xdg.CacheHome,
 		"XDG_RUNTIME_DIR": xdg.RuntimeDir,
-		"HOME":            xdg.Home,
+		"HOME":            home,
 	} {
 		if !strings.HasPrefix(filepath.Clean(path)+string(filepath.Separator), filepath.Clean(tmp)+string(filepath.Separator)) {
 			escaped = append(escaped, fmt.Sprintf("  %s is %s", name, path))

@@ -3,6 +3,8 @@ package session
 import (
 	"testing"
 	"time"
+
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // TestReadOnlyAttachEchoesBack is the wire round trip: AttachPayload.ReadOnly
@@ -57,7 +59,7 @@ func TestReadOnlyCreatePTYRefused(t *testing.T) {
 // than as a returned error.
 func TestReadOnlyClosePTYRefused(t *testing.T) {
 	d, _ := startTestDaemon(t)
-	sess, err := d.manager.CreateSession("ro-close", &SessionConfig{Shell: "/bin/cat"}, 80, 24)
+	sess, err := d.manager.CreateSession("ro-close", &SessionConfig{Shell: testutil.Cat(t)}, 80, 24)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -94,7 +96,7 @@ func TestReadOnlyClosePTYRefused(t *testing.T) {
 // deterministic pass/fail is the PTY's outputSeq staying flat.
 func TestReadOnlyInputNeverReachesPTY(t *testing.T) {
 	d, _ := startTestDaemon(t)
-	sess, err := d.manager.CreateSession("ro-input", &SessionConfig{Shell: "/bin/cat"}, 80, 24)
+	sess, err := d.manager.CreateSession("ro-input", &SessionConfig{Shell: testutil.Cat(t)}, 80, 24)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
@@ -137,7 +139,7 @@ func TestReadOnlyInputNeverReachesPTY(t *testing.T) {
 // be the reason for the silence, not a broken test fixture.
 func TestReadWriteInputStillReachesPTY(t *testing.T) {
 	d, _ := startTestDaemon(t)
-	sess, err := d.manager.CreateSession("rw-input", &SessionConfig{Shell: "/bin/cat"}, 80, 24)
+	sess, err := d.manager.CreateSession("rw-input", &SessionConfig{Shell: testutil.Cat(t)}, 80, 24)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}

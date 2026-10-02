@@ -1,3 +1,13 @@
+# Check text out with LF on every platform. Go embeds files byte for byte
+# (skills/tuios/SKILL.md, testdata), and a Windows checkout converting them to
+# CRLF makes the embedded copy differ from what the tests expect.
+* text=auto eol=lf
+
+# Recorded terminal output: the CRLFs are part of the data.
+*.bin binary
+# Committed with CRLF as upstream ships them; leave them alone.
+cmd/tuios-web/fonts/*-LICENSE.txt -text
+
 *.sh linguist-detectable=false
 Dockerfile linguist-detectable=false
 *.nix linguist-detectable=false

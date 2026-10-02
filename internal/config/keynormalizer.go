@@ -286,26 +286,34 @@ func (kn *KeyNormalizer) NormalizeKey(key string) []string {
 
 	// On macOS, expand opt+N and option+N to unicode and alt+N
 	if kn.isMacOS {
+		// addAlt adds the alt+ spelling of an opt+ key, along with the other
+		// spellings of that alt chord: a terminal treating Option as Meta
+		// sends opt+shift+1 as "alt+!", not "alt+shift+1".
+		addAlt := func() {
+			alt := optionToAltReplacer.Replace(keyLower)
+			result = append(result, alt)
+			result = append(result, shiftAliases(alt, alt)...)
+		}
 		// Check for opt+shift+number combinations first
 		if unicode, ok := macOptionShiftNumberMap[keyLower]; ok {
 			// Add the unicode character
 			result = append(result, strings.ToLower(unicode))
-			// Also map to alt+shift+N (use replacer for efficiency)
-			result = append(result, optionToAltReplacer.Replace(keyLower))
+			// Also map to alt+shift+N
+			addAlt()
 		} else if unicode, ok := macOptionNumberMap[keyLower]; ok {
 			// Add the unicode character
 			result = append(result, strings.ToLower(unicode))
 			// Also map to alt+N
-			result = append(result, optionToAltReplacer.Replace(keyLower))
+			addAlt()
 		} else if unicode, ok := macOptionTabMap[keyLower]; ok {
 			// Add the unicode character for opt+tab variants
 			result = append(result, unicode)
 			// Also map to alt+tab variant
-			result = append(result, optionToAltReplacer.Replace(keyLower))
+			addAlt()
 		} else if glyph := macOptionLetterGlyph(keyLower); glyph != "" {
 			// Case is preserved: å (opt+a) and Å (opt+shift+a) are different keys.
 			result = append(result, glyph)
-			result = append(result, optionToAltReplacer.Replace(keyLower))
+			addAlt()
 		}
 
 		// If the key starts with "alt+", also accept "opt+" and "option+" variants

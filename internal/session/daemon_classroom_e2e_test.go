@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // This file's fake helper mirrors internal/pamauth's own wire protocol (see
@@ -34,7 +35,8 @@ const (
 
 func runFakePAMHelper(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pam-helper.sock")
+	testutil.RequireUnixPacket(t)
+	path := filepath.Join(testutil.ShortTempDir(t), "pam-helper.sock")
 	ln, err := net.Listen("unixpacket", path)
 	if err != nil {
 		t.Fatalf("fake helper listen: %v", err)
@@ -131,7 +133,7 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 	// classroomHandoffAcceptLoop's ctx.Done() check never fires and it spins
 	// logging accept errors instead of returning. Stop cancels first.
 	defer d.Stop()
-	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
+	mainSocketPath := filepath.Join(testutil.ShortTempDir(t), "daemon.sock")
 	d.manager.SetSocketPath(mainSocketPath)
 	if err := d.startClassroomHandoffListener(); err != nil {
 		t.Fatalf("startClassroomHandoffListener: %v", err)
@@ -239,7 +241,7 @@ func TestDaemonClassroomHandoffCreatesSession(t *testing.T) {
 func TestClassroomHandoffReplacesAStaleResurrectedSession(t *testing.T) {
 	d := NewDaemon(&DaemonConfig{DisableAutoRestore: true})
 	defer d.Stop()
-	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
+	mainSocketPath := filepath.Join(testutil.ShortTempDir(t), "daemon.sock")
 	d.manager.SetSocketPath(mainSocketPath)
 	if err := d.startClassroomHandoffListener(); err != nil {
 		t.Fatalf("startClassroomHandoffListener: %v", err)

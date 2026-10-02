@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
-	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // This is the rig the rehydration matrix runs on: a real daemon in this
@@ -52,7 +53,7 @@ type rig struct {
 // involved.
 func ownSocket(t *testing.T) {
 	t.Helper()
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	testutil.SocketDir(t)
 }
 
 // newRig brings up a daemon, creates a session with panes windows, and attaches
@@ -64,7 +65,7 @@ func newRig(t *testing.T, panes int) *rig {
 	// A predictable shell keeps the pane's own output out of the comparison's
 	// way; the oracle is daemon-versus-client, so any prompt appears on both
 	// sides, but a shell that draws its own banner makes a failure unreadable.
-	t.Setenv("SHELL", "/bin/sh")
+	t.Setenv("SHELL", testutil.Shell())
 	t.Setenv("PS1", "$ ")
 
 	d := session.NewDaemon(&session.DaemonConfig{Version: "test", DisableAutoRestore: true})

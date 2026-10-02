@@ -3,11 +3,13 @@ package hooks
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
 
 func TestManager_RegisterAndFire(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	m := NewManager()
 
 	// Register a hook that creates a temp file
@@ -87,6 +89,7 @@ func TestParseEventName(t *testing.T) {
 }
 
 func TestContextEnvVars(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	m := NewManager()
 
 	tmpDir := t.TempDir()
@@ -135,4 +138,14 @@ func findSubstring(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// skipWithoutPOSIXShell skips a test whose hook is a POSIX shell command
+// writing to a file. Hooks run through sh -c, and on Windows the sh on PATH, if
+// any, is Git's, which takes the backslashes in a Windows path for escapes.
+func skipWithoutPOSIXShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the hook commands here are POSIX shell")
+	}
 }

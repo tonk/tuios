@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tonk/tuios/internal/testutil"
 	"github.com/tonk/tuios/internal/vt"
 )
 
@@ -25,7 +26,7 @@ func TestReattachRestoresModesScrolledOutOfBuffer(t *testing.T) {
 	d := NewDaemon(&DaemonConfig{Version: "test", DisableAutoRestore: true})
 	defer d.manager.Shutdown()
 
-	sess, err := d.manager.CreateSession("reattach-modes", &SessionConfig{Shell: "/bin/sh"}, 80, 24)
+	sess, err := d.manager.CreateSession("reattach-modes", &SessionConfig{Shell: testutil.Shell()}, 80, 24)
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}

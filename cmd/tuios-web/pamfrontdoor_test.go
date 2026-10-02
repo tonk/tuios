@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 	"testing"
+
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // TestSettingsRoutesRequirePAM pins a routing gap: Go's ServeMux picks the
@@ -62,7 +64,8 @@ func TestSettingsRoutesReachableWithoutPAM(t *testing.T) {
 // a test can tell a genuine pam-helper round trip apart from a cached one.
 func runCountingFakePAMHelper(t *testing.T, wantPassword string) (socketPath string, logins *atomic.Int64) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pam-helper.sock")
+	testutil.RequireUnixPacket(t)
+	path := filepath.Join(testutil.ShortTempDir(t), "pam-helper.sock")
 	ln, err := net.Listen("unixpacket", path)
 	if err != nil {
 		t.Fatalf("fake helper listen: %v", err)

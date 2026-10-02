@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // TestClassroomHandoffWireRoundTrip pins the handoff socket's own framing
@@ -17,7 +19,8 @@ import (
 // valid fd) by writing a marker to it before sending and reading it back
 // after receiving.
 func TestClassroomHandoffWireRoundTrip(t *testing.T) {
-	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
+	testutil.RequireUnixPacket(t)
+	mainSocketPath := filepath.Join(testutil.ShortTempDir(t), "daemon.sock")
 	ln, err := net.Listen("unixpacket", classroomHandoffSocketPath(mainSocketPath))
 	if err != nil {
 		t.Fatalf("listen: %v", err)
@@ -99,7 +102,8 @@ func TestClassroomHandoffWireRoundTrip(t *testing.T) {
 // creating a spawner-less session - readClassroomHandoff is the only thing
 // standing between a malformed/adversarial connection and that.
 func TestClassroomHandoffRejectsMissingFD(t *testing.T) {
-	mainSocketPath := filepath.Join(t.TempDir(), "daemon.sock")
+	testutil.RequireUnixPacket(t)
+	mainSocketPath := filepath.Join(testutil.ShortTempDir(t), "daemon.sock")
 	ln, err := net.Listen("unixpacket", classroomHandoffSocketPath(mainSocketPath))
 	if err != nil {
 		t.Fatalf("listen: %v", err)

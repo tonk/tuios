@@ -3,6 +3,7 @@ package session
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/tonk/tuios/internal/testutil"
@@ -26,9 +27,10 @@ func pinResurrectionDir(dir string) {
 // running whatever $SHELL named, with that shell's startup files and startup
 // cost: TestWaitForWindowExit passes under a shell that reaches its prompt
 // quickly and times out under one that does not, which makes it a test of the
-// machine rather than of the daemon.
+// machine rather than of the daemon. Windows has no /bin/sh; testutil.Shell
+// names the one it does have.
 func pinShell(string) {
-	if err := os.Setenv("SHELL", "/bin/sh"); err != nil {
+	if err := os.Setenv("SHELL", testutil.Shell()); err != nil {
 		panic(err)
 	}
 }
@@ -40,4 +42,14 @@ func pinShell(string) {
 func useResurrectionDir(dir string) func() {
 	prev := setResurrectionDirOverride(dir)
 	return func() { setResurrectionDirOverride(prev) }
+}
+
+// skipWithoutUnixPTY skips a test that opens a PTY itself through creack/pty,
+// which has no Windows implementation. Those tests stand in for the PAM
+// helper, whose classroom and adoption paths only exist on Unix.
+func skipWithoutUnixPTY(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("creack/pty cannot open a PTY on windows")
+	}
 }

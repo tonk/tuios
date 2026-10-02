@@ -7,34 +7,41 @@ import (
 	"testing"
 )
 
-// TestResetTerminal verifies that ResetTerminal doesn't panic and produces output.
-// Since it writes escape sequences to stdout, we capture output to verify behavior.
-func TestResetTerminal(t *testing.T) {
-	// Save original stdout
-	oldStdout := os.Stdout
+// captureResetTerminal runs ResetTerminal with stdout redirected to a pipe and
+// returns what it wrote.
+//
+// The pipe is drained while ResetTerminal runs, not after. ResetTerminal syncs
+// stdout, and on Windows that is FlushFileBuffers, which on a pipe blocks until
+// the other end has read everything written to it. Reading only afterwards
+// leaves both sides waiting on each other until the test binary times out.
+func captureResetTerminal(t *testing.T) []byte {
+	t.Helper()
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("Failed to create pipe: %v", err)
 	}
+	defer func() { _ = r.Close() }()
 
-	// Redirect stdout to our pipe
+	read := make(chan []byte, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		read <- buf.Bytes()
+	}()
+
+	oldStdout := os.Stdout
 	os.Stdout = w
-
-	// Call ResetTerminal - should not panic
 	ResetTerminal()
-
-	// Restore stdout
-	_ = w.Close()
 	os.Stdout = oldStdout
+	_ = w.Close()
 
-	// Read captured output
-	var buf bytes.Buffer
-	_, err = io.Copy(&buf, r)
-	if err != nil {
-		t.Fatalf("Failed to read captured output: %v", err)
-	}
+	return <-read
+}
 
-	output := buf.Bytes()
+// TestResetTerminal verifies that ResetTerminal doesn't panic and produces output.
+// Since it writes escape sequences to stdout, we capture output to verify behavior.
+func TestResetTerminal(t *testing.T) {
+	output := captureResetTerminal(t)
 
 	// Verify some escape sequences are present
 	if len(output) == 0 {
@@ -69,21 +76,7 @@ func TestResetTerminal(t *testing.T) {
 
 // TestResetTerminalSequences verifies specific escape sequences are in correct order.
 func TestResetTerminalSequences(t *testing.T) {
-	// Save original stdout
-	oldStdout := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("Failed to create pipe: %v", err)
-	}
-
-	os.Stdout = w
-	ResetTerminal()
-	_ = w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = io.Copy(&buf, r)
-	output := buf.Bytes()
+	output := captureResetTerminal(t)
 
 	// Expected sequences in order
 	sequences := []struct {

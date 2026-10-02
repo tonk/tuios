@@ -9,6 +9,7 @@ import (
 
 	"github.com/Gaurav-Gosain/sip"
 	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/testutil"
 )
 
 // runFakePAMHelperForAuth is a minimal stand-in for tuios-pam-helper that
@@ -18,7 +19,8 @@ import (
 // format.
 func runFakePAMHelperForAuth(t *testing.T) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "pam-helper.sock")
+	testutil.RequireUnixPacket(t)
+	path := filepath.Join(testutil.ShortTempDir(t), "pam-helper.sock")
 	ln, err := net.Listen("unixpacket", path)
 	if err != nil {
 		t.Fatalf("fake helper listen: %v", err)

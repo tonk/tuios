@@ -86,6 +86,7 @@ func (f *fakeClassroomSpawner) wasClosed(pid int) bool {
 // window, and closing the window routes through the spawner's ClosePTY
 // rather than a local process kill.
 func TestClassroomWindow(t *testing.T) {
+	skipWithoutUnixPTY(t)
 	// Not newTestSession: that registers its own t.Cleanup(sess.Stop), and
 	// this test calls Stop itself to check it tears down the spawner -
 	// Stop is not safe to call twice (a pre-existing, unrelated issue in the
@@ -163,6 +164,7 @@ func TestClassroomWindow(t *testing.T) {
 // running as the trainee. Every window from here on must go through the
 // spawner, not just the first.
 func TestSecondClassroomWindowAlsoUsesSpawner(t *testing.T) {
+	skipWithoutUnixPTY(t)
 	sess := newTestSession(t)
 	sp := newFakeClassroomSpawner()
 	sess.SetClassroomSpawner(sp)

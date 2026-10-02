@@ -154,6 +154,10 @@ func TestReportSessionExitNormalMessages(t *testing.T) {
 
 // captureStdout runs fn with os.Stdout redirected to a pipe and returns what was
 // written.
+//
+// The pipe is drained while fn runs. A Windows pipe buffers only a few
+// kilobytes, so output any larger than that blocks fn on a reader that, if it
+// only started afterwards, would never come.
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 	orig := os.Stdout
@@ -161,15 +165,24 @@ func captureStdout(t *testing.T, fn func()) string {
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
 	}
+	type captured struct {
+		data []byte
+		err  error
+	}
+	done := make(chan captured, 1)
+	go func() {
+		data, err := io.ReadAll(r)
+		done <- captured{data, err}
+	}()
 	os.Stdout = w
 	fn()
 	_ = w.Close()
 	os.Stdout = orig
-	data, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("read captured stdout: %v", err)
+	got := <-done
+	if got.err != nil {
+		t.Fatalf("read captured stdout: %v", got.err)
 	}
-	return string(data)
+	return string(got.data)
 }
 
 // The header has to survive not asking the terminal anything: dropping the

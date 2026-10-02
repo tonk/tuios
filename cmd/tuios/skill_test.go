@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"os"
 	"strings"
 	"testing"
@@ -35,27 +34,16 @@ func TestSkillIsEmbeddedFromTheRepoFile(t *testing.T) {
 // writes the skill and nothing else, without reaching the code that would draw
 // an interface.
 func TestSkillFlagPrintsTheSkill(t *testing.T) {
-	read, write, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("pipe: %v", err)
-	}
-	stdout := os.Stdout
-	os.Stdout = write
-	defer func() { os.Stdout = stdout }()
-
-	root := newRootCommand()
-	root.SetArgs([]string{"--skill"})
-	runErr := root.Execute()
-	_ = write.Close()
-
-	printed, err := io.ReadAll(read)
-	if err != nil {
-		t.Fatalf("read stdout: %v", err)
-	}
+	var runErr error
+	printed := captureStdout(t, func() {
+		root := newRootCommand()
+		root.SetArgs([]string{"--skill"})
+		runErr = root.Execute()
+	})
 	if runErr != nil {
 		t.Fatalf("tuios --skill failed: %v", runErr)
 	}
-	if string(printed) != skills.TUIOS {
+	if printed != skills.TUIOS {
 		t.Errorf("--skill printed %d bytes, want the %d-byte skill", len(printed), len(skills.TUIOS))
 	}
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -22,6 +23,13 @@ import (
 // is exactly what the backstop case has to avoid being fooled by.
 func probeReply(t *testing.T, reply string, timeout time.Duration) (string, time.Duration) {
 	t.Helper()
+	// On Windows the probe waits with WaitForSingleObject, and an anonymous
+	// pipe handle is always signalled, so the wait never times out and the
+	// read after it blocks for good. Only a console handle behaves like the
+	// tty this stands in for.
+	if runtime.GOOS == "windows" {
+		t.Skip("a pipe cannot stand in for a console handle on windows")
+	}
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
