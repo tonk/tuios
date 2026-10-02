@@ -3,6 +3,7 @@ package session
 import (
 	"net"
 	"testing"
+	"time"
 )
 
 // TestAttachSkipsBroadcastsAheadOfTheReply reproduces an attach that failed
@@ -48,4 +49,28 @@ func TestAttachSkipsBroadcastsAheadOfTheReply(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAwaitReplyPrefersADeliveredReply covers a daemon that answers and then
+// closes the connection, as it does when killing the last session under
+// exit_when_empty: the reply and the close are both ready by the time the
+// caller waits, and the reply must win every time, not at select's whim.
+func TestAwaitReplyPrefersADeliveredReply(t *testing.T) {
+	done := make(chan struct{})
+	close(done)
+	want := &Message{Type: MsgSessionList}
+	for i := range 1000 {
+		respChan := make(chan *Message, 1)
+		respChan <- want
+		got, err := awaitReply(respChan, done, time.Second)
+		if err != nil || got != want {
+			t.Fatalf("iteration %d: got %v, %v; want the delivered reply", i, got, err)
+		}
+	}
+
+	t.Run("closed without a reply", func(t *testing.T) {
+		if _, err := awaitReply(make(chan *Message, 1), done, time.Second); err == nil {
+			t.Fatal("want an error when the connection closed with no reply")
+		}
+	})
 }

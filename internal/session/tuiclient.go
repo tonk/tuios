@@ -1436,13 +1436,28 @@ func (c *TUIClient) sendAndWaitResponse(msg *Message, expectedTypes ...MessageTy
 		return nil, err
 	}
 
-	// Wait for response with timeout
+	return awaitReply(respChan, c.done, 30*time.Second)
+}
+
+// awaitReply waits for the reply a round trip registered respChan for.
+//
+// The read loop hands a reply over before it reads on and finds the
+// connection gone, so a daemon that answers and then exits (killing the last
+// session under exit_when_empty) can leave both respChan and done ready by
+// the time the caller gets here, and select picks between them at random. A
+// delivered reply wins: the daemon did answer.
+func awaitReply(respChan <-chan *Message, done <-chan struct{}, timeout time.Duration) (*Message, error) {
 	select {
 	case resp := <-respChan:
 		return resp, nil
-	case <-time.After(30 * time.Second):
+	case <-time.After(timeout):
 		return nil, fmt.Errorf("timeout waiting for response")
-	case <-c.done:
+	case <-done:
+		select {
+		case resp := <-respChan:
+			return resp, nil
+		default:
+		}
 		return nil, fmt.Errorf("client closed")
 	}
 }
