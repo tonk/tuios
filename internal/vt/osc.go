@@ -143,7 +143,7 @@ func (e *Emulator) handleSemanticZone(data []byte) {
 	}
 
 	curX, curY := e.scr.CursorPosition()
-	absLine := e.ScrollbackLen() + curY
+	absLine := e.scrs[0].ScrollbackLen() + curY
 
 	exitCode := -1
 	if subCmd == 'D' && len(parts) >= 3 {

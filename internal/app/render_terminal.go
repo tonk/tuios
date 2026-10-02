@@ -286,10 +286,16 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 	useOptimizedRendering := !isFocused && !inTerminalMode
 
-	scrollbackLen := window.ScrollbackLen()
 	inScrollbackMode := window.ScrollbackOffset > 0
 
 	inCopyMode := window.InCopyMode()
+	// Only a pane showing its history needs the length. Asking settles any
+	// reflow a resize left pending (vt.Emulator.ScrollbackLen), and a pane
+	// showing its live screen must not pay for that on every frame of a drag.
+	scrollbackLen := 0
+	if inScrollbackMode || inCopyMode {
+		scrollbackLen = window.ScrollbackLen()
+	}
 	// The block cursor is copy mode showing itself. A pane that is merely
 	// scrolled back under the wheel draws none: a cursor parked mid-pane over
 	// output the user is only reading is the clearest tell that they have been

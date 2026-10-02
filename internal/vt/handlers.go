@@ -610,7 +610,7 @@ func (e *Emulator) registerDefaultCsiHandlers() {
 			// Drop on-screen semantic markers so stale prompt/command markers
 			// don't cause output extraction to read overwritten cells.
 			if e.semanticMarkers != nil {
-				e.semanticMarkers.RemoveOnScreen(e.ScrollbackLen())
+				e.semanticMarkers.RemoveOnScreen(e.scrs[0].ScrollbackLen())
 			}
 			if e.cb.ScreenClear != nil {
 				e.cb.ScreenClear()
@@ -620,7 +620,7 @@ func (e *Emulator) registerDefaultCsiHandlers() {
 			// it wants that gone too. Markers pointing into the scrollback go
 			// with it, and the ones on screen move up to the new origin.
 			if e.semanticMarkers != nil {
-				e.semanticMarkers.AdjustForScrollbackTrim(e.ScrollbackLen())
+				e.semanticMarkers.AdjustForScrollbackTrim(e.scrs[0].ScrollbackLen())
 			}
 			e.scr.ClearScrollback()
 		default:

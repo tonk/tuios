@@ -269,6 +269,13 @@ history only if they change width at the same byte. The snapshot carries how
 every row ends (`ScreenWrap`, `ScrollbackWrap`, `MainScreenWrap`), so a client
 seeded from it reflows the same rows the daemon does.
 
+A resize lays out only the screen and the scrollback lines just above it at
+once. The older lines wait until something reads the history (scrolling back,
+copy mode, the scrollback browser, a snapshot), and are then laid out at the
+width the pane has by then. A drag of many resize steps so costs a screen per
+step instead of the whole history, and lines that only passed through a narrow
+width on the way are not lost to the scrollback limit.
+
 They did not. A client resized its own emulator the moment its layout asked, and
 told the daemon over `TUIClient.ResizePTY`, which is fire-and-forget. Everything
 the guest produced between the two was laid out by the client at the new width

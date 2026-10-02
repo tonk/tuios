@@ -30,6 +30,10 @@ type Scrollback struct {
 	// wraps records, per slot, how the line in it ended: a hard break, or a
 	// soft wrap into the next line, which a reflow joins it with.
 	wraps []LineWrap
+	// pending is how many of the oldest lines still wait to be laid out at
+	// the current width (see Screen.reflowResize and Screen.settleReflow).
+	// They are whole logical lines, so they reflow on their own.
+	pending int
 	// onTrim is called when oldest lines are overwritten by the ring buffer.
 	// The argument is the number of lines trimmed (always 1 per overwrite).
 	onTrim func(int)
@@ -147,6 +151,9 @@ func (sb *Scrollback) pushOwned(line uv.Line, wrap LineWrap) uv.Line {
 	// If buffer is full, advance head (oldest line pointer) as well
 	if sb.full {
 		sb.head = (sb.head + 1) % sb.maxLines
+		if sb.pending > 0 {
+			sb.pending--
+		}
 		if sb.onTrim != nil {
 			sb.onTrim(1)
 		}
@@ -213,6 +220,7 @@ func (sb *Scrollback) Clear() {
 	sb.head = 0
 	sb.tail = 0
 	sb.full = false
+	sb.pending = 0
 	// Nil out the lines to help GC, but keep the slice
 	for i := range sb.lines {
 		sb.lines[i] = nil
@@ -263,6 +271,83 @@ func (sb *Scrollback) Reflow(newWidth int) {
 	from := max(0, r.total-sb.maxLines)
 	lines, lineWraps := r.build(from, r.total, r.total)
 	sb.replace(lines, lineWraps)
+	sb.pending = 0
+}
+
+// appendRange appends lines [from, to) and how each ended, oldest first.
+func (sb *Scrollback) appendRange(lines []uv.Line, wraps []LineWrap, from, to int) ([]uv.Line, []LineWrap) {
+	for i := from; i < to; i++ {
+		p := (sb.head + i) % sb.maxLines
+		lines = append(lines, sb.lines[p])
+		wraps = append(wraps, sb.wraps[p])
+	}
+	return lines, wraps
+}
+
+// reflowTailStart returns where the part of the scrollback a resize to width
+// x height lays out at once begins; the lines before it are left for later
+// (see Screen.settleReflow).
+//
+// A resize needs the lines just above the screen: the logical line that
+// continues onto the screen's top row, and, widening, enough rows to pull
+// back down so the cursor keeps its screen row. It takes whole logical lines
+// from the newest back until they come to more rows at width than the screen
+// is high, which bounds the work by the screen's size instead of the
+// history's. It never reaches into the lines already pending: those are
+// whole logical lines of their own.
+func (sb *Scrollback) reflowTailStart(width, height int) int {
+	width = max(width, 1)
+	start, rows := sb.Len(), 0
+	for start > sb.pending && rows <= height {
+		// One logical line, ending at start-1: walk back over the rows that
+		// soft-wrap into the next one.
+		cells := 0
+		for {
+			start--
+			p := (sb.head + start) % sb.maxLines
+			if w := sb.wraps[p]; w.Wrapped() {
+				cells += max(len(sb.lines[p])-w.Spacer(), 0)
+			} else {
+				cells += trimmedLen(sb.lines[p])
+			}
+			if start == sb.pending || !sb.LineWrap(start-1).Wrapped() {
+				break
+			}
+		}
+		rows += max(1, (cells+width-1)/width)
+	}
+	return start
+}
+
+// replaceTail keeps lines [0, from) and makes lines (oldest first) what
+// follows them, taking them as they are. When that comes to more than the
+// ring holds, the oldest lines go; it returns how many, for the caller to move
+// what hangs off line numbers by. It works in the ring in place, since a resize
+// step calls it with the whole history in front of a short tail. It does not
+// call onTrim, for the same reason replace does not.
+func (sb *Scrollback) replaceTail(from int, lines []uv.Line, wraps []LineWrap) (dropped int) {
+	n := sb.Len()
+	from = min(max(from, 0), n)
+	for i := from; i < n; i++ {
+		p := (sb.head + i) % sb.maxLines
+		sb.lines[p], sb.wraps[p] = nil, HardBreak
+	}
+	sb.tail = (sb.head + from) % sb.maxLines
+	length := from
+	for i, line := range lines {
+		if length == sb.maxLines {
+			// tail has come round to head: the oldest line goes.
+			sb.head = (sb.head + 1) % sb.maxLines
+			length--
+			dropped++
+		}
+		sb.lines[sb.tail], sb.wraps[sb.tail] = line, wraps[i]
+		sb.tail = (sb.tail + 1) % sb.maxLines
+		length++
+	}
+	sb.full = length == sb.maxLines
+	sb.pending = max(0, sb.pending-dropped)
+	return dropped
 }
 
 // appendTo appends the retained lines and how each ended, oldest first.
@@ -354,6 +439,7 @@ func (sb *Scrollback) SetMaxLines(maxLines int) {
 	sb.head = 0
 	sb.tail = newLen % maxLines
 	sb.full = (newLen == maxLines)
+	sb.pending = max(0, sb.pending-(oldLen-newLen))
 
 	// Downsizing dropped the oldest oldLen-newLen lines; re-base semantic
 	// markers so their AbsLine stays anchored to the oldest scrollback line,

@@ -145,6 +145,13 @@ type Emulator struct {
 
 	// semanticMarkers tracks OSC 133 shell integration markers
 	semanticMarkers *SemanticMarkerList
+
+	// reflowPending is set when a resize left scrollback lines to be laid out
+	// at the new width (see Screen.reflowResize); the scrollback accessors
+	// settle it before they read. reflowMu makes the settle happen once when
+	// several readers holding a shared lock get there together.
+	reflowPending atomic.Bool
+	reflowMu      sync.Mutex
 }
 
 // NewEmulator creates a new virtual terminal emulator.
@@ -292,7 +299,32 @@ func (e *Emulator) SetMainCell(x, y int, c *uv.Cell) {
 // Scrollback returns the scrollback buffer of the main screen.
 // Note: The alternate screen does not maintain scrollback.
 func (e *Emulator) Scrollback() *Scrollback {
+	e.settleReflow()
 	return e.scrs[0].Scrollback()
+}
+
+// settleReflow lays out the scrollback lines a resize left pending, so a
+// reader sees the whole history at the current width. It costs nothing
+// without a resize since the last one, and runs once when several readers
+// that share the IO lock arrive together; mutation otherwise happens under
+// the exclusive lock, which keeps them out.
+//
+// Only the accessors that hand the history out settle. The emulator's own
+// paths (OSC 133 markers, ED 3, command capture) work on the line numbers as
+// they stand, which the settle then moves with everything else, so a shell
+// redrawing its prompt after every resize step of a drag does not pay for
+// the whole history on each one.
+func (e *Emulator) settleReflow() {
+	if !e.reflowPending.Load() {
+		return
+	}
+	e.reflowMu.Lock()
+	defer e.reflowMu.Unlock()
+	if !e.reflowPending.Load() {
+		return
+	}
+	e.scrs[0].settleReflow(e.semanticMarkers)
+	e.reflowPending.Store(false)
 }
 
 // LineWrap returns how row y of the active screen ends: whether the guest's
@@ -321,6 +353,7 @@ func (e *Emulator) SetMainLineWrap(y int, w LineWrap) {
 // ScrollbackLineWrap returns how scrollback line index (0 is the oldest)
 // ended.
 func (e *Emulator) ScrollbackLineWrap(index int) LineWrap {
+	e.settleReflow()
 	if sb := e.scrs[0].Scrollback(); sb != nil {
 		return sb.LineWrap(index)
 	}
@@ -334,6 +367,7 @@ func (e *Emulator) ClearScrollback() {
 
 // ScrollbackLen returns the number of lines in the scrollback buffer.
 func (e *Emulator) ScrollbackLen() int {
+	e.settleReflow()
 	return e.scrs[0].ScrollbackLen()
 }
 
@@ -345,13 +379,13 @@ func (e *Emulator) SemanticMarkers() *SemanticMarkerList {
 // extractCommandText extracts the command text between a B marker position
 // and a C marker position. Called at C-marker time before output overwrites the buffer.
 func (e *Emulator) extractCommandText(bLine, bCol, cLine, _ int) string {
-	sbLen := e.ScrollbackLen()
+	sbLen := e.scrs[0].ScrollbackLen()
 	width := e.Width()
 	height := e.Height()
 
 	wrapOf := func(absLine int) LineWrap {
 		if absLine < sbLen {
-			return e.ScrollbackLineWrap(absLine)
+			return e.scrs[0].Scrollback().LineWrap(absLine)
 		}
 		return e.LineWrap(absLine - sbLen)
 	}
@@ -361,7 +395,7 @@ func (e *Emulator) extractCommandText(bLine, bCol, cLine, _ int) string {
 	readLine := func(absLine int) string {
 		var sb strings.Builder
 		if absLine < sbLen {
-			line := e.ScrollbackLine(absLine)
+			line := e.scrs[0].ScrollbackLine(absLine)
 			if line == nil {
 				return ""
 			}
@@ -422,6 +456,7 @@ func (e *Emulator) extractCommandText(bLine, bCol, cLine, _ int) string {
 // ScrollbackLine returns a line from the scrollback buffer at the given index.
 // Index 0 is the oldest line. Returns nil if index is out of bounds.
 func (e *Emulator) ScrollbackLine(index int) uv.Line {
+	e.settleReflow()
 	return e.scrs[0].ScrollbackLine(index)
 }
 
@@ -872,7 +907,14 @@ func (e *Emulator) Resize(width int, height int) {
 	// alternate screen is never reflowed; the program on it repaints.
 	main := &e.scrs[0]
 	if width > 0 && height > 0 && width != main.Width() {
-		if main.reflowResize(width, height, e.semanticMarkers) {
+		// Lines a reflow left for later belong to the last width laid out
+		// as much as to this one; settle them at whatever width the reader
+		// finds.
+		atEnd := main.reflowResize(width, height, e.semanticMarkers)
+		if sb := main.Scrollback(); sb != nil && sb.pending > 0 {
+			e.reflowPending.Store(true)
+		}
+		if atEnd {
 			// The cursor sits after text that now ends exactly at the edge:
 			// the next print wraps, as it would have at this width.
 			if e.scr == main {

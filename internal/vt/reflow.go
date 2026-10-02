@@ -506,7 +506,12 @@ func blankLine(width int) uv.Line {
 // up with the wrap pending (see reflower.locate); the caller owns that state.
 //
 // The scrollback and the screen are one run of rows for this, since a logical
-// line can start in the scrollback and continue on the screen. Once laid out,
+// line can start in the scrollback and continue on the screen. Only the lines
+// of the scrollback just above the screen are laid out here (see
+// Scrollback.reflowTailStart); the older ones are left pending, whole logical
+// lines that settleReflow lays out when something first reads the history.
+// That keeps a resize, and a drag of many of them, at the cost of a screen,
+// not of ten thousand lines of history nobody is looking at. Once laid out,
 // the screen starts on the row that holds what was in its top-left cell or, if
 // the text above the cursor shrank, as far up the scrollback as keeps the
 // cursor on its screen row. When the cursor would then be below the bottom,
@@ -523,8 +528,13 @@ func (s *Screen) reflowResize(width, height int, markers *SemanticMarkerList) bo
 	oldH := s.buf.Height()
 	sc := &s.reflowScratch
 	rows, wraps := sc.rows[:0], sc.wraps[:0]
+	// tailFrom is where the scrollback lines laid out now begin; lines before
+	// it keep their place (and their line numbers) until settleReflow.
+	tailFrom, maxLines := 0, 0
 	if s.scrollback != nil {
-		rows, wraps = s.scrollback.appendTo(rows, wraps)
+		tailFrom = s.scrollback.reflowTailStart(width, height)
+		maxLines = s.scrollback.MaxLines()
+		rows, wraps = s.scrollback.appendRange(rows, wraps, tailFrom, s.scrollback.Len())
 	}
 	base := len(rows)
 	rows = append(rows, s.buf.Lines...)
@@ -553,21 +563,33 @@ func (s *Screen) reflowResize(width, height int, markers *SemanticMarkerList) bo
 	screenTop := max(cy-(height-1), min(top, cy-curY), 0)
 	from := screenTop
 	if s.scrollback != nil {
-		from = max(0, screenTop-s.scrollback.MaxLines())
+		from = max(0, screenTop-maxLines)
 	}
 	end := min(screenTop+height, r.total)
 
-	// Before build, which recycles the rows locate reads.
+	// The ring holds maxLines: when the pending lines and the new tail come
+	// to more, the oldest pending ones go, as they would to a scroll.
+	dropped := 0
+	if s.scrollback != nil {
+		dropped = max(0, tailFrom+screenTop-from-maxLines)
+	}
+
+	// Before build, which recycles the rows locate reads. Marker lines count
+	// the whole scrollback; rows here start at tailFrom.
 	if markers != nil && markers.Len() > 0 {
 		markers.remap(func(line, col int) (int, int, bool) {
-			if line < 0 || line >= len(rows) {
+			if line < tailFrom {
+				return line - dropped, col, line >= dropped
+			}
+			line -= tailFrom
+			if line >= len(rows) {
 				return 0, 0, false
 			}
 			row, c, _ := r.locate(line, col)
 			if row < from || row >= end {
 				return 0, 0, false
 			}
-			return row - from, c, true
+			return tailFrom - dropped + row - from, c, true
 		})
 	}
 
@@ -575,7 +597,8 @@ func (s *Screen) reflowResize(width, height int, markers *SemanticMarkerList) bo
 
 	kept := screenTop - from
 	if s.scrollback != nil {
-		s.scrollback.replace(out[:kept], outWraps[:kept])
+		s.scrollback.replaceTail(tailFrom, out[:kept], outWraps[:kept])
+		s.scrollback.pending = tailFrom - dropped
 		s.scrollback.lastWidthCaptured = width
 	}
 
@@ -605,6 +628,50 @@ func (s *Screen) reflowResize(width, height int, markers *SemanticMarkerList) bo
 	s.cur.X, s.cur.Y = cx, cy-screenTop
 	s.saved.Position = s.clampPosition(uv.Pos(sx, sy-screenTop))
 	return atEnd
+}
+
+// settleReflow lays out the scrollback lines a resize left pending (see
+// reflowResize) at the screen's width, moving the markers on them and after
+// them with the line numbers. It is a no-op with nothing pending.
+func (s *Screen) settleReflow(markers *SemanticMarkerList) {
+	sb := s.scrollback
+	if sb == nil || sb.pending == 0 {
+		return
+	}
+	pending, n := sb.pending, sb.Len()
+	sc := &s.reflowScratch
+	rows, wraps := sb.appendRange(sc.rows[:0], sc.wraps[:0], 0, pending)
+	defer func() {
+		clear(rows)
+		sc.rows, sc.wraps = rows[:0], wraps[:0]
+		sc.r.release(max(2*s.buf.Height(), sc.r.total/8))
+	}()
+
+	r := &sc.r
+	r.reset(rows, wraps, s.buf.Width(), -1, 0)
+	// The ring holds maxLines; the newest lines stay, so any overflow comes
+	// off the top of what was pending.
+	from := min(max(0, r.total+n-pending-sb.MaxLines()), r.total)
+	shift := r.total - from - pending // how far the lines after it move
+
+	if markers != nil && markers.Len() > 0 {
+		markers.remap(func(line, col int) (int, int, bool) {
+			if line >= pending {
+				return line + shift, col, line+shift >= 0
+			}
+			if line < 0 {
+				return 0, 0, false
+			}
+			row, c, _ := r.locate(line, col)
+			return row - from, c, row >= from
+		})
+	}
+
+	out, outWraps := r.build(from, r.total, r.total)
+	all, allWraps := append([]uv.Line(nil), out...), append([]LineWrap(nil), outWraps...)
+	all, allWraps = sb.appendRange(all, allWraps, pending, n)
+	sb.replace(all, allWraps)
+	sb.pending = 0
 }
 
 // reflowScratch is what a screen keeps between reflows (see reflower).
