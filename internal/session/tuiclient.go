@@ -256,7 +256,7 @@ func (c *TUIClient) AttachSession(name string, createNew bool, width, height int
 		return nil, err
 	}
 
-	resp, err := c.recv()
+	resp, err := c.recvAttachReply()
 	if err != nil {
 		return nil, err
 	}
@@ -1371,6 +1371,27 @@ func (c *TUIClient) recv() (*Message, error) {
 	_ = c.conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 	msg, _, err := ReadMessageWithCodec(c.conn)
 	return msg, err
+}
+
+// recvAttachReply reads the daemon's reply to an attach request, skipping
+// session broadcasts that arrive ahead of it. The daemon records the
+// connection's session before it writes the reply, so another client joining,
+// leaving or resizing the session in that window broadcasts to this connection
+// first; failing the attach with "unexpected response" over one of those lost
+// whole attaches under load. The reply carries the session's full state and
+// size, so nothing the skipped broadcasts said is lost.
+func (c *TUIClient) recvAttachReply() (*Message, error) {
+	for {
+		resp, err := c.recv()
+		if err != nil {
+			return nil, err
+		}
+		switch resp.Type {
+		case MsgClientJoined, MsgClientLeft, MsgSessionResize, MsgStateSync, MsgForceRefresh:
+			continue
+		}
+		return resp, nil
+	}
 }
 
 // sendAndWaitResponse sends a message and waits for a response of the expected type.
