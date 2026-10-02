@@ -121,7 +121,7 @@ func (e *Emulator) repeatPreviousCharacter(n int) {
 		n = maxN
 	}
 	for range n {
-		e.handlePrint(e.lastChar)
+		e.handleGrapheme(e.lastGrapheme, e.lastGraphemeWidth)
 	}
 }
 

@@ -65,6 +65,99 @@ func (s *Screen) SetCell(x, y int, c *uv.Cell) {
 	s.buf.SetCell(x, y, c)
 }
 
+// prepareCell clears the way for a cell of width w about to be written at
+// (x, y), so no wide rune is left with only one of its halves.
+//
+// The buffer's Set repairs a wide rune whose lead is overwritten, but not one
+// whose lead sits under the last column of a wider new cell, and it blanks the
+// broken half with the old rune's attributes. Writing "世" over the lead of the
+// second of three "中" left the second 中's continuation standing on its own,
+// which a reader takes for part of the cell before it. Here every rune the new
+// cell cuts is broken up first, its leftover halves becoming erase cells in
+// the current background like the ones EL and ECH produce, and every cell the
+// new one covers is vacated so Set has nothing left to repair in the old style.
+//
+// The common case, a narrow cell over a narrow cell, costs one comparison.
+func (s *Screen) prepareCell(x, y, w int) {
+	if y < 0 || y >= len(s.buf.Lines) {
+		return
+	}
+	line := s.buf.Lines[y]
+	if x < 0 || x >= len(line) || (w <= 1 && line[x].Width == 1) {
+		return
+	}
+	s.prepareCellSlow(line, x, y, w)
+}
+
+// narrowAt reports whether (x, y) holds an ordinary one-column cell, the case
+// in which a narrow write needs no prepareCell. Small enough to inline.
+func (s *Screen) narrowAt(x, y int) bool {
+	lines := s.buf.Lines
+	return y >= 0 && y < len(lines) && x >= 0 && x < len(lines[y]) && lines[y][x].Width == 1
+}
+
+// prepareCellSlow is the part of prepareCell that actually cuts runes, kept
+// out of line so the check in front of it inlines into the print path.
+func (s *Screen) prepareCellSlow(line uv.Line, x, y, w int) {
+	end := min(x+max(w, 1), len(line))
+	lo, hi := x, end
+
+	blank := uv.EmptyCell
+	if c := s.blankCell(); c != nil {
+		blank = *c
+	}
+
+	// A continuation under the new cell's first column: the lead to its left
+	// loses its second half.
+	if line[x].Width == 0 {
+		for j := x - 1; j >= 0; j-- {
+			if lw := line[j].Width; lw != 0 {
+				if lw > 1 && j+lw > x {
+					for k := j; k < x; k++ {
+						line[k] = blank
+					}
+					lo = j
+				}
+				break
+			}
+		}
+	}
+	// A lead under the new cell whose continuation reaches past it.
+	for i := x; i < end; i++ {
+		if cw := line[i].Width; cw > 1 && i+cw > end {
+			stop := min(i+cw, len(line))
+			for k := end; k < stop; k++ {
+				line[k] = blank
+			}
+			hi = max(hi, stop)
+		}
+	}
+	for i := x; i < end; i++ {
+		if line[i].Width != 1 {
+			line[i] = blank
+		}
+	}
+	s.buf.TouchLine(lo, y, hi-lo)
+}
+
+// blankCells overwrites n cells from (x, y) with the erase cell, breaking up
+// any wide rune the run cuts.
+func (s *Screen) blankCells(x, y, n int) {
+	if n <= 0 || y < 0 || y >= len(s.buf.Lines) {
+		return
+	}
+	s.prepareCell(x, y, n)
+	line := s.buf.Lines[y]
+	blank := uv.EmptyCell
+	if c := s.blankCell(); c != nil {
+		blank = *c
+	}
+	for i := max(x, 0); i < x+n && i < len(line); i++ {
+		line[i] = blank
+	}
+	s.buf.TouchLine(x, y, n)
+}
+
 // Height returns the height of the screen.
 func (s *Screen) Height() int {
 	return s.buf.Height()
@@ -79,6 +172,42 @@ func (s *Screen) Resize(width int, height int) {
 	}
 	s.blankWideRunesCutByTheEdge()
 	s.scroll = s.buf.Bounds()
+}
+
+// resizeKeepingCursor resizes the screen the way a terminal resize does, for
+// the active and the inactive screen alike.
+//
+// When the height shrinks below the cursor row, the whole screen scrolls up so
+// that row stays on the bottom line, the rows leaving the top going into the
+// scrollback (the alternate screen keeps none, so it drops them). That scroll
+// ignores the guest's DECSTBM region: the region is about to be reset to the
+// full screen anyway, as xterm and ghostty reset it on resize, and scrolling
+// only inside it would delete the rows the cursor is meant to keep. The cursor
+// and the saved cursor (DECSC) follow the content they were on and are then
+// clamped into the new bounds, so neither a later print nor a DECRC lands
+// outside the grid. Wide runes cut by a narrower edge are blanked, in the
+// scrollback too.
+func (s *Screen) resizeKeepingCursor(width, height int) {
+	if n := s.cur.Y - (height - 1); n > 0 && height > 0 && s.buf.Height() > height {
+		s.scroll = s.buf.Bounds()
+		s.rotateWholeScreenUp(n, s.scrollback != nil)
+		s.cur.Y -= n
+		s.saved.Y -= n
+	}
+	s.Resize(width, height)
+	s.cur.Position = s.clampPosition(s.cur.Position)
+	s.saved.Position = s.clampPosition(s.saved.Position)
+	if s.scrollback != nil {
+		s.scrollback.blankWideRunesCutAt(width)
+	}
+}
+
+// clampPosition clamps p into the screen bounds.
+func (s *Screen) clampPosition(p uv.Position) uv.Position {
+	return uv.Pos(
+		clamp(p.X, 0, max(s.buf.Width()-1, 0)),
+		clamp(p.Y, 0, max(s.buf.Height()-1, 0)),
+	)
 }
 
 // blankWideRunesCutByTheEdge clears a double-width rune left sitting in the
@@ -244,8 +373,9 @@ func (s *Screen) RestoreCursor() {
 	hidden, style, steady := s.cur.Hidden, s.cur.Style, s.cur.Steady
 	s.cur = s.saved
 	s.cur.Hidden, s.cur.Style, s.cur.Steady = hidden, style, steady
-	s.cur.X = clamp(s.cur.X, 0, s.buf.Width()-1)
-	s.cur.Y = clamp(s.cur.Y, 0, s.buf.Height()-1)
+	// Resize clamps the saved cursor too; this guards any other path that
+	// changes the bounds between save and restore.
+	s.cur.Position = s.clampPosition(s.cur.Position)
 
 	if s.cb.CursorPosition != nil && (old.X != s.cur.X || old.Y != s.cur.Y) {
 		s.cb.CursorPosition(old, s.cur.Position)
@@ -627,6 +757,12 @@ func (s *Screen) ScrollbackLen() int {
 
 // ScrollbackLine returns the line at the specified index in the scrollback buffer.
 // Index 0 is the oldest line. Returns nil if the index is out of bounds.
+//
+// The line is the ring's own storage, not a copy. Once the ring is full, the
+// next scroll evicts the oldest line and rotateWholeScreenUp reuses that
+// storage as a live screen row, so a line obtained here must not be kept past
+// the lock (the window's IO lock) under which it was read; copy it if it has
+// to outlive that.
 func (s *Screen) ScrollbackLine(index int) uv.Line {
 	if s.scrollback == nil {
 		return nil

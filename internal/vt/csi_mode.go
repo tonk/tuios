@@ -241,6 +241,14 @@ func (e *Emulator) setMode(mode ansi.Mode, setting ansi.ModeSetting) {
 	if mode == ansi.ModeAutoWrap {
 		e.cachedAutoWrap.Store(setting.IsSet())
 	}
+	if mode == ansi.ModeInsertReplace {
+		e.cachedInsert.Store(setting.IsSet())
+	}
+}
+
+// insertMode reports IRM (ANSI mode 4) without touching the modes map.
+func (e *Emulator) insertMode() bool {
+	return e.cachedInsert.Load()
 }
 
 // autoWrapMode reports DECAWM (?7) without touching the modes map.

@@ -63,19 +63,29 @@ type Emulator struct {
 	// authoritative; this is a read-side shortcut for the one mode the hot loop
 	// asks about every character.
 	cachedAutoWrap atomic.Bool
+	// Thread-safe cached insert/replace flag (IRM, ANSI mode 4), read once per
+	// printed character for the same reason as cachedAutoWrap.
+	cachedInsert atomic.Bool
 	// Unix-nanos timestamp of the last sync begin, for the present-anyway timeout
 	syncSetAtNanos atomic.Int64
 	// Thread-safe cached kitty keyboard flags (updated on push/pop/set/reset)
 	cachedKittyFlags atomic.Int32
 
-	// The last written character.
-	lastChar rune // either ansi.Rune or ansi.Grapheme
+	// Non-zero while lastGrapheme holds something for REP to repeat (it holds
+	// lastGrapheme's leading byte); fullReset zeroes it.
+	lastChar rune
+	// The last printed cluster and its width, which REP (CSI b) repeats.
+	lastGrapheme      string
+	lastGraphemeWidth int
 	// A slice of runes to compose a grapheme.
 	grapheme []rune
 	// The cell handleGrapheme last drew into. A pending wrap makes the target
 	// differ from the cursor position observed beforehand, so it is recorded
-	// rather than recomputed.
+	// rather than recomputed. lastCellW is its width, 0 when there is no such
+	// cell to extend, and lastCellScr the screen it is on.
 	lastCellX, lastCellY int
+	lastCellW            int
+	lastCellScr          *Screen
 	// The cluster left open across a Write boundary, if any.
 	openGrapheme openGrapheme
 
@@ -795,51 +805,39 @@ func (e *Emulator) Resize(width int, height int) {
 	// no longer identifies that cluster. Close it.
 	e.openGrapheme = openGrapheme{}
 
-	x, y := e.scr.CursorPosition()
-	oldHeight := e.Height()
+	// The cell a combining mark would join is no longer where it was drawn.
+	e.lastCellW = 0
 
-	if e.atPhantom {
-		if x < width-1 {
-			e.atPhantom = false
-			x++
-		}
-	}
-
-	if y < 0 {
-		y = 0
-	}
-
-	// Auto-scroll to keep cursor visible when height is reduced.
-	// This prevents the prompt from going off-screen below the viewport.
-	if y >= height && oldHeight > height {
-		linesToScroll := y - (height - 1)
-		// Scroll content up (pushes lines to scrollback)
-		e.scr.ScrollUp(linesToScroll)
-		// Cursor moves to bottom of new viewport
-		y = height - 1
-	} else if y >= height {
-		y = height - 1
-	}
-
-	if x < 0 {
-		x = 0
-	}
-	if x >= width {
-		x = width - 1
-	}
+	old := e.scr.cur.Position
 
 	// Trigger scrollback reflow when width changes to handle soft-wrapping
 	if width != e.Width() && e.Scrollback() != nil {
 		e.Scrollback().Reflow(width)
 	}
 
-	e.scrs[0].Resize(width, height)
-	e.scrs[1].Resize(width, height)
+	// Both screens get the full treatment (auto-scroll to keep the cursor row,
+	// cursor and saved-cursor clamping), not only the active one: a guest that
+	// leaves the alternate screen after a resize must find its prompt and
+	// cursor inside the grid it returns to.
+	e.scrs[0].resizeKeepingCursor(width, height)
+	e.scrs[1].resizeKeepingCursor(width, height)
 	// Keep the stops the guest set; only columns the resize adds get the
 	// default every-8 stops.
 	e.tabstops.Resize(width)
 
-	e.setCursor(x, y)
+	// Pending wrap, as ghostty's Screen.resize does it: a cursor that waited
+	// at the right edge and is no longer on the last column (the screen grew)
+	// steps to the next cell and the wrap is dropped, so "abcde" on 5 columns
+	// grown to 8 continues "abcdeX" instead of overwriting the "e". A cursor
+	// still on the last column keeps its pending wrap.
+	if e.atPhantom && e.scr.cur.X < width-1 {
+		e.atPhantom = false
+		e.scr.cur.X++
+	}
+
+	if cur := e.scr.cur.Position; e.cb.CursorPosition != nil && cur != old {
+		e.cb.CursorPosition(old, cur)
+	}
 
 	if e.isModeSet(ansi.ModeInBandResize) {
 		_, _ = io.WriteString(e.pipe, ansi.InBandResize(e.Height(), e.Width(), 0, 0))

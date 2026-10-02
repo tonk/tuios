@@ -225,6 +225,29 @@ func (sb *Scrollback) Reflow(newWidth int) {
 	sb.lastWidthCaptured = newWidth
 }
 
+// blankWideRunesCutAt blanks, in every retained line wider than width, a
+// double-width rune whose lead sits in column width-1.
+//
+// Reflow above is a no-op, so lines keep the width they were captured at, and
+// a reader showing them in a narrower pane cuts them at the pane's edge. A
+// wide rune straddling that edge would be drawn whole and push the row one
+// cell past the pane, the same fault blankWideRunesCutByTheEdge prevents in the
+// live grid. Columns beyond the edge are left alone so a later widening shows
+// them again.
+func (sb *Scrollback) blankWideRunesCutAt(width int) {
+	if width <= 0 {
+		return
+	}
+	x := width - 1
+	for i, n := 0, sb.Len(); i < n; i++ {
+		line := sb.Line(i)
+		if len(line) > width && line[x].Width > 1 {
+			line[x].Empty()
+			line[x+1].Empty()
+		}
+	}
+}
+
 // SetCaptureWidth sets the terminal width at which scrollback lines are being captured.
 // Should be called from the emulator when processing output.
 func (sb *Scrollback) SetCaptureWidth(width int) {

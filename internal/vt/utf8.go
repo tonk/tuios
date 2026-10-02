@@ -1,7 +1,7 @@
 package vt
 
 import (
-	"unicode/utf8"
+	"unicode"
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
@@ -48,6 +48,9 @@ func (e *Emulator) handlePrint(r rune) {
 		}
 		e.handleGrapheme(asciiStr[r], 1)
 	} else {
+		if len(e.grapheme) == 0 && e.attachToLastCell(r) {
+			return
+		}
 		e.grapheme = append(e.grapheme, r)
 		if e.openGrapheme.active {
 			e.extendOpenGrapheme()
@@ -109,7 +112,7 @@ func (e *Emulator) flushGraphemeAtWriteEnd() {
 		cluster, width := ansi.FirstGraphemeCluster(graphemes, method)
 		e.handleGrapheme(cluster, width)
 		graphemes = graphemes[len(cluster):]
-		if len(graphemes) == 0 {
+		if len(graphemes) == 0 && e.lastCellW > 0 {
 			// handleGrapheme records where it actually drew, which is not
 			// derivable from the cursor beforehand: a pending wrap makes it
 			// index to the next line first.
@@ -142,28 +145,132 @@ func (e *Emulator) extendOpenGrapheme() {
 		return
 	}
 
-	cell := uv.Cell{
-		Content: cluster,
-		Width:   width,
-		Style:   e.scr.cursorPen(),
-		Link:    e.scr.cursorLink(),
+	og := e.openGrapheme
+	style, link := e.scr.cursorPen(), e.scr.cursorLink()
+	if c := e.scr.CellAt(og.x, og.y); c != nil && c.Width == og.width {
+		style, link = c.Style, c.Link
 	}
-	e.scr.SetCell(e.openGrapheme.x, e.openGrapheme.y, &cell)
+	e.lastCellX, e.lastCellY, e.lastCellW, e.lastCellScr = og.x, og.y, og.width, e.scr
+	e.redrawLastCell(cluster, width, style, link)
+	e.openGrapheme.x, e.openGrapheme.y, e.openGrapheme.width = e.lastCellX, e.lastCellY, e.lastCellW
+}
 
-	// A continuation can change the cluster's width (a variation selector turns
-	// a narrow base wide); move the cursor by the delta so following output
-	// still lands after it.
-	if width != e.openGrapheme.width {
-		x, y := e.scr.CursorPosition()
-		x += width - e.openGrapheme.width
-		x = max(x, 0)
-		if w := e.scr.Width(); x >= w {
-			x = w - 1
-			e.atPhantom = e.autoWrapMode()
-		}
-		e.scr.setCursor(x, y, false)
-		e.openGrapheme.width = width
+// mayExtendCluster reports whether r is a rune that can only ever continue a
+// grapheme cluster: a combining mark, a joiner, a variation selector, an emoji
+// modifier or a tag. It is a cheap filter in front of the full segmentation in
+// attachToLastCell, so ordinary non-ASCII text does not pay for it.
+func mayExtendCluster(r rune) bool {
+	switch {
+	case r == 0x200C || r == 0x200D, // ZWNJ, ZWJ
+		r >= 0xFE00 && r <= 0xFE0F,   // variation selectors
+		r >= 0x1F3FB && r <= 0x1F3FF, // emoji skin-tone modifiers
+		r >= 0xE0020 && r <= 0xE007F, // tags
+		r >= 0xE0100 && r <= 0xE01EF: // variation selectors supplement
+		return true
 	}
+	return unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc)
+}
+
+// attachToLastCell appends a cluster-extending rune to the cell drawn last,
+// and reports whether it did.
+//
+// The printable-ASCII fast path draws its byte straight into the grid without
+// going through the grapheme buffer, so a combining mark that follows an ASCII
+// base ("e" U+0301, "1" U+FE0F U+20E3) would otherwise reach the buffer on its
+// own and never join its base. Like ghostty and xterm, the mark joins the cell
+// the cursor has just left. That only holds while the cursor is still where
+// the last print left it; once it has moved, the rune is treated as the start
+// of a new cluster.
+func (e *Emulator) attachToLastCell(r rune) bool {
+	if e.lastCellW <= 0 || e.lastCellScr != e.scr || !mayExtendCluster(r) {
+		return false
+	}
+	cx, cy := e.scr.CursorPosition()
+	if cy != e.lastCellY || cx != min(e.lastCellX+e.lastCellW, e.scr.Width()-1) {
+		return false
+	}
+	prev := e.scr.CellAt(e.lastCellX, e.lastCellY)
+	if prev == nil || prev.Width != e.lastCellW || prev.Content == "" {
+		return false
+	}
+	s := prev.Content + string(r)
+	cluster, width := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+	if len(cluster) != len(s) {
+		return false
+	}
+	e.redrawLastCell(cluster, width, prev.Style, prev.Link)
+	return true
+}
+
+// redrawLastCell replaces the cell handleGrapheme drew last with a longer
+// version of the same cluster, which may be wider than the original.
+//
+// A cluster that keeps its width is rewritten in place, and the cursor, pending
+// wrap included, is left alone: appending a mark in the last column must not
+// consume the wrap. A cluster that widens is laid out as if it had arrived
+// whole: it grows into the next column or, when it no longer fits before the
+// right edge, the columns it held are blanked and it wraps to the next line.
+// Without auto-wrap it stays as it was, the way a wide rune that does not fit
+// is not printed at all.
+func (e *Emulator) redrawLastCell(content string, width int, style uv.Style, link uv.Link) {
+	x, y, oldW := e.lastCellX, e.lastCellY, e.lastCellW
+	if width <= 0 {
+		return
+	}
+	cell := uv.Cell{Content: content, Width: width, Style: style, Link: link}
+	if width == oldW {
+		e.scr.SetCell(x, y, &cell)
+		e.recordLast(content, width)
+		return
+	}
+
+	awm := e.autoWrapMode()
+	if right := e.scr.Width(); x+width > right {
+		if !awm || width > right {
+			return
+		}
+		e.scr.blankCells(x, y, right-x)
+		e.scr.setCursor(x, y, false)
+		e.index()
+		_, y = e.scr.CursorPosition()
+		x = 0
+	} else if width < oldW {
+		e.scr.blankCells(x+width, y, oldW-width)
+	}
+
+	e.scr.prepareCell(x, y, width)
+	e.scr.SetCell(x, y, &cell)
+	e.lastCellX, e.lastCellY, e.lastCellW = x, y, width
+	e.recordLast(content, width)
+	e.advanceAfterPrint(x, y, width, awm)
+}
+
+// recordLast remembers the cluster REP (CSI b) repeats. It is the whole
+// cluster with its width, so box drawing, CJK and emoji repeat as themselves.
+func (e *Emulator) recordLast(content string, width int) {
+	// lastChar only has to be non-zero while there is something to repeat
+	// (fullReset zeroes it); the leading byte says that without a decode.
+	if content != "" {
+		e.lastChar = rune(content[0])
+	}
+	e.lastGrapheme = content
+	e.lastGraphemeWidth = width
+}
+
+// advanceAfterPrint moves the cursor past a cell of the given width drawn at
+// (x, y). A cell that reaches the right edge leaves the cursor on the last
+// column with the wrap pending (when auto-wrap is on), whatever its width: a
+// double-width rune in the second-to-last column fills the line just as a
+// narrow one in the last column does.
+func (e *Emulator) advanceAfterPrint(x, y, width int, awm bool) {
+	if right := e.scr.Width(); x+width >= right {
+		x = right - 1
+		e.atPhantom = awm
+	} else {
+		x += width
+		e.atPhantom = false
+	}
+	e.scr.setCursor(x, y, false)
 }
 
 // handleGrapheme handles UTF-8 graphemes.
@@ -207,19 +314,56 @@ func (e *Emulator) handleGrapheme(content string, width int) {
 		}
 	}
 
-	if cell.Width == 1 && len(content) == 1 {
-		e.lastChar, _ = utf8.DecodeRuneInString(content)
+	if cell.Width <= 0 {
+		// A cluster with nothing to draw (a lone combining mark with no base
+		// to join, a zero-width space): like xterm and ghostty, ignore it
+		// rather than plant a zero-width cell that reads as a continuation.
+		e.lastCellW = 0
+		return
 	}
 
-	e.lastCellX, e.lastCellY = x, y
+	right := e.scr.Width()
+	if x+cell.Width > right {
+		// A wide rune in the last column.
+		if !awm || cell.Width > right {
+			// xterm (and ghostty, which follows it) neither prints the rune
+			// nor moves the cursor when it cannot wrap.
+			e.lastCellW = 0
+			return
+		}
+		// Blank what is left of the line, as ghostty's spacer head does, and
+		// wrap so the rune lands whole at the start of the next one.
+		e.scr.blankCells(x, y, right-x)
+		e.scr.setCursor(x, y, false)
+		e.index()
+		_, y = e.scr.CursorPosition()
+		x = 0
+	}
+
+	if e.insertMode() {
+		// IRM: shift the rest of the line right by the rune's width first.
+		e.scr.setCursor(x, y, false)
+		e.scr.InsertCell(cell.Width)
+	}
+
+	// REP repeats what the guest sent, before charset mapping, as the single
+	// rune bookkeeping this replaced did.
+	e.recordLast(content, width)
+
+	e.lastCellX, e.lastCellY, e.lastCellW, e.lastCellScr = x, y, cell.Width, e.scr
+	if cell.Width != 1 || !e.scr.narrowAt(x, y) {
+		e.scr.prepareCell(x, y, cell.Width)
+	}
 	e.scr.SetCell(x, y, &cell)
 
-	// Handle phantom state at the end of the line
-	e.atPhantom = awm && x >= e.scr.Width()-1
-	if !e.atPhantom {
-		x += cell.Width
-	}
-
 	// NOTE: We don't reset the phantom state here, we handle it up above.
+	// This is advanceAfterPrint, written out because it runs per character.
+	if x+cell.Width >= right {
+		x = right - 1
+		e.atPhantom = awm
+	} else {
+		x += cell.Width
+		e.atPhantom = false
+	}
 	e.scr.setCursor(x, y, false)
 }
