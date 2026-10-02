@@ -16,6 +16,7 @@ import (
 // examination is one the matrix's shapes never arranged: it comes into
 // existence part way through.
 func TestRehydrationAdoptsAPaneCreatedElsewhere(t *testing.T) {
+	skipWithoutPOSIXShell(t)
 	r := newRig(t, 1)
 
 	// The push the daemon sends every attached client is what materializes the
