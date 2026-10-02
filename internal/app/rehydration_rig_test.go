@@ -45,6 +45,8 @@ type rig struct {
 	// rebuiltWindows records whether the route under test closes and rebuilds
 	// the window set, which decides what client-local view state can survive.
 	rebuiltWindows bool
+	// shellReady records the panes whose shell has been seen at its prompt.
+	shellReady map[string]bool
 }
 
 // ownSocket gives this test its own daemon socket. The whole binary already
@@ -294,6 +296,7 @@ func (r *rig) ptySize(ptyID string) (int, int) {
 // pane is still producing while the caller goes on.
 func (r *rig) startPTY(ptyID, command string) {
 	r.t.Helper()
+	r.awaitShell(ptyID)
 	if err := r.ctl.WritePTY(ptyID, []byte(command+"\n")); err != nil {
 		r.t.Fatalf("write pty: %v", err)
 	}
@@ -303,6 +306,8 @@ func (r *rig) startPTY(ptyID, command string) {
 // holds no window for the pane at all.
 func (r *rig) feedPTY(ptyID, command, want string) {
 	r.t.Helper()
+	r.checkMarker(command, want)
+	r.awaitShell(ptyID)
 	if err := r.ctl.WritePTY(ptyID, []byte(command+"\n")); err != nil {
 		r.t.Fatalf("write pty: %v", err)
 	}
@@ -314,10 +319,45 @@ func (r *rig) feedPTY(ptyID, command, want string) {
 // side before anything is compared.
 func (r *rig) feed(w *terminal.Window, command, want string) {
 	r.t.Helper()
+	r.checkMarker(command, want)
+	r.awaitShell(w.PTYID)
 	if err := r.ctl.WritePTY(w.PTYID, []byte(command+"\n")); err != nil {
 		r.t.Fatalf("write pty: %v", err)
 	}
 	r.waitDaemonShows(w.PTYID, want)
+}
+
+// awaitShell waits, before the first command typed at a pane, for its shell to
+// reach its prompt. Typed any earlier, a command can be thrown away: bash,
+// which is /bin/sh on macOS, sets the terminal up when it starts and discards
+// whatever input had already arrived, and the wait for the command's output
+// then runs out with nothing on the screen. Every prompt the rig's shells
+// print ends in "$" (PS1 is "$ "; bash 3.2 in sh mode prints "sh-3.2$ "), and
+// nothing else is on a fresh pane to mistake for one.
+func (r *rig) awaitShell(ptyID string) {
+	r.t.Helper()
+	if r.shellReady[ptyID] {
+		return
+	}
+	rigWaitUntil(r.t, "the pane's shell to reach its prompt", func() bool {
+		return r.daemonShows(ptyID, "$")
+	})
+	if r.shellReady == nil {
+		r.shellReady = map[string]bool{}
+	}
+	r.shellReady[ptyID] = true
+}
+
+// checkMarker refuses a command that contains the marker its caller waits for.
+// The terminal echoes a command as it is typed, so a marker spelled out in the
+// command is on the screen before the command has run, and the wait returns
+// with the output still to come. Split it in the shell instead ('TAIL-''B'):
+// the output is the same and the echo no longer matches.
+func (r *rig) checkMarker(command, want string) {
+	r.t.Helper()
+	if strings.Contains(command, want) {
+		r.t.Fatalf("the command contains its own marker %q, so its echo would end the wait before it ran", want)
+	}
 }
 
 // waitDaemonShows blocks until the daemon's emulator shows want on screen or in
@@ -337,7 +377,26 @@ func (r *rig) daemonShows(ptyID, want string) bool {
 	if err != nil || st == nil {
 		return false
 	}
-	return strings.Contains(stateText(st), want)
+	return strings.Contains(unwrappedText(st), want)
+}
+
+// unwrappedText is stateText with soft wraps undone, for finding a marker in
+// output rather than for comparing screens. The rig's panes are narrow, so a
+// line of output can wrap in the middle of its marker, and a search row by row
+// then never finds it. The state carries no wrap flags, so a row written up to
+// its last cell is taken to continue on the next one, which is what a soft
+// wrap looks like.
+func unwrappedText(st *session.TerminalState) string {
+	var b strings.Builder
+	for _, rows := range [][][]session.CellState{st.Scrollback, st.Screen} {
+		for _, row := range rows {
+			b.WriteString(stateRow(row))
+			if n := len(row); n == 0 || row[n-1].Content == "" || row[n-1].Content == " " {
+				b.WriteByte('\n')
+			}
+		}
+	}
+	return b.String()
 }
 
 // converge waits for the two copies of a pane to agree, or gives up and lets

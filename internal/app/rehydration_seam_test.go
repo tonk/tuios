@@ -23,7 +23,7 @@ func TestResizeSeamStaysClosed(t *testing.T) {
 	skipWithoutPOSIXShell(t)
 	r := newRig(t, 1)
 	ptyID := r.win(0).PTYID
-	r.feedPTY(ptyID, `printf 'SW-READY\n'`, "SW-READY")
+	r.feedPTY(ptyID, `printf 'SW-''READY\n'`, "SW-READY")
 	w := r.winByPTY(ptyID)
 
 	// Bursts with pauses: a burst keeps bytes in flight on both sides while a
@@ -33,7 +33,7 @@ func TestResizeSeamStaysClosed(t *testing.T) {
 	r.startPTY(ptyID, `A=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA; `+
 		`i=1; while [ $i -le 12 ]; do j=1; while [ $j -le 25 ]; do `+
 		`echo "SW-$i-$j-$A"; j=$((j+1)); done; sleep 0.05; i=$((i+1)); done; `+
-		`echo SW-DONE`)
+		`echo SW-''DONE`)
 	r.waitDaemonShows(ptyID, "SW-1-1-")
 
 	full := w.Width
