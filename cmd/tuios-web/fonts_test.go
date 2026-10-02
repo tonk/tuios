@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -171,4 +172,20 @@ func TestResolveFontConfig(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestSpilledFontsAreRemoved is the regression test for tuios-web leaving a
+// copy of its bundled font in the temp directory on every run.
+func TestSpilledFontsAreRemoved(t *testing.T) {
+	_, path, err := resolveFontConfig("SauceCodePro", "")
+	if err != nil {
+		t.Fatalf("resolveFontConfig: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("the spilled font is not there to serve: %v", err)
+	}
+	removeSpilledFonts()
+	if _, err := os.Stat(filepath.Dir(path)); !os.IsNotExist(err) {
+		t.Errorf("the spilled font's directory %s is still there after removeSpilledFonts (stat err %v)", filepath.Dir(path), err)
+	}
 }

@@ -250,14 +250,15 @@ func runWebServer() error {
 		// Stop in-process daemon if we started one
 		session.StopInProcessDaemon()
 
-		// Force exit after short timeout or on second signal
+		// Force exit after short timeout or on second signal. os.Exit skips
+		// the deferred cleanup, so the spilled font goes first.
 		go func() {
 			select {
 			case <-c:
-				os.Exit(0)
 			case <-time.After(1 * time.Second):
-				os.Exit(0)
 			}
+			removeSpilledFonts()
+			os.Exit(0)
 		}()
 	}()
 
@@ -353,6 +354,7 @@ func runWebServer() error {
 	if err != nil {
 		return err
 	}
+	defer removeSpilledFonts()
 	sipConfig.FontFamily = fontFamily
 	sipConfig.FontPath = fontPath
 

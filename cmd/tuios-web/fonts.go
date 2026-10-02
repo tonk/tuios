@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // SauceCodePro Nerd Font Mono, SIL OFL 1.1 licensed (see fonts/SauceCodePro-LICENSE.txt),
@@ -126,8 +127,16 @@ func webFontCSSValue(key string) string {
 	return "'" + family + "', monospace"
 }
 
+// spilledFontDirs are the temporary directories spillBundledFont has made,
+// for removeSpilledFonts to take away again.
+var spilledFontDirs struct {
+	mu   sync.Mutex
+	dirs []string
+}
+
 // spillBundledFont writes an embedded font's bytes to a file sip's static
-// handler can os.ReadFile, once per process.
+// handler can os.ReadFile. sip reads it on every request, so it has to stay
+// for as long as the server runs; removeSpilledFonts removes it at exit.
 func spillBundledFont(bf bundledFont) (string, error) {
 	dir, err := os.MkdirTemp("", "tuios-web-font-")
 	if err != nil {
@@ -135,7 +144,24 @@ func spillBundledFont(bf bundledFont) (string, error) {
 	}
 	path := filepath.Join(dir, bf.filename)
 	if err := os.WriteFile(path, bf.data, 0o600); err != nil {
+		_ = os.RemoveAll(dir)
 		return "", err
 	}
+	spilledFontDirs.mu.Lock()
+	spilledFontDirs.dirs = append(spilledFontDirs.dirs, dir)
+	spilledFontDirs.mu.Unlock()
 	return path, nil
+}
+
+// removeSpilledFonts removes every font spillBundledFont wrote. Without it
+// each run of tuios-web left a directory holding a copy of the font in the
+// temp directory for good. Safe to call more than once.
+func removeSpilledFonts() {
+	spilledFontDirs.mu.Lock()
+	dirs := spilledFontDirs.dirs
+	spilledFontDirs.dirs = nil
+	spilledFontDirs.mu.Unlock()
+	for _, dir := range dirs {
+		_ = os.RemoveAll(dir)
+	}
 }
