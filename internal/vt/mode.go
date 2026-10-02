@@ -28,8 +28,12 @@ func (e *Emulator) resetModes() {
 		ansi.ModeAltScreenSaveCursor: ansi.ModeReset, // ?1049
 		ansi.ModeBracketedPaste:      ansi.ModeReset, // ?2004
 		ansi.ModeSynchronizedOutput:  ansi.ModeReset, // ?2026
-		ansi.ModeUnicodeCore:         ansi.ModeReset, // ?2027
-		ansi.ModeLightDark:           ansi.ModeReset, // ?2031
+		// ?2027: the emulator always lays text out by grapheme cluster
+		// (renderGraphemeBuffer uses ansi.GraphemeWidth unconditionally), so
+		// it reports the mode as permanently set rather than reset. A guest
+		// that asks then measures by the same rule the cells are placed by.
+		ansi.ModeUnicodeCore: ansi.ModePermanentlySet,
+		ansi.ModeLightDark:   ansi.ModeReset, // ?2031
 	}
 	e.modesMu.Unlock()
 

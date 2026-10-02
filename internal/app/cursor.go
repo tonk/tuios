@@ -2,6 +2,7 @@ package app
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/vt"
 )
 
@@ -46,15 +47,27 @@ func (m *OS) getRealCursor() *tea.Cursor {
 		return nil
 	}
 
-	window.RLockIO()
-	// Re-check under the lock: Close() nils Terminal while holding it.
-	if window.Terminal == nil {
+	// The cursor goes with the cells on screen. When the pane's content was
+	// last read from the emulator, the cursor was recorded with it; a frame
+	// held for a synchronized update, or served from cache while the pane is
+	// busy or being dragged, keeps showing that cursor rather than wherever
+	// the guest has moved it since. Only a pane never drawn reads it live.
+	var hidden bool
+	var pos struct{ X, Y int }
+	if rc := window.RenderedCursor; rc.Valid {
+		hidden, pos.X, pos.Y = rc.Hidden, rc.X, rc.Y
+	} else {
+		window.RLockIO()
+		// Re-check under the lock: Close() nils Terminal while holding it.
+		if window.Terminal == nil {
+			window.RUnlockIO()
+			return nil
+		}
+		hidden = window.Terminal.IsCursorHidden()
+		live := window.Terminal.CursorPosition()
 		window.RUnlockIO()
-		return nil
+		pos.X, pos.Y = live.X, live.Y
 	}
-	hidden := window.Terminal.IsCursorHidden()
-	pos := window.Terminal.CursorPosition()
-	window.RUnlockIO()
 
 	if hidden {
 		return nil
@@ -81,6 +94,18 @@ func (m *OS) getRealCursor() *tea.Cursor {
 	// DECSCUSR, then whatever the guest last asked for.
 	cursor.Blink = window.CursorBlink()
 	return cursor
+}
+
+// recordRenderedCursor stores the emulator cursor alongside content just read
+// from it. The caller holds the window's I/O read lock.
+func recordRenderedCursor(window *terminal.Window, screen *vt.Emulator) {
+	pos := screen.CursorPosition()
+	window.RenderedCursor = terminal.RenderedCursor{
+		X:      pos.X,
+		Y:      pos.Y,
+		Hidden: screen.IsCursorHidden(),
+		Valid:  true,
+	}
 }
 
 // mapCursorStyle converts vt.CursorStyle to tea.CursorShape.

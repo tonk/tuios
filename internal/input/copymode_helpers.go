@@ -138,18 +138,27 @@ func getScreenLineCells(term *vt.Emulator, y int) []uv.Cell {
 	return cells
 }
 
-// charIndexToColumn converts a character index in the text string to a column position
-// accounting for wide characters (emoji, nerd fonts, CJK, etc.)
+// charIndexToColumn converts a character (rune) index in the text built by
+// extractLineTextFromCells or extractScreenLineText to a column position.
 //
 // The cells array is structured so that each cell index IS the column position.
 // For wide characters (Width=2), the next cell is a continuation (Width=0).
+// A cell holds a whole grapheme cluster, which can be several runes: ❤️ is a
+// heart and a variation selector, é may be e and a combining accent. The text
+// carries every one of those runes, so the mapping has to advance by the
+// cell's rune count, not by one per cell, or every match after such a cell
+// lands a column too far right for each extra rune.
+//
 // Example:
 //
-//	Columns:  0  1  2  3  4  5
-//	Cells:   [🎨][] [f][i][l][e]
-//	Width:    2  0  1  1  1  1
-//	Text (skipping Width=0): "🎨file"
-//	Character index 1 ('f') → Column 2
+//	Columns:  0   1  2  3  4
+//	Cells:   [❤️][] [ ][a][b]
+//	Width:    2   0  1  1  1
+//	Text:    "❤\uFE0F ab" (runes: ❤, VS16, space, a, b)
+//	Character index 3 ('a') → Column 3
+//
+// An index that falls inside a multi-rune cluster maps to the column after
+// that cell, so a match end is never short of the cell it covers.
 func charIndexToColumn(cells []uv.Cell, charIndex int) int {
 	if charIndex <= 0 {
 		return 0
@@ -169,11 +178,16 @@ func charIndexToColumn(cells []uv.Cell, charIndex int) int {
 
 		// If we've reached the target character index, return the column
 		// (which is the cell index)
-		if charsProcessed == charIndex {
+		if charsProcessed >= charIndex {
 			return col
 		}
 
-		charsProcessed++
+		// Empty content is extracted as a single space.
+		if cell.Content == "" {
+			charsProcessed++
+		} else {
+			charsProcessed += utf8.RuneCountInString(cell.Content)
+		}
 	}
 
 	// Past the end - return the last column

@@ -87,8 +87,11 @@ func unpackDiffAttrs(attrs uint16) uint8 {
 }
 
 // UpdateThemeColors pushes the active theme's palette into the emulator so
-// already-rendered SGR indexed colors resolve to the new theme on the next
-// render. SetThemeColors mutates the emulator's color table, which the PTY
+// palette colors already on screen resolve to the new theme on the next
+// render: cells keep SGR 30-37/90-97 and 38;5;n as palette entries and the
+// renderer resolves them through Emulator.ResolveColor every frame. Cells
+// that arrived as RGB (the daemon screen-diff protocol packs colors as RGBA)
+// keep the shade they were sent in. SetThemeColors mutates the emulator's color table, which the PTY
 // reader goroutine reads under ioMu inside Terminal.Write, so it is taken here
 // (this runs on the UI goroutine) to avoid a torn interface-value read.
 func (w *Window) UpdateThemeColors() {

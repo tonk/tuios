@@ -7,20 +7,11 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// parseThemedColor parses an indexed or RGB color from SGR params, using theme colors for indices 0-15.
-// Returns the color and the number of extra params consumed (to add to loop index).
-func (e *Emulator) parseThemedColor(params ansi.Params, i int) (color.Color, int) {
-	// Check if this is indexed color format (X;5;n) and if n is 0-15
-	if i+2 < len(params) {
-		next, _, _ := params.Param(i+1, -1)
-		if next == 5 {
-			colorIndex, _, _ := params.Param(i+2, -1)
-			if colorIndex >= 0 && colorIndex <= 15 {
-				return e.IndexedColor(colorIndex), 2
-			}
-		}
-	}
-	// For all other cases (indices 16-255, RGB colors, etc), use standard reading
+// parseStyleColor parses an extended (38/48/58) color from SGR params.
+// Returns the color and the number of extra params consumed (to add to loop
+// index). A palette entry stays a palette entry (ansi.IndexedColor): it is
+// resolved through the theme when the cell is drawn, not here.
+func parseStyleColor(params ansi.Params, i int) (color.Color, int) {
 	var c color.Color
 	n := ansi.ReadStyleColor(params[i:], &c)
 	if n > 0 {
@@ -29,21 +20,22 @@ func (e *Emulator) parseThemedColor(params ansi.Params, i int) (color.Color, int
 	return nil, 0
 }
 
-// handleSgr handles SGR escape sequences.
 // handleSgr handles Select Graphic Rendition (SGR) escape sequences.
+//
+// Cells keep palette colors as palette colors (ansi.BasicColor for 0-15,
+// ansi.IndexedColor for 38;5;n) with or without a theme; the renderer
+// resolves them through ResolveColor every frame, so a theme switch also
+// recolors output already on screen. With no theme step left at write time,
+// the same reader serves both cases, and it knows codes uv.ReadStyle does not
+// (SGR 21, double underline).
 func (e *Emulator) handleSgr(params ansi.Params) {
-	// If theming is disabled or no theme colors are set, use standard ultraviolet handling
-	if !e.hasThemeColors() {
-		uv.ReadStyle(params, &e.scr.cur.Pen)
-		return
-	}
-
-	e.readStyleWithTheme(params, &e.scr.cur.Pen)
+	readStyle(params, &e.scr.cur.Pen)
 }
 
-// readStyleWithTheme reads SGR sequences using our theme colors instead of hardcoded ANSI colors.
-// This is based on uv.ReadStyle but uses IndexedColor to resolve theme colors.
-func (e *Emulator) readStyleWithTheme(params ansi.Params, pen *uv.Style) {
+// readStyle reads SGR sequences into pen. It is based on uv.ReadStyle and
+// stores the same colour values it does; the theme is applied at render time
+// (see ResolveColor).
+func readStyle(params ansi.Params, pen *uv.Style) {
 	if len(params) == 0 {
 		*pen = uv.Style{}
 		return
@@ -112,35 +104,35 @@ func (e *Emulator) readStyleWithTheme(params ansi.Params, pen *uv.Style) {
 			pen.Attrs &^= uv.AttrConceal
 		case 29: // Not crossed out
 			pen.Attrs &^= uv.AttrStrikethrough
-		case 30, 31, 32, 33, 34, 35, 36, 37: // Set foreground - USE THEME COLORS
-			pen.Fg = e.IndexedColor(int(param - 30))
+		case 30, 31, 32, 33, 34, 35, 36, 37: // Set foreground (palette 0-7)
+			pen.Fg = ansi.BasicColor(param - 30) //nolint:gosec
 		case 38: // Set foreground 256 or truecolor
-			if c, skip := e.parseThemedColor(params, i); c != nil {
+			if c, skip := parseStyleColor(params, i); c != nil {
 				pen.Fg = c
 				i += skip
 			}
 		case 39: // Default foreground
 			pen.Fg = nil
-		case 40, 41, 42, 43, 44, 45, 46, 47: // Set background - USE THEME COLORS
-			pen.Bg = e.IndexedColor(int(param - 40))
+		case 40, 41, 42, 43, 44, 45, 46, 47: // Set background (palette 0-7)
+			pen.Bg = ansi.BasicColor(param - 40) //nolint:gosec
 		case 48: // Set background 256 or truecolor
-			if c, skip := e.parseThemedColor(params, i); c != nil {
+			if c, skip := parseStyleColor(params, i); c != nil {
 				pen.Bg = c
 				i += skip
 			}
 		case 49: // Default Background
 			pen.Bg = nil
 		case 58: // Set underline color
-			if c, skip := e.parseThemedColor(params, i); c != nil {
+			if c, skip := parseStyleColor(params, i); c != nil {
 				pen.UnderlineColor = c
 				i += skip
 			}
 		case 59: // Default underline color
 			pen.UnderlineColor = nil
-		case 90, 91, 92, 93, 94, 95, 96, 97: // Set bright foreground - USE THEME COLORS
-			pen.Fg = e.IndexedColor(int(param - 90 + 8)) // 8-15 are bright colors
-		case 100, 101, 102, 103, 104, 105, 106, 107: // Set bright background - USE THEME COLORS
-			pen.Bg = e.IndexedColor(int(param - 100 + 8)) // 8-15 are bright colors
+		case 90, 91, 92, 93, 94, 95, 96, 97: // Set bright foreground (palette 8-15)
+			pen.Fg = ansi.BasicColor(param - 90 + 8) //nolint:gosec
+		case 100, 101, 102, 103, 104, 105, 106, 107: // Set bright background (palette 8-15)
+			pen.Bg = ansi.BasicColor(param - 100 + 8) //nolint:gosec
 		default:
 			// Delegate any scalar attribute code this switch does not
 			// special-case to the canonical uv reader, so the themed path

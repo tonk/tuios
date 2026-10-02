@@ -217,7 +217,7 @@ func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {
 			}
 		}
 
-		window.ClearDirtyFlags()
+		clearDirtyAfterRender(window)
 	}
 
 	// Add shared border separator overlay when active (not in scrolling mode)
@@ -258,6 +258,19 @@ func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {
 	canvas.Compose(lipgloss.NewCompositor(layers...))
 
 	return canvas
+}
+
+// clearDirtyAfterRender clears a window's dirty flags once its box has been
+// drawn, except ContentDirty, which is renderTerminal's to decide. It leaves
+// the flag set on purpose when the frame it drew is not the emulator's true
+// state: a blank frame caught between an application clearing the screen and
+// painting it (cacheRender), a busy pane served from its previous frame, or a
+// dragged pane served from cache. Clearing it here undid that, so such a pane
+// kept showing the stale frame until its guest happened to write again.
+func clearDirtyAfterRender(window *terminal.Window) {
+	contentDirty := window.ContentDirty
+	window.ClearDirtyFlags()
+	window.ContentDirty = contentDirty
 }
 
 // fitToContentBox trims a rendered pane body to the window's content
@@ -458,7 +471,7 @@ func (m *OS) buildFullscreenFrame(window *terminal.Window) string {
 		}
 	}
 	boxContent := m.renderWindowBox(window, windowIndex, isFocused, borderColorObj)
-	window.ClearDirtyFlags()
+	clearDirtyAfterRender(window)
 	// The fast path does not build a CachedLayer, so the one still held here was
 	// captured the last time the compositor ran (potentially seconds ago). Nil it
 	// so that when the fast path is later disqualified (tmux prefix, an overlay),

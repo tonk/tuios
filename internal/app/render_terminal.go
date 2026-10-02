@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -10,6 +9,7 @@ import (
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/theme"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Highlight styles used by the terminal render loop, built fresh each call
@@ -36,26 +36,100 @@ func searchMatchStyle() lipgloss.Style {
 }
 
 // isBlankRender reports whether a rendered frame carries no visible text, so
-// styling and cursor positioning alone do not count as content. It walks bytes
-// and returns on the first visible one, so the ordinary non-blank frame costs a
-// few comparisons and no allocation.
+// styling and cursor positioning alone do not count as content. A space drawn
+// with a background colour or in reverse video is visible, though: a pane
+// painted as a coloured block (a status bar, a TUI's backdrop) is content,
+// and treating it as blank kept it from ever being cached. It walks bytes and
+// returns on the first visible one, so the ordinary non-blank frame costs a few
+// comparisons and no allocation.
 func isBlankRender(s string) bool {
+	painted := false // a background colour or reverse video is in force
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		switch {
 		case c == 0x1b:
-			// Skip an escape sequence up to its final byte.
+			// Skip an escape sequence up to its final byte, reading SGR
+			// parameters on the way.
 			i++
+			csi := i < len(s) && s[i] == '['
+			start := i + 1
 			for i < len(s) && !((s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= 'a' && s[i] <= 'z')) {
 				i++
 			}
-		case c == ' ', c == '\n', c == '\r', c == '\t':
+			if csi && i < len(s) && s[i] == 'm' {
+				painted = sgrPaints(s[start:i], painted)
+			}
+		case c == ' ':
+			if painted {
+				return false
+			}
+		case c == '\n', c == '\r', c == '\t':
 			// Whitespace is not content.
 		default:
 			return false
 		}
 	}
 	return true
+}
+
+// sgrPaints applies the parameters of one SGR sequence to whether a blank cell
+// would show: true while a background colour or reverse video is set. It
+// parses in place, so the blank check stays allocation free.
+func sgrPaints(params string, painted bool) bool {
+	if params == "" {
+		return false
+	}
+	skip := 0 // arguments of an extended colour still to pass over
+	for len(params) > 0 {
+		end := strings.IndexAny(params, ";:")
+		field := params
+		if end >= 0 {
+			field, params = params[:end], params[end+1:]
+		} else {
+			params = ""
+		}
+		n, ok := 0, field != ""
+		for k := 0; k < len(field); k++ {
+			if field[k] < '0' || field[k] > '9' {
+				ok = false
+				break
+			}
+			n = n*10 + int(field[k]-'0')
+		}
+		if skip != 0 {
+			// The first argument selects the form: 5 takes one more, 2 three.
+			if skip == -1 {
+				switch n {
+				case 5:
+					skip = 1
+				case 2:
+					skip = 3
+				default:
+					skip = 0
+				}
+				continue
+			}
+			skip--
+			continue
+		}
+		if !ok && field != "" {
+			continue
+		}
+		switch {
+		case field == "", n == 0, n == 49, n == 27:
+			painted = false
+		case n == 7, n >= 40 && n <= 47, n >= 100 && n <= 107:
+			painted = true
+		case n == 38 || n == 48 || n == 58:
+			// Extended colour: skip its arguments so they are not read as
+			// codes of their own (48;2;7;... is not reverse video).
+			if n == 48 {
+				painted = true
+			}
+			skip = -1
+		}
+	}
+	return painted
 }
 
 // cacheRender stores a freshly rendered frame as the window's cached content and
@@ -112,6 +186,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 	if window.Terminal == nil {
 		window.CachedContent = "Terminal not initialized"
+		window.ContentDirty = false
 		if renderTraceEnabled {
 			traceRender(window, isFocused, inTerminalMode, entryDirty, "no-terminal", window.CachedContent)
 		}
@@ -121,6 +196,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 	screen := window.Terminal
 	if screen == nil {
 		window.CachedContent = "No screen"
+		window.ContentDirty = false
 		if renderTraceEnabled {
 			traceRender(window, isFocused, inTerminalMode, entryDirty, "no-screen", window.CachedContent)
 		}
@@ -164,11 +240,16 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 	}
 	defer window.RUnlockIO()
 
-	// Fast path for unfocused windows: use the emulator's built-in Render()
-	// which is faster than cell-by-cell iteration. The focused window uses
-	// the slow path for cursor overlay and selection highlighting.
+	// Fast path for unfocused windows: a straight pen-tracking walk over the
+	// cells, with no per-cell overlay checks. The focused window uses the slow
+	// path for cursor overlay and selection highlighting.
 	if !isFocused && window.CopyMode == nil && window.ScrollbackOffset == 0 {
-		rendered := screen.Render()
+		// renderCellScreen rather than the emulator's own Render: it applies
+		// the theme to palette colours, which the cells keep unresolved, and
+		// tells a palette colour from the same shade in RGB. Its output carries
+		// every attribute the focused path below draws.
+		rendered := renderCellScreen(screen, screen.ResolveColor)
+		recordRenderedCursor(window, screen)
 		cacheRender(window, rendered)
 		if renderTraceEnabled {
 			traceRender(window, isFocused, inTerminalMode, entryDirty, "fast-unfocused", rendered)
@@ -188,6 +269,8 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 	cursor := screen.CursorPosition()
 	cursorX := cursor.X
 	cursorY := cursor.Y
+	recordRenderedCursor(window, screen)
+	resolve := colorResolver(screen.ResolveColor)
 
 	builder := pool.GetStringBuilder()
 	defer pool.PutStringBuilder(builder)
@@ -327,11 +410,26 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 	// instead of rebuilding them via styleToANSI. currentStyleCached gates that.
 	var currentStyleCached bool
 	var currentPrefix, currentSuffix string
+	// currentLink is the OSC 8 hyperlink the batch is written under.
+	var currentLink uv.Link
+	// prevCell is the cell the batch was last extended with. It points at
+	// prevCellValue, a copy, because the cell the loop styles is a resolved
+	// copy that is reused for the next column.
 	var prevCell *uv.Cell
+	var prevCellValue uv.Cell
 	var prevIsCursor bool
+	var resolvedCell uv.Cell
+	// Resolved once per run of identically styled cells, not per cell.
+	var styles styleMemo
+	// prevGen is the styles gen prevCell was resolved under, 0 when it was
+	// not resolved through styles.
+	var prevGen uint64
 
 	flushBatch := func() {
 		if batchBuilder.Len() > 0 {
+			if currentLink.URL != "" {
+				builder.WriteString(ansi.SetHyperlink(currentLink.URL, currentLink.Params))
+			}
 			if batchHasStyle {
 				if currentStyleCached {
 					if currentPrefix == "" {
@@ -347,26 +445,20 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 			} else {
 				builder.WriteString(batchBuilder.String())
 			}
+			if currentLink.URL != "" {
+				builder.WriteString(ansi.ResetHyperlink())
+			}
 			batchBuilder.Reset()
 			batchHasStyle = false
 			currentStyleCached = false
+			currentLink = uv.Link{}
 		}
 	}
 
-	safeColorEquals := func(a, b color.Color) bool {
-		// Adjacent cells almost always share the same color interface value, so
-		// compare identity before falling back to the four RGBA computations.
-		if a == b {
-			return true
-		}
-		if a == nil || b == nil {
-			return false
-		}
-		ar, ag, ab, aa := a.RGBA()
-		br, bg, bb, ba := b.RGBA()
-		return ar == br && ag == bg && ab == bb && aa == ba
-	}
-
+	// styleMatches decides whether cell may join the current batch. It
+	// compares everything the batch's escape is built from: the colours by
+	// kind as well as value (a palette red and #800000 are different escapes),
+	// every attribute, the underline style and colour, and the hyperlink.
 	styleMatches := func(cell *uv.Cell, isCursorPos bool) bool {
 		if prevCell == nil && cell == nil {
 			return prevIsCursor == isCursorPos
@@ -375,9 +467,8 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 			return false
 		}
 		return prevIsCursor == isCursorPos &&
-			safeColorEquals(prevCell.Style.Fg, cell.Style.Fg) &&
-			safeColorEquals(prevCell.Style.Bg, cell.Style.Bg) &&
-			prevCell.Style.Attrs == cell.Style.Attrs
+			(prevGen == styles.gen || cellStylesIdentical(&prevCell.Style, &cell.Style)) &&
+			prevCell.Link == cell.Link
 	}
 
 	for y := range maxY {
@@ -513,6 +604,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 				builder.WriteString(renderStyledText(visualSelectionStyle(), char))
 				prevCell = cell
+				prevGen = 0
 				prevIsCursor = false
 				cellWidth := 1
 				if cell != nil && cell.Width > 1 {
@@ -528,6 +620,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 					builder.WriteString(renderStyledText(currentMatchStyle(), char))
 					prevCell = cell
+					prevGen = 0
 					prevIsCursor = false
 					cellWidth := 1
 					if cell != nil && cell.Width > 1 {
@@ -542,6 +635,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 					builder.WriteString(renderStyledText(searchMatchStyle(), char))
 					prevCell = cell
+					prevGen = 0
 					prevIsCursor = false
 					cellWidth := 1
 					if cell != nil && cell.Width > 1 {
@@ -549,6 +643,17 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 					}
 					x += cellWidth
 					continue
+				}
+			}
+
+			// Style the cell in the colours it is drawn in: palette entries
+			// resolve through the active theme here, every frame, so a theme
+			// switch repaints text that is already on screen.
+			if cell != nil {
+				if style, same := styles.resolve(&cell.Style, resolve); !same {
+					resolvedCell = *cell
+					resolvedCell.Style = *style
+					cell = &resolvedCell
 				}
 			}
 
@@ -574,9 +679,18 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				currentStyleCached = true
 				batchHasStyle = true
 			}
+			if batchBuilder.Len() == 0 && cell != nil {
+				currentLink = cell.Link
+			}
 			batchBuilder.WriteString(char)
 
-			prevCell = cell
+			if cell != nil {
+				prevCellValue = *cell
+				prevCell = &prevCellValue
+				prevGen = styles.gen
+			} else {
+				prevCell = nil
+			}
 			prevIsCursor = isCursorPos
 
 			cellWidth := 1

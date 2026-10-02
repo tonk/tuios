@@ -286,8 +286,13 @@ func (m *OS) reportConfigWarnings() {
 func (m *OS) Init() tea.Cmd {
 	m.reportConfigWarnings()
 	m.applyTerminalTitle()
+	return tea.Batch(m.initCmds()...)
+}
 
+// initCmds returns the commands Init starts the program with.
+func (m *OS) initCmds() []tea.Cmd {
 	cmds := []tea.Cmd{
+		reportGraphemeWidth,
 		TickCmd(),
 		ListenForWindowExits(m.WindowExitChan),
 		ListenForPTYData(m.PTYDataChan),
@@ -334,7 +339,7 @@ func (m *OS) Init() tea.Cmd {
 		cmds = append(cmds, m.LuaBridge.Listen(), listenForLuaDone(m.luaDone))
 	}
 
-	return tea.Batch(cmds...)
+	return cmds
 }
 
 // ListenForWindowExits creates a command that listens for window process exits.

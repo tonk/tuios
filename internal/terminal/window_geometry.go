@@ -263,6 +263,21 @@ func (w *Window) ClearDirtyFlags() {
 	w.PositionDirty = false
 }
 
+// RenderedCursor records where the emulator's cursor was, and whether it was
+// hidden, when a pane's content was last read from the emulator.
+//
+// A pane is not always drawn from the emulator's live state. A synchronized
+// update (DEC 2026) holds the last complete frame until the guest finishes; a
+// pane whose output lock is busy serves its previous frame; a pane being
+// dragged serves its cache. The host cursor has to come from the same moment
+// as the cells it sits on, or it jumps to where the guest is halfway through
+// drawing while the screen still shows the frame before.
+type RenderedCursor struct {
+	X, Y   int
+	Hidden bool
+	Valid  bool
+}
+
 // InvalidateCache invalidates the cached content.
 func (w *Window) InvalidateCache() {
 	w.CachedLayer = nil

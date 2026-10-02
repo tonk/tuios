@@ -231,7 +231,9 @@ go run ./cmd/tuios tape play examples/demo.tape
 
 ### VT Emulator
 
-- Theme colors only apply to ANSI colors 0-15
+- Theme colors only apply to ANSI colors 0-15. Cells keep them as palette
+  entries; the renderer resolves them through `Emulator.ResolveColor`, so a
+  theme switch recolours text already on screen
 - RGB/truecolor passes through unchanged
 - Background is transparent (nil) for TUI app compatibility
 

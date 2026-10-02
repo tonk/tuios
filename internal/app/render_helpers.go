@@ -416,15 +416,18 @@ func renderStyledText(style lipgloss.Style, text string) string {
 	return prefix + text + suffix
 }
 
+// shouldApplyStyle reports whether cell needs any escape at all: a colour, a
+// text attribute, an underline, or a hyperlink.
 func shouldApplyStyle(cell *uv.Cell) bool {
 	if cell == nil {
 		return false
 	}
-	return cell.Style.Fg != nil || cell.Style.Bg != nil || cell.Style.Attrs != 0
+	return !cell.Style.IsZero() || cell.Link.URL != ""
 }
 
 // buildOptimizedCellStyleCachedANSI returns the cached style together with its
 // cached ANSI escape prefix/suffix, avoiding a styleToANSI rebuild on flush.
+// It keeps every attribute, exactly like buildCellStyleCachedANSI.
 func buildOptimizedCellStyleCachedANSI(cell *uv.Cell) (lipgloss.Style, string, string) {
 	return GetGlobalStyleCache().GetWithANSI(cell, false, true)
 }
@@ -435,29 +438,20 @@ func buildCellStyleCachedANSI(cell *uv.Cell, isCursor bool) (lipgloss.Style, str
 	return GetGlobalStyleCache().GetWithANSI(cell, isCursor, false)
 }
 
-func buildOptimizedCellStyle(cell *uv.Cell) lipgloss.Style {
-	cellStyle := lipgloss.NewStyle()
-
+// cellDisplayStyle is the uv.Style a cell is drawn with: its own, or the fake
+// cursor block over it.
+func cellDisplayStyle(cell *uv.Cell, isCursor bool) uv.Style {
 	if cell == nil {
-		return cellStyle
-	}
-
-	if cell.Style.Fg != nil {
-		if ansiColor, ok := cell.Style.Fg.(lipgloss.ANSIColor); ok {
-			cellStyle = cellStyle.Foreground(ansiColor)
-		} else if isColorSafe(cell.Style.Fg) {
-			cellStyle = cellStyle.Foreground(cell.Style.Fg)
+		if isCursor {
+			return cursorCellStyle(uv.Style{})
 		}
+		return uv.Style{}
 	}
-	if cell.Style.Bg != nil {
-		if ansiColor, ok := cell.Style.Bg.(lipgloss.ANSIColor); ok {
-			cellStyle = cellStyle.Background(ansiColor)
-		} else if isColorSafe(cell.Style.Bg) {
-			cellStyle = cellStyle.Background(cell.Style.Bg)
-		}
+	style := resolveCellStyle(cell.Style, nil)
+	if isCursor {
+		return cursorCellStyle(style)
 	}
-
-	return cellStyle
+	return style
 }
 
 func isColorSafe(c color.Color) bool {
@@ -485,67 +479,44 @@ func isColorSafe(c color.Color) bool {
 	}
 }
 
+// buildCellStyle returns the lipgloss rendering of the style a cell is drawn
+// with. lipgloss has no conceal or rapid blink, so the escape the render loop
+// writes comes from cellDisplayStyle instead (see styleEntry); this is kept for
+// callers that want a lipgloss.Style.
 func buildCellStyle(cell *uv.Cell, isCursor bool) lipgloss.Style {
+	display := cellDisplayStyle(cell, isCursor)
 	cellStyle := lipgloss.NewStyle()
-
-	if cell == nil {
-		return cellStyle
+	if display.Fg != nil {
+		cellStyle = cellStyle.Foreground(display.Fg)
 	}
-
-	if isCursor {
-		fg := lipgloss.Color("#FFFFFF")
-		bg := lipgloss.Color("#000000")
-		if cell.Style.Fg != nil {
-			if ansiColor, ok := cell.Style.Fg.(lipgloss.ANSIColor); ok {
-				fg = ansiColor
-			} else if isColorSafe(cell.Style.Fg) {
-				fg = cell.Style.Fg
-			}
-		}
-		if cell.Style.Bg != nil {
-			if ansiColor, ok := cell.Style.Bg.(lipgloss.ANSIColor); ok {
-				bg = ansiColor
-			} else if isColorSafe(cell.Style.Bg) {
-				bg = cell.Style.Bg
-			}
-		}
-		return cellStyle.Background(fg).Foreground(bg)
+	if display.Bg != nil {
+		cellStyle = cellStyle.Background(display.Bg)
 	}
-
-	if cell.Style.Fg != nil {
-		if ansiColor, ok := cell.Style.Fg.(lipgloss.ANSIColor); ok {
-			cellStyle = cellStyle.Foreground(ansiColor)
-		} else if isColorSafe(cell.Style.Fg) {
-			cellStyle = cellStyle.Foreground(cell.Style.Fg)
-		}
+	attrs := display.Attrs
+	if attrs&uv.AttrBold != 0 {
+		cellStyle = cellStyle.Bold(true)
 	}
-	if cell.Style.Bg != nil {
-		if ansiColor, ok := cell.Style.Bg.(lipgloss.ANSIColor); ok {
-			cellStyle = cellStyle.Background(ansiColor)
-		} else if isColorSafe(cell.Style.Bg) {
-			cellStyle = cellStyle.Background(cell.Style.Bg)
-		}
+	if attrs&uv.AttrFaint != 0 {
+		cellStyle = cellStyle.Faint(true)
 	}
-
-	if cell.Style.Attrs != 0 {
-		attrs := cell.Style.Attrs
-		if attrs&1 != 0 {
-			cellStyle = cellStyle.Bold(true)
-		}
-		if attrs&2 != 0 {
-			cellStyle = cellStyle.Faint(true)
-		}
-		if attrs&4 != 0 {
-			cellStyle = cellStyle.Italic(true)
-		}
-		if attrs&32 != 0 {
-			cellStyle = cellStyle.Reverse(true)
-		}
-		if attrs&128 != 0 {
-			cellStyle = cellStyle.Strikethrough(true)
-		}
+	if attrs&uv.AttrItalic != 0 {
+		cellStyle = cellStyle.Italic(true)
 	}
-
+	if attrs&(uv.AttrBlink|uv.AttrRapidBlink) != 0 {
+		cellStyle = cellStyle.Blink(true)
+	}
+	if attrs&uv.AttrReverse != 0 {
+		cellStyle = cellStyle.Reverse(true)
+	}
+	if attrs&uv.AttrStrikethrough != 0 {
+		cellStyle = cellStyle.Strikethrough(true)
+	}
+	if display.Underline != uv.UnderlineNone {
+		cellStyle = cellStyle.UnderlineStyle(display.Underline)
+	}
+	if display.UnderlineColor != nil {
+		cellStyle = cellStyle.UnderlineColor(display.UnderlineColor)
+	}
 	return cellStyle
 }
 
@@ -644,52 +615,7 @@ func clipWindowContent(content string, x, y, viewportWidth, viewportHeight int) 
 			}
 
 			if clipLeft > 0 {
-				result := strings.Builder{}
-				pos := 0
-				skipCount := clipLeft
-
-				runes := []rune(tempLine)
-				runeIdx := 0
-				for runeIdx < len(runes) {
-					if runes[runeIdx] == '\x1b' {
-						seqStart := runeIdx
-						runeIdx++
-
-						if runeIdx < len(runes) && runes[runeIdx] == '[' {
-							runeIdx++
-							for runeIdx < len(runes) && (runes[runeIdx] < 0x40 || runes[runeIdx] > 0x7E) {
-								runeIdx++
-							}
-							if runeIdx < len(runes) {
-								runeIdx++
-							}
-						} else if runeIdx < len(runes) && runes[runeIdx] == ']' {
-							runeIdx++
-							for runeIdx < len(runes) {
-								if runes[runeIdx] == '\x07' || (runes[runeIdx] == '\x1b' && runeIdx+1 < len(runes) && runes[runeIdx+1] == '\\') {
-									runeIdx++
-									if runeIdx < len(runes) && runes[runeIdx-1] == '\x1b' {
-										runeIdx++
-									}
-									break
-								}
-								runeIdx++
-							}
-						}
-
-						// Always include escape sequences  - they set terminal state (colors, styles)
-						result.WriteString(string(runes[seqStart:runeIdx]))
-						continue
-					}
-
-					if pos >= skipCount {
-						result.WriteRune(runes[runeIdx])
-					}
-					pos++
-					runeIdx++
-				}
-
-				clippedLines[lineIdx] = result.String() + "\x1b[0m"
+				clippedLines[lineIdx] = skipColumns(tempLine, clipLeft) + "\x1b[0m"
 			} else {
 				clippedLines[lineIdx] = tempLine
 				if w > maxWidth {
@@ -699,12 +625,10 @@ func clipWindowContent(content string, x, y, viewportWidth, viewportHeight int) 
 		}
 
 		// Enforce the width contract on the finished rows rather than trusting
-		// the arithmetic that built them. The left-skip above walks runes and
-		// counts one position per rune, but converting a line that carries
-		// invalid bytes to runes turns each bad byte into a replacement
-		// character with a width of its own, so the assembled row can come out
-		// several cells wider than the space it is being placed in and bleed
-		// into the pane next door. Guest programs can put arbitrary bytes in an
+		// the arithmetic that built them. A line that carries invalid bytes can
+		// measure differently to the decoder in skipColumns and to
+		// ansi.StringWidth, so the assembled row could come out wider than the
+		// space it is being placed in and bleed into the pane next door. Guest programs can put arbitrary bytes in an
 		// OSC title and those titles are rendered into the window chrome.
 		for i, line := range clippedLines {
 			if ansi.StringWidth(line) > maxWidth {
@@ -716,6 +640,63 @@ func clipWindowContent(content string, x, y, viewportWidth, viewportHeight int) 
 	}
 
 	return strings.Join(visibleLines, "\n"), finalX, finalY
+}
+
+// skipColumns drops the first n columns of line, keeping every escape
+// sequence so the styles and hyperlinks in force carry over to what remains.
+//
+// It counts columns the way the emulator and the compositor do, by grapheme
+// cluster at ansi.GraphemeWidth, so a wide character is two columns and a
+// combining mark travels with its base. Counting one per rune made a window
+// clipped at the left screen edge lose too little of a CJK line and too much
+// of an accented one, and shifted the rest of the row against its neighbours.
+// A wide character cut in half by the edge leaves its visible half as a space,
+// which keeps the row exactly width-n columns wide.
+func skipColumns(line string, n int) string {
+	var out strings.Builder
+	out.Grow(len(line))
+	col := 0
+	var state byte
+	for len(line) > 0 {
+		seq, width, consumed, newState := ansi.DecodeSequence(line, state, nil)
+		if consumed <= 0 {
+			consumed = 1
+			seq = line[:1]
+		}
+		state = newState
+		line = line[consumed:]
+		switch {
+		case width == 0 && (ansi.HasEscPrefix(seq) || isControlSequence(seq)):
+			// Escape and control sequences set state and take no column.
+			out.WriteString(seq)
+		case width == 0:
+			// A stray zero-width cluster belongs with whatever precedes it.
+			if col > n {
+				out.WriteString(seq)
+			}
+		case col >= n:
+			out.WriteString(seq)
+		case col+width > n:
+			// Straddles the edge: the part past it shows as blank columns.
+			out.WriteString(strings.Repeat(" ", col+width-n))
+		}
+		col += width
+	}
+	return out.String()
+}
+
+// isControlSequence reports whether seq is a C0/C1 control or a string
+// sequence introducer rather than text.
+func isControlSequence(seq string) bool {
+	if seq == "" {
+		return false
+	}
+	c := seq[0]
+	if c < 0x20 || c == 0x7f {
+		return true
+	}
+	// C1 controls in their two-byte UTF-8 form (U+0080..U+009F).
+	return c == 0xc2 && len(seq) > 1 && seq[1] >= 0x80 && seq[1] <= 0x9f
 }
 
 // workspacePosition returns the window's 1-based place among the windows of its

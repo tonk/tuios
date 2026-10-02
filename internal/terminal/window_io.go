@@ -499,40 +499,7 @@ func (w *Window) handleIOOperations() {
 					return
 				}
 				if n > 0 {
-					w.HasNewOutput.Store(true)
-
-					// Signal bubbletea that PTY data arrived (non-blocking, coalesces rapid updates)
-					if w.PTYDataChan != nil {
-						select {
-						case w.PTYDataChan <- struct{}{}:
-						default:
-						}
-					}
-
-					// Debug: Log all data from PTY (applications sending queries)
-					if os.Getenv("TUIOS_DEBUG_INTERNAL") == "1" {
-						if len(buf[:n]) >= 2 && buf[0] == '\x1b' {
-							debugMsg := fmt.Sprintf("[%s] PTY->Terminal [%s] query: %q (hex: % x)\n",
-								time.Now().Format("15:04:05.000"), shortID(w.ID), string(buf[:n]), buf[:n])
-							if f, err := os.OpenFile("/tmp/tuios-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
-								_, _ = f.WriteString(debugMsg)
-								_ = f.Close()
-							}
-						}
-					}
-
-					// Pass through cursor style sequences to parent terminal
-					// The VT emulator absorbs DECSCUSR, so we re-emit them
-					passThroughCursorStyle(buf[:n])
-
-					// Terminal.Write mutates the cell buffer, so it needs the
-					// exclusive lock, not the shared read lock the renderer uses
-					// (two RLock holders do not exclude each other).
-					w.ioMu.Lock()
-					if w.Terminal != nil {
-						_, _ = w.Terminal.Write(buf[:n])
-					}
-					w.ioMu.Unlock()
+					w.ingestPTYOutput(buf[:n])
 				}
 			}
 		}
@@ -803,5 +770,53 @@ func (w *Window) Close() {
 		w.CopyMode.SearchMatches = nil
 		w.CopyMode.SearchCache.Matches = nil
 		w.CopyMode = nil
+	}
+}
+
+// ingestPTYOutput hands one chunk read from the local PTY to the emulator and
+// then tells the UI there is something new to draw.
+//
+// The order is the point. The UI consumes HasNewOutput and the PTYDataChan
+// wakeup by rendering, and the render takes the read side of ioMu. Signalling
+// before the write let a frame run in the gap between the signal and the
+// Terminal.Write below: it consumed the flag, drew the emulator as it was
+// before this chunk, and then nothing asked for another frame, so the last
+// chunk of a burst stayed invisible until the next output or keypress. The
+// daemon path (outputWriter) has always written first and signalled after;
+// this mirrors it.
+func (w *Window) ingestPTYOutput(data []byte) {
+	// Debug: Log all data from PTY (applications sending queries)
+	if os.Getenv("TUIOS_DEBUG_INTERNAL") == "1" {
+		if len(data) >= 2 && data[0] == '\x1b' {
+			debugMsg := fmt.Sprintf("[%s] PTY->Terminal [%s] query: %q (hex: % x)\n",
+				time.Now().Format("15:04:05.000"), shortID(w.ID), string(data), data)
+			if f, err := os.OpenFile("/tmp/tuios-debug.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+				_, _ = f.WriteString(debugMsg)
+				_ = f.Close()
+			}
+		}
+	}
+
+	// Pass through cursor style sequences to parent terminal
+	// The VT emulator absorbs DECSCUSR, so we re-emit them
+	passThroughCursorStyle(data)
+
+	// Terminal.Write mutates the cell buffer, so it needs the exclusive lock,
+	// not the shared read lock the renderer uses (two RLock holders do not
+	// exclude each other).
+	w.ioMu.Lock()
+	if w.Terminal != nil {
+		_, _ = w.Terminal.Write(data)
+	}
+	w.ioMu.Unlock()
+
+	w.HasNewOutput.Store(true)
+
+	// Signal bubbletea that PTY data arrived (non-blocking, coalesces rapid updates)
+	if w.PTYDataChan != nil {
+		select {
+		case w.PTYDataChan <- struct{}{}:
+		default:
+		}
 	}
 }

@@ -383,12 +383,11 @@ func (e *Emulator) SetScrollbackMaxLines(maxLines int) {
 	e.scrs[0].SetScrollbackMaxLines(maxLines)
 }
 
-// WidthMethod returns the width method used by the terminal.
+// WidthMethod returns the width method used by the terminal. It is always
+// grapheme width: that is what the print path lays cells out with, and why
+// DECRQM ?2027 reports the mode as permanently set.
 func (e *Emulator) WidthMethod() uv.WidthMethod {
-	if e.isModeSet(ansi.ModeUnicodeCore) {
-		return ansi.GraphemeWidth
-	}
-	return ansi.WcWidth
+	return ansi.GraphemeWidth
 }
 
 // Draw implements the [uv.Drawable] interface.
@@ -664,6 +663,11 @@ func (e *Emulator) RestoreModes(modes map[int]bool) {
 	for modeNum, enabled := range modes {
 		// Convert int back to Mode
 		mode := ansi.DECMode(modeNum)
+		// A permanent mode (?2027) describes the emulator, not the guest,
+		// so a snapshot cannot turn it off.
+		if cur := e.modes[mode]; cur == ansi.ModePermanentlySet || cur == ansi.ModePermanentlyReset {
+			continue
+		}
 
 		if enabled {
 			e.modes[mode] = ansi.ModeSet
@@ -1055,22 +1059,47 @@ func (e *Emulator) IndexedColor(i int) color.Color {
 	return c
 }
 
-// PaletteColor resolves one of the sixteen ANSI palette slots the way handleSgr
-// resolves SGR 30-37 and 90-97: through the user's theme when one is set, and
-// as a plain palette entry otherwise.
-//
-// A cell rebuilt from a snapshot has to be coloured by the same rule as a cell
-// the guest writes live, or a pane comes back in one palette and carries on in
-// another.
+// PaletteColor returns the cell color for one of the sixteen ANSI palette
+// slots, the value handleSgr stores for SGR 30-37 and 90-97: a plain palette
+// entry, whether or not a theme is set. The theme is applied when the cell is
+// drawn (ResolveColor), so a cell rebuilt from a snapshot follows the same
+// rule as a cell the guest writes live and both follow a later theme switch.
 func (e *Emulator) PaletteColor(i int) color.Color {
 	if i < 0 || i > 15 {
 		return nil
 	}
-	if !e.hasThemeColors() {
-		// #nosec G115 - i is validated to be in [0, 15] above
-		return ansi.BasicColor(uint8(i))
+	// #nosec G115 - i is validated to be in [0, 15] above
+	return ansi.BasicColor(uint8(i))
+}
+
+// ResolveColor maps a cell color to the color to draw it in. Palette entries
+// (ansi.BasicColor, and ansi.IndexedColor) resolve through the emulator's
+// color table, which holds the active theme for slots 0-15 and anything a
+// guest set with OSC 4; an entry with nothing in the table is returned as is,
+// so the host terminal's own palette applies. Every other color passes
+// through unchanged.
+//
+// Cells keep palette colors unresolved precisely so this runs at render time:
+// text written under one theme repaints in the next one, as on a real
+// terminal. Callers that read cells for display hold the same lock as for the
+// cells themselves.
+func (e *Emulator) ResolveColor(c color.Color) color.Color {
+	var i int
+	switch v := c.(type) {
+	case ansi.BasicColor:
+		i = int(v)
+	case ansi.IndexedColor:
+		i = int(v)
+	default:
+		return c
 	}
-	return e.IndexedColor(i)
+	if i < 0 || i > 255 {
+		return c
+	}
+	if themed := e.colors[i]; themed != nil {
+		return themed
+	}
+	return c
 }
 
 // SetIndexedColor sets a terminal's indexed color.
@@ -1086,18 +1115,22 @@ func (e *Emulator) SetIndexedColor(i int, c color.Color) {
 // SetThemeColors sets the terminal's color palette from a theme.
 // This sets the default foreground, background, cursor colors and the
 // first 16 ANSI colors (0-15) which are used by terminal applications.
-// If fg, bg, and cur are all nil, theming is disabled and only default colors are set.
+// If fg and bg are both nil, theming is disabled: the default colors are reset
+// and slots 0-15 cleared, so palette text resolves to the host's own palette.
 func (e *Emulator) SetThemeColors(fg, bg, cur color.Color, ansiPalette [16]color.Color) {
 	e.SetDefaultForegroundColor(fg)
 	e.SetDefaultBackgroundColor(bg)
 	e.SetDefaultCursorColor(cur)
 
-	// Only set indexed colors if we have a theme (fg/bg are not nil)
-	// This prevents overriding standard terminal colors when theming is disabled
-	if fg != nil || bg != nil {
-		// Set the first 16 ANSI colors
-		for i := range 16 {
+	// With a theme, its palette fills the first 16 slots. Without one the
+	// slots are cleared, so palette text goes back to the host terminal's own
+	// colors instead of staying in the theme that was switched off.
+	themed := fg != nil || bg != nil
+	for i := range 16 {
+		if themed {
 			e.SetIndexedColor(i, ansiPalette[i])
+		} else {
+			e.SetIndexedColor(i, nil)
 		}
 	}
 }

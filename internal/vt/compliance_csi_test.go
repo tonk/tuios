@@ -1,6 +1,7 @@
 package vt
 
 import (
+	"fmt"
 	"image/color"
 	"strings"
 	"testing"
@@ -554,16 +555,18 @@ func TestComplianceSGR21DoubleUnderline(t *testing.T) {
 		{"24 clears it", "\x1b[21;24m", ansi.UnderlineNone},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// SGR 21 is handled on the themed path; uv.ReadStyle, used when
-			// no theme is set, does not know it.
-			e := NewEmulator(5, 1)
-			e.SetIndexedColor(0, color.Black)
-			_, _ = e.WriteString(tt.seq)
-			if pen, _ := e.CursorPen(); pen.Underline != tt.want {
-				t.Errorf("underline = %v, want %v", pen.Underline, tt.want)
-			}
-		})
+		for _, themed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/themed=%v", tt.name, themed), func(t *testing.T) {
+				e := NewEmulator(5, 1)
+				if themed {
+					e.SetIndexedColor(0, color.Black)
+				}
+				_, _ = e.WriteString(tt.seq)
+				if pen, _ := e.CursorPen(); pen.Underline != tt.want {
+					t.Errorf("underline = %v, want %v", pen.Underline, tt.want)
+				}
+			})
+		}
 	}
 }
 

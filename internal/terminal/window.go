@@ -213,14 +213,18 @@ type Window struct {
 	// internal/pamauth) reported when it started the shell, kept so the
 	// exit-detection goroutine can poll it and so a caller that owns the
 	// helper connection can ask it to close this specific shell.
-	AdoptedPID         int
-	cwd                cwdCache // Memoised working directory, see CWD
-	LastUpdate         time.Time
-	Dirty              bool
-	ContentDirty       bool
-	PositionDirty      bool
-	CachedContent      string
-	CachedLayer        *lipgloss.Layer
+	AdoptedPID    int
+	cwd           cwdCache // Memoised working directory, see CWD
+	LastUpdate    time.Time
+	Dirty         bool
+	ContentDirty  bool
+	PositionDirty bool
+	CachedContent string
+	CachedLayer   *lipgloss.Layer
+	// RenderedCursor is the emulator cursor as of the last frame read from
+	// the emulator, so a frame served from cache carries the cursor it was
+	// drawn with. UI goroutine only, like CachedContent.
+	RenderedCursor     RenderedCursor
 	LastTerminalSeq    int
 	IsBeingManipulated bool // True when being dragged or resized
 	// announcedW/H are the emulator dimensions last handed downstream: to the
