@@ -1130,7 +1130,9 @@ tuios capture-pane -w build --scrollback
 # Read the last 40 lines a build printed
 tuios capture-pane -w build --scrollback --lines 40
 
-# Capture with ANSI colors preserved
+# Capture with ANSI colors preserved. Palette colors stay palette codes
+# (e.g. \e[31m, \e[38;5;Nm), not the TUIOS theme's RGB, so the terminal
+# showing the capture paints them in its own palette; truecolor stays RGB.
 tuios capture-pane --ansi
 
 # Pipe to a file

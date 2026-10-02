@@ -1892,7 +1892,7 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 	// survived. That is corruption on new output rather than on restored
 	// content, which is why it looked random.
 	if state.Pen != nil {
-		t.RestoreCursorPen(styleFromWire(t, *state.Pen))
+		t.RestoreCursorPen(styleFromWire(*state.Pen))
 	}
 	if len(state.Margins) == 4 {
 		t.RestoreScrollRegion(uv.Rect(state.Margins[0], state.Margins[1], state.Margins[2], state.Margins[3]))
@@ -1923,7 +1923,7 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 	sb := t.Scrollback()
 	if have := sb.Len(); have == 0 {
 		for _, row := range state.Scrollback {
-			sb.PushLine(stateToLine(t, row))
+			sb.PushLine(stateToLine(row))
 		}
 	} else if missing := state.ScrollbackLen - have; missing > 0 {
 		rows := state.Scrollback
@@ -1931,7 +1931,7 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 			rows = rows[len(rows)-missing:]
 		}
 		for _, row := range rows {
-			sb.PushLine(stateToLine(t, row))
+			sb.PushLine(stateToLine(row))
 		}
 	}
 
@@ -1952,7 +1952,7 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 				if cellState.Content == "" {
 					continue
 				}
-				t.SetCell(x, y, stateToCell(t, cellState))
+				t.SetCell(x, y, stateToCell(cellState))
 			}
 		}
 		// The cursor was serialized and thrown away. Whatever came next was
@@ -1971,16 +1971,16 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 			if cs.Content == "" {
 				continue
 			}
-			t.SetMainCell(x, y, stateToCell(t, cs))
+			t.SetMainCell(x, y, stateToCell(cs))
 		}
 	}
 }
 
-// stateToLine converts one serialized scrollback row to a line for t.
-func stateToLine(t *vt.Emulator, row []CellState) uv.Line {
+// stateToLine converts one serialized scrollback row to a line.
+func stateToLine(row []CellState) uv.Line {
 	line := make(uv.Line, len(row))
 	for x, cs := range row {
-		line[x] = *stateToCell(t, cs)
+		line[x] = *stateToCell(cs)
 	}
 	return line
 }
@@ -1988,6 +1988,12 @@ func stateToLine(t *vt.Emulator, row []CellState) uv.Line {
 // CaptureContent renders the PTY's current screen (and optionally its
 // scrollback) to text from the daemon-side VT emulator. When ansi is true the
 // output keeps SGR escape sequences; otherwise it is plain text.
+//
+// An ANSI capture is theme-independent: palette colors come out as the palette
+// codes the guest wrote (SGR 31, 38;5;n), and only truecolor comes out as RGB.
+// The daemon's emulator holds no theme, which belongs to each client, so there
+// is no theme here to resolve through; the terminal the capture is shown in
+// paints the palette codes in its own palette, as with tmux capture-pane -e.
 //
 // This is how capture-pane is answered, attached or not. It used to be answered
 // here only when nothing was attached and routed to the client otherwise, which
@@ -2104,12 +2110,12 @@ func styleToWire(s uv.Style, link uv.Link) StyleState {
 	}
 }
 
-// styleFromWire is styleToWire read back into the emulator that will hold it.
-func styleFromWire(t *vt.Emulator, ss StyleState) (uv.Style, uv.Link) {
+// styleFromWire is styleToWire read back.
+func styleFromWire(ss StyleState) (uv.Style, uv.Link) {
 	return uv.Style{
-			Fg:             colorFromWire(t, ss.FgColor),
-			Bg:             colorFromWire(t, ss.BgColor),
-			UnderlineColor: colorFromWire(t, ss.UlColor),
+			Fg:             colorFromWire(ss.FgColor),
+			Bg:             colorFromWire(ss.BgColor),
+			UnderlineColor: colorFromWire(ss.UlColor),
 			Underline:      ansi.Underline(ss.Underline),
 			Attrs:          ss.Attrs,
 		}, uv.Link{
@@ -2140,10 +2146,16 @@ func colorToWire(c color.Color) string {
 	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
 }
 
-// colorFromWire is colorToWire read back. Palette entries are resolved through
-// the emulator that will hold them, so a restored cell is colored by the same
-// rule as a cell the guest writes live into that emulator.
-func colorFromWire(t *vt.Emulator, s string) color.Color {
+// colorFromWire is colorToWire read back, into the kind of color that was sent.
+// A palette entry comes back as a palette entry (ansi.BasicColor for "a",
+// ansi.IndexedColor for "i"), never as the RGB the receiving emulator resolves
+// it to at restore time. Cells keep palette colors unresolved and the renderer
+// resolves them through the active theme (vt.Emulator.ResolveColor), so a
+// restored cell follows a later theme switch exactly as a cell the guest
+// writes live does. Resolving "i" through the emulator's color table here
+// froze 38;5;0-15, and any slot a guest had set with OSC 4, at the shade of
+// whichever theme was active when the snapshot was restored.
+func colorFromWire(s string) color.Color {
 	if s == "" {
 		return nil
 	}
@@ -2160,9 +2172,15 @@ func colorFromWire(t *vt.Emulator, s string) color.Color {
 	}
 	switch s[0] {
 	case 'a':
-		return t.PaletteColor(n)
+		if n < 0 || n > 15 {
+			return nil
+		}
+		return ansi.BasicColor(uint8(n)) // #nosec G115 - n is validated to be in [0, 15] above
 	case 'i':
-		return t.IndexedColor(n)
+		if n < 0 || n > 255 {
+			return nil
+		}
+		return ansi.IndexedColor(uint8(n)) // #nosec G115 - n is validated to be in [0, 255] above
 	}
 	return nil
 }
@@ -2180,9 +2198,9 @@ func CellStateOf(cell *uv.Cell) CellState {
 	}
 }
 
-// stateToCell converts a CellState back to a VT cell for restoration into t.
-func stateToCell(t *vt.Emulator, cs CellState) *uv.Cell {
-	style, link := styleFromWire(t, cs.StyleState)
+// stateToCell converts a CellState back to a VT cell for restoration.
+func stateToCell(cs CellState) *uv.Cell {
+	style, link := styleFromWire(cs.StyleState)
 	return &uv.Cell{Content: cs.Content, Width: cs.Width, Style: style, Link: link}
 }
 

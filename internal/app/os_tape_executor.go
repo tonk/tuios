@@ -1503,6 +1503,11 @@ func (m *OS) checkScriptWaitRegex() bool {
 
 // capturePane captures the content of a pane.
 // flags is a comma-separated string of options: "scrollback", "ansi".
+//
+// With "ansi" the capture keeps palette colors as palette codes rather than
+// the theme's RGB, the same as session.PTY.CaptureContent, which answers
+// `tuios capture-pane --ansi`: a capture is theme-independent text, not a
+// picture of the pane as drawn.
 func (m *OS) capturePane(windowTarget, flags string) (string, error) {
 	// Resolve target window
 	var win *terminal.Window
