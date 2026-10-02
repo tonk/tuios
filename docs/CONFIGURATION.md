@@ -73,12 +73,27 @@ from, not a config file. Add `--write` to save it next to your real config as
 
 ## Configuration File Location
 
-**Default path:** `~/.config/tuios/config.toml`
+**Default path:** `~/.config/tuios/config.toml` (Linux)
 
 On first launch, TUIOS automatically creates a default configuration file. The exact location follows the XDG Base Directory specification:
 
-- Linux/macOS: `~/.config/tuios/config.toml`
-- Custom: `$XDG_CONFIG_HOME/tuios/config.toml` (if `XDG_CONFIG_HOME` is set)
+- Linux: `~/.config/tuios/config.toml`
+- macOS: `~/Library/Application Support/tuios/config.toml`
+- Windows: `%LOCALAPPDATA%\tuios\config.toml` (usually `C:\Users\<user>\AppData\Local\tuios\config.toml`)
+- Custom: `$XDG_CONFIG_HOME/tuios/config.toml` (if `XDG_CONFIG_HOME` is set, on every platform)
+
+On macOS, when no config exists under `~/Library/Application Support`, TUIOS
+also looks in `~/Library/Preferences/tuios/`, `/Library/Application Support/tuios/`,
+`/Library/Preferences/tuios/` and finally `~/.config/tuios/`, so an existing
+`~/.config/tuios/config.toml` is still picked up. Themes, tapes, layouts and
+state files live under `~/Library/Application Support/tuios/`.
+
+On Windows, when no config exists under `%LOCALAPPDATA%`, TUIOS also looks in
+`%ProgramData%\tuios\config.toml` and then `%APPDATA%\tuios\config.toml`, so a
+machine-wide config can live in `%ProgramData%`. The other files TUIOS keeps
+next to the config sit in the same `%LOCALAPPDATA%\tuios\` directory: `themes\`,
+`tapes\`, `layouts\` and `tape-trust.toml`, plus the state files (crash logs,
+session resurrection) and the daemon socket.
 
 ## Configuration Structure
 
