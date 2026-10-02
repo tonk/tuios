@@ -3,13 +3,13 @@
 package scrollback
 
 import (
+	"image/color"
 	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/tonk/tuios/internal/vt"
 	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // CommandBlock represents a single command and its output extracted from scrollback.
@@ -387,7 +387,7 @@ func extractAbsLineText(term *vt.Emulator, absLine int) string {
 func extractAbsLineStyledText(term *vt.Emulator, absLine int) string {
 	sbLen := term.ScrollbackLen()
 	if absLine < sbLen {
-		return lineToStyledText(term.ScrollbackLine(absLine))
+		return lineToStyledText(term.ScrollbackLine(absLine), term.ResolveColor)
 	}
 	screenY := absLine - sbLen
 	if screenY >= term.Height() {
@@ -401,7 +401,7 @@ func extractAbsLineStyledText(term *vt.Emulator, absLine int) string {
 			cells[x] = *cell
 		}
 	}
-	return cellsToStyledText(cells)
+	return cellsToStyledText(cells, term.ResolveColor)
 }
 
 func extractLinesText(term *vt.Emulator, from, to int) string {
@@ -435,16 +435,20 @@ func lineToText(line uv.Line) string {
 	return strings.TrimRightFunc(sb.String(), unicode.IsSpace)
 }
 
-func lineToStyledText(line uv.Line) string {
+func lineToStyledText(line uv.Line, resolve func(color.Color) color.Color) string {
 	if len(line) == 0 {
 		return ""
 	}
 	cells := make([]uv.Cell, len(line))
 	copy(cells, line)
-	return cellsToStyledText(cells)
+	return cellsToStyledText(cells, resolve)
 }
 
-func cellsToStyledText(cells []uv.Cell) string {
+// cellsToStyledText renders cells as ANSI-styled text. Cells keep palette
+// colours unresolved, so resolve (the emulator's ResolveColor) maps them
+// through the active theme, as the pane renderer does: the browser then shows
+// output in the colours the pane showed it in.
+func cellsToStyledText(cells []uv.Cell, resolve func(color.Color) color.Color) string {
 	if len(cells) == 0 {
 		return ""
 	}
@@ -470,9 +474,8 @@ func cellsToStyledText(cells []uv.Cell) string {
 			content = " "
 		}
 
-		hasStyle := cell.Style.Fg != nil || cell.Style.Bg != nil || cell.Style.Attrs != 0
-		if hasStyle {
-			prefix := buildCellANSI(cell)
+		if !cell.Style.IsZero() {
+			prefix := buildCellANSI(cell, resolve)
 			if prefix != "" {
 				sb.WriteString(prefix)
 				sb.WriteString(content)
@@ -486,34 +489,17 @@ func cellsToStyledText(cells []uv.Cell) string {
 	return sb.String()
 }
 
-func buildCellANSI(cell *uv.Cell) string {
-	var te ansi.Style
-
-	if cell.Style.Fg != nil {
-		te = te.ForegroundColor(cell.Style.Fg)
+// buildCellANSI returns the SGR sequence for cell's style with its colours
+// resolved, carrying every attribute the emulator records (underline style
+// and colour included).
+func buildCellANSI(cell *uv.Cell, resolve func(color.Color) color.Color) string {
+	style := cell.Style
+	if resolve != nil {
+		style.Fg = resolve(style.Fg)
+		style.Bg = resolve(style.Bg)
+		style.UnderlineColor = resolve(style.UnderlineColor)
 	}
-	if cell.Style.Bg != nil {
-		te = te.BackgroundColor(cell.Style.Bg)
-	}
-
-	attrs := cell.Style.Attrs
-	if attrs&1 != 0 {
-		te = te.Bold()
-	}
-	if attrs&2 != 0 {
-		te = te.Faint()
-	}
-	if attrs&4 != 0 {
-		te = te.Italic(true)
-	}
-	if attrs&32 != 0 {
-		te = te.Reverse(true)
-	}
-	if attrs&128 != 0 {
-		te = te.Strikethrough(true)
-	}
-
-	return te.String()
+	return style.String()
 }
 
 // cleanCommandText strips output garbage from extracted command text.
