@@ -230,6 +230,7 @@ func (e *Emulator) redrawLastCell(content string, width int, style uv.Style, lin
 			return
 		}
 		e.scr.blankCells(x, y, right-x)
+		e.scr.setLineWrap(y, SoftWrap(right-x))
 		e.scr.setCursor(x, y, false)
 		e.index()
 		_, y = e.scr.CursorPosition()
@@ -288,6 +289,9 @@ func (e *Emulator) handleGrapheme(content string, width int) {
 		// moves cursor down similar to [Terminal.linefeed] except it doesn't
 		// respects [ansi.LNM] mode.
 		// This will reset the phantom state i.e. pending wrap state.
+		// The row being left is the one that wrapped: from here on it and
+		// the next row are one logical line.
+		e.scr.setLineWrap(y, SoftWrap(0))
 		e.index()
 		_, y = e.scr.CursorPosition()
 		x = 0
@@ -332,8 +336,11 @@ func (e *Emulator) handleGrapheme(content string, width int) {
 			return
 		}
 		// Blank what is left of the line, as ghostty's spacer head does, and
-		// wrap so the rune lands whole at the start of the next one.
+		// wrap so the rune lands whole at the start of the next one. The
+		// blanks are recorded as spacer, so a reflow does not take them for
+		// text.
 		e.scr.blankCells(x, y, right-x)
+		e.scr.setLineWrap(y, SoftWrap(right-x))
 		e.scr.setCursor(x, y, false)
 		e.index()
 		_, y = e.scr.CursorPosition()

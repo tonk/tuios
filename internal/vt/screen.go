@@ -22,6 +22,12 @@ type Screen struct {
 	scroll uv.Rectangle
 	// scrollback is the scrollback buffer for lines that have scrolled off the top.
 	scrollback *Scrollback
+	// wraps holds, per row, how the row ends: whether the print path wrapped
+	// from it onto the next row (see LineWrap). It moves with the rows, goes
+	// into the scrollback with them, and is what a reflow joins rows by.
+	wraps []LineWrap
+	// reflowScratch is kept between reflows so a resize does not allocate it.
+	reflowScratch reflowScratch
 }
 
 // NewScreen creates a new screen.
@@ -29,6 +35,7 @@ func NewScreen(w, h int) *Screen {
 	s := Screen{}
 	s.scrollback = NewScrollback(0) // Use default size
 	s.buf = uv.NewRenderBuffer(w, h)
+	s.wraps = make([]LineWrap, s.buf.Height())
 	s.scroll = s.buf.Bounds()
 	return &s
 }
@@ -38,6 +45,7 @@ func NewScreen(w, h int) *Screen {
 // cursor styles, and resets the scroll region.
 func (s *Screen) Reset() {
 	s.buf.Clear()
+	clear(s.wraps)
 	s.cur = Cursor{}
 	s.saved = Cursor{}
 	s.savedState = savedCursorState{}
@@ -163,9 +171,15 @@ func (s *Screen) Height() int {
 	return s.buf.Height()
 }
 
-// Resize resizes the screen.
+// Resize resizes the screen, cutting or padding rows without reflowing them.
 func (s *Screen) Resize(width int, height int) {
+	widthChanged := width != s.buf.Width()
 	s.buf.Resize(width, height)
+	s.resizeWraps(s.buf.Height())
+	if widthChanged {
+		// A row cut or padded to a new width no longer ends where it wrapped.
+		clear(s.wraps)
+	}
 	// Resize the Touched slice to match the new height.
 	if h := s.buf.Height(); len(s.buf.Touched) != h {
 		s.buf.Touched = make([]*uv.LineData, h)
@@ -185,8 +199,11 @@ func (s *Screen) Resize(width int, height int) {
 // only inside it would delete the rows the cursor is meant to keep. The cursor
 // and the saved cursor (DECSC) follow the content they were on and are then
 // clamped into the new bounds, so neither a later print nor a DECRC lands
-// outside the grid. Wide runes cut by a narrower edge are blanked, in the
-// scrollback too.
+// outside the grid. Wide runes cut by a narrower edge are blanked.
+//
+// It does not reflow. The normal screen goes through reflowResize when the
+// width changes, and this is what is left: a height-only change of it, and
+// every change of the alternate screen.
 func (s *Screen) resizeKeepingCursor(width, height int) {
 	if n := s.cur.Y - (height - 1); n > 0 && height > 0 && s.buf.Height() > height {
 		s.scroll = s.buf.Bounds()
@@ -197,8 +214,74 @@ func (s *Screen) resizeKeepingCursor(width, height int) {
 	s.Resize(width, height)
 	s.cur.Position = s.clampPosition(s.cur.Position)
 	s.saved.Position = s.clampPosition(s.saved.Position)
-	if s.scrollback != nil {
-		s.scrollback.blankWideRunesCutAt(width)
+}
+
+// resizeWraps keeps wraps one entry per row, the way Buffer.Resize keeps the
+// rows: dropping from the bottom, and adding hard breaks there.
+func (s *Screen) resizeWraps(height int) {
+	if len(s.wraps) >= height {
+		s.wraps = s.wraps[:height]
+		return
+	}
+	s.wraps = append(s.wraps, make([]LineWrap, height-len(s.wraps))...)
+}
+
+// lineWrap returns how row y ends.
+func (s *Screen) lineWrap(y int) LineWrap {
+	if y < 0 || y >= len(s.wraps) {
+		return HardBreak
+	}
+	return s.wraps[y]
+}
+
+// setLineWrap records how row y ends.
+func (s *Screen) setLineWrap(y int, w LineWrap) {
+	if y >= 0 && y < len(s.wraps) {
+		s.wraps[y] = w
+	}
+}
+
+// unwrapArea drops the soft wrap of every row whose end area erases. A row
+// whose last column has been cleared no longer runs on into the next one: xterm
+// and ghostty reset the wrap on EL and ED for the same reason. An erase that
+// stops short of the last column leaves the wrap alone, since the text at the
+// edge, which is what continues, is still there.
+func (s *Screen) unwrapArea(area uv.Rectangle) {
+	area = area.Intersect(s.buf.Bounds())
+	if area.Empty() || area.Max.X < s.buf.Width() {
+		return
+	}
+	for y := area.Min.Y; y < area.Max.Y && y < len(s.wraps); y++ {
+		s.wraps[y] = HardBreak
+	}
+}
+
+// shiftWraps moves the wrap flags of rows y and below by n rows within area,
+// down when insert is set (IL) and up otherwise (DL), the way InsertLineArea and
+// DeleteLineArea move the rows' cells, and clears the flags of the rows they
+// blank. The flag is about a row's last column: a region that does not reach
+// it leaves every row ending as it did, and one that reaches it without
+// starting at the first column splices rows together, so their flags are
+// cleared rather than moved.
+func (s *Screen) shiftWraps(y, n int, area uv.Rectangle, insert bool) {
+	if n <= 0 || y < area.Min.Y || y >= area.Max.Y || area.Max.X < s.buf.Width() {
+		return
+	}
+	bottom := min(area.Max.Y, len(s.wraps))
+	if y >= bottom {
+		return
+	}
+	n = min(n, bottom-y)
+	w := s.wraps
+	switch {
+	case area.Min.X > 0:
+		clear(w[y:bottom])
+	case insert:
+		copy(w[y+n:bottom], w[y:bottom-n])
+		clear(w[y : y+n])
+	default:
+		copy(w[y:bottom-n], w[y+n:bottom])
+		clear(w[bottom-n : bottom])
 	}
 }
 
@@ -245,6 +328,7 @@ func (s *Screen) Clear() {
 // ClearArea clears the given area.
 func (s *Screen) ClearArea(area uv.Rectangle) {
 	s.buf.ClearArea(area)
+	s.unwrapArea(area)
 }
 
 // Fill fills the screen or part of it.
@@ -255,6 +339,7 @@ func (s *Screen) Fill(c *uv.Cell) {
 // FillArea fills the given area with the given cell.
 func (s *Screen) FillArea(c *uv.Cell, area uv.Rectangle) {
 	s.buf.FillArea(c, area)
+	s.unwrapArea(area)
 }
 
 // setHorizontalMargins sets the horizontal margins. They are clamped to the
@@ -566,7 +651,7 @@ func (s *Screen) ScrollUp(n int) {
 		if save {
 			for i := 0; i < n && i < scroll.Dy(); i++ {
 				line := extractLine(s.buf.Buffer, scroll.Min.Y+i, width)
-				s.scrollback.PushLineOwned(line, true)
+				s.scrollback.pushOwned(line, s.lineWrap(scroll.Min.Y+i))
 			}
 		}
 		s.DeleteLine(n)
@@ -630,7 +715,7 @@ func (s *Screen) rotateWholeScreenUp(n int, save bool) bool {
 	copy(lines, lines[n:])
 	if save {
 		for i, row := range recycled {
-			reuse := s.scrollback.PushLineOwnedRecycle(row, true)
+			reuse := s.scrollback.pushOwned(row, s.lineWrap(i))
 			if len(reuse) == len(row) {
 				recycled[i] = reuse
 			} else {
@@ -641,6 +726,10 @@ func (s *Screen) rotateWholeScreenUp(n int, save bool) bool {
 		}
 	}
 	copy(lines[height-n:], recycled)
+	if len(s.wraps) == height {
+		copy(s.wraps, s.wraps[n:])
+		clear(s.wraps[height-n:])
+	}
 
 	blank := uv.EmptyCell
 	if c := s.blankCell(); c != nil {
@@ -688,6 +777,7 @@ func (s *Screen) InsertLine(n int) bool {
 	}
 
 	s.buf.InsertLineArea(y, n, s.blankCell(), scroll)
+	s.shiftWraps(y, n, scroll, true)
 
 	return true
 }
@@ -711,6 +801,7 @@ func (s *Screen) DeleteLine(n int) bool {
 	}
 
 	s.buf.DeleteLineArea(y, n, s.blankCell(), scroll)
+	s.shiftWraps(y, n, scroll, false)
 
 	return true
 }

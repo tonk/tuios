@@ -295,6 +295,38 @@ func (e *Emulator) Scrollback() *Scrollback {
 	return e.scrs[0].Scrollback()
 }
 
+// LineWrap returns how row y of the active screen ends: whether the guest's
+// output wrapped from it onto the next row.
+func (e *Emulator) LineWrap(y int) LineWrap {
+	return e.scr.lineWrap(y)
+}
+
+// SetLineWrap records how row y of the active screen ends. It is for restoring
+// a screen from a snapshot; the print path keeps it up to date otherwise.
+func (e *Emulator) SetLineWrap(y int, w LineWrap) {
+	e.scr.setLineWrap(y, w)
+}
+
+// MainLineWrap is LineWrap for the normal screen, whichever screen is active.
+func (e *Emulator) MainLineWrap(y int) LineWrap {
+	return e.scrs[0].lineWrap(y)
+}
+
+// SetMainLineWrap is SetLineWrap for the normal screen, whichever screen is
+// active.
+func (e *Emulator) SetMainLineWrap(y int, w LineWrap) {
+	e.scrs[0].setLineWrap(y, w)
+}
+
+// ScrollbackLineWrap returns how scrollback line index (0 is the oldest)
+// ended.
+func (e *Emulator) ScrollbackLineWrap(index int) LineWrap {
+	if sb := e.scrs[0].Scrollback(); sb != nil {
+		return sb.LineWrap(index)
+	}
+	return HardBreak
+}
+
 // ClearScrollback clears the scrollback buffer of the main screen.
 func (e *Emulator) ClearScrollback() {
 	e.scrs[0].ClearScrollback()
@@ -317,13 +349,22 @@ func (e *Emulator) extractCommandText(bLine, bCol, cLine, _ int) string {
 	width := e.Width()
 	height := e.Height()
 
+	wrapOf := func(absLine int) LineWrap {
+		if absLine < sbLen {
+			return e.ScrollbackLineWrap(absLine)
+		}
+		return e.LineWrap(absLine - sbLen)
+	}
+
+	// readLine returns a line's text, its trailing blanks trimmed unless it
+	// is soft-wrapped: a command that wraps at a space continues after it.
 	readLine := func(absLine int) string {
+		var sb strings.Builder
 		if absLine < sbLen {
 			line := e.ScrollbackLine(absLine)
 			if line == nil {
 				return ""
 			}
-			var sb strings.Builder
 			for _, cell := range line {
 				if cell.Content != "" {
 					sb.WriteString(string(cell.Content))
@@ -331,45 +372,51 @@ func (e *Emulator) extractCommandText(bLine, bCol, cLine, _ int) string {
 					sb.WriteByte(' ')
 				}
 			}
-			return strings.TrimRight(sb.String(), " ")
-		}
-		screenY := absLine - sbLen
-		if screenY < 0 || screenY >= height {
-			return ""
-		}
-		var sb strings.Builder
-		for x := range width {
-			cell := e.CellAt(x, screenY)
-			if cell != nil && cell.Content != "" {
-				sb.WriteString(string(cell.Content))
-			} else {
-				sb.WriteByte(' ')
+		} else {
+			screenY := absLine - sbLen
+			if screenY < 0 || screenY >= height {
+				return ""
+			}
+			for x := range width {
+				cell := e.CellAt(x, screenY)
+				if cell != nil && cell.Content != "" {
+					sb.WriteString(string(cell.Content))
+				} else {
+					sb.WriteByte(' ')
+				}
 			}
 		}
-		return strings.TrimRight(sb.String(), " ")
-	}
-
-	// Single-line command (most common case)
-	if bLine == cLine || cLine == bLine+1 {
-		full := readLine(bLine)
-		runes := []rune(full)
-		if bCol >= len(runes) {
-			return ""
+		text := sb.String()
+		if w := wrapOf(absLine); w.Wrapped() {
+			// Drop only the spacer a wide rune moving down left behind.
+			runes := []rune(text)
+			return string(runes[:max(len(runes)-w.Spacer(), 0)])
 		}
-		return strings.TrimSpace(string(runes[bCol:]))
+		return strings.TrimRight(text, " ")
 	}
 
-	// Multi-line command
-	var parts []string
-	firstLine := readLine(bLine)
-	runes := []rune(firstLine)
-	if bCol < len(runes) {
-		parts = append(parts, strings.TrimSpace(string(runes[bCol:])))
+	// The command runs from the B marker up to the line the C marker is on
+	// (the Enter that ran it moved the cursor there), or is the B line alone
+	// when C is on the same line. A row the command soft-wrapped from runs on
+	// into the next without a newline: it is one line of input that only
+	// looks like two because the pane was narrower than it.
+	var b strings.Builder
+	for line := bLine; line < max(cLine, bLine+1); line++ {
+		text := readLine(line)
+		if line == bLine {
+			runes := []rune(text)
+			if bCol >= len(runes) {
+				text = ""
+			} else {
+				text = string(runes[bCol:])
+			}
+		}
+		b.WriteString(text)
+		if line+1 < cLine && !wrapOf(line).Wrapped() {
+			b.WriteByte('\n')
+		}
 	}
-	for line := bLine + 1; line < cLine; line++ {
-		parts = append(parts, readLine(line))
-	}
-	return strings.Join(parts, "\n")
+	return strings.TrimSpace(b.String())
 }
 
 // ScrollbackLine returns a line from the scrollback buffer at the given index.
@@ -814,16 +861,29 @@ func (e *Emulator) Resize(width int, height int) {
 
 	old := e.scr.cur.Position
 
-	// Trigger scrollback reflow when width changes to handle soft-wrapping
-	if width != e.Width() && e.Scrollback() != nil {
-		e.Scrollback().Reflow(width)
-	}
-
 	// Both screens get the full treatment (auto-scroll to keep the cursor row,
 	// cursor and saved-cursor clamping), not only the active one: a guest that
 	// leaves the alternate screen after a resize must find its prompt and
 	// cursor inside the grid it returns to.
-	e.scrs[0].resizeKeepingCursor(width, height)
+	//
+	// A width change reflows the normal screen and its scrollback, as ghostty,
+	// kitty and wezterm do: soft-wrapped rows are joined and split again at
+	// the new width, and the cursor stays on the character it was on. The
+	// alternate screen is never reflowed; the program on it repaints.
+	main := &e.scrs[0]
+	if width > 0 && height > 0 && width != main.Width() {
+		if main.reflowResize(width, height, e.semanticMarkers) {
+			// The cursor sits after text that now ends exactly at the edge:
+			// the next print wraps, as it would have at this width.
+			if e.scr == main {
+				e.atPhantom = true
+			} else {
+				main.phantom = true
+			}
+		}
+	} else {
+		main.resizeKeepingCursor(width, height)
+	}
 	e.scrs[1].resizeKeepingCursor(width, height)
 	// Keep the stops the guest set; only columns the resize adds get the
 	// default every-8 stops.

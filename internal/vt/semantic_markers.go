@@ -107,6 +107,26 @@ func (l *SemanticMarkerList) RemoveOnScreen(scrollbackLen int) {
 	l.markers = l.markers[:n]
 }
 
+// remap moves every marker to where fn says its line and column went, and
+// drops the ones fn reports gone. A reflow uses it: the text a marker points at
+// keeps its place, but the row and column it is on change.
+func (l *SemanticMarkerList) remap(fn func(line, col int) (int, int, bool)) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := 0
+	for i := range l.markers {
+		m := l.markers[i]
+		line, col, ok := fn(m.AbsLine, m.Col)
+		if !ok {
+			continue
+		}
+		m.AbsLine, m.Col = line, col
+		l.markers[n] = m
+		n++
+	}
+	l.markers = l.markers[:n]
+}
+
 // AdjustForScrollbackTrim adjusts all marker AbsLine values when scrollback
 // lines are trimmed from the ring buffer. Markers that fall before the new
 // origin are removed.

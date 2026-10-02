@@ -132,21 +132,6 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 			endX = end.X
 		}
 
-		// Clamp to line content bounds to avoid copying empty cells at end
-		_, lineEndX := getLineContentBounds(cm, window, y)
-		switch y {
-		case start.Y:
-			// First line: keep user's start but clamp end to content
-			endX = min(endX, lineEndX)
-		case end.Y:
-			// Last line: keep user's end but clamp to content
-			endX = min(endX, lineEndX)
-		default:
-			// Middle lines: keep leading indentation, but clamp the end to
-			// content so trailing padding isn't copied.
-			endX = lineEndX
-		}
-
 		// Extract line content
 		var lineCells []uv.Cell
 		if y < scrollbackLen {
@@ -164,6 +149,34 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 			}
 		}
 
+		// A row the guest's output soft-wrapped runs on into the next one:
+		// the two are one line, joined without a newline. Its content is the
+		// whole row up to any spacer the print path left for a wide rune it
+		// moved down, spaces at the edge included, since those are part of the
+		// line. The emulator records the wrap as it happens, so this is not
+		// guessed from how far across the row the text reaches, which joined
+		// any line that merely came close to the edge.
+		wrap := window.LineWrap(y)
+		softWrapped := y < end.Y && wrap.Wrapped()
+
+		// Clamp to line content bounds to avoid copying empty cells at end
+		_, lineEndX := getLineContentBounds(cm, window, y)
+		if softWrapped {
+			lineEndX = len(lineCells) - 1 - wrap.Spacer()
+		}
+		switch y {
+		case start.Y:
+			// First line: keep user's start but clamp end to content
+			endX = min(endX, lineEndX)
+		case end.Y:
+			// Last line: keep user's end but clamp to content
+			endX = min(endX, lineEndX)
+		default:
+			// Middle lines: keep leading indentation, but clamp the end to
+			// content so trailing padding isn't copied.
+			endX = lineEndX
+		}
+
 		// Append line content
 		if lineCells != nil {
 			for x := startX; x <= endX && x < len(lineCells); x++ {
@@ -176,35 +189,8 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 			}
 		}
 
-		// Add newline only if this is NOT a soft-wrapped line
-		if y < end.Y {
-			// Check if this line is soft-wrapped (continues on next line)
-			// Heuristic: if line content extends to terminal width and doesn't end with whitespace,
-			// it's likely wrapped
-			isSoftWrapped := false
-			if len(lineCells) > 0 {
-				// Find last non-empty cell
-				lastNonEmptyX := -1
-				for x := len(lineCells) - 1; x >= 0; x-- {
-					if lineCells[x].Content != "" && lineCells[x].Content != " " {
-						lastNonEmptyX = x
-						break
-					}
-				}
-				// If line extends close to terminal width, it's probably wrapped
-				if lastNonEmptyX >= window.Width-5 {
-					isSoftWrapped = true
-				}
-			}
-
-			if isSoftWrapped {
-				// Remove trailing whitespace since this line continues on the next
-				currentText := text.String()
-				text.Reset()
-				text.WriteString(strings.TrimRight(currentText, " "))
-			} else {
-				text.WriteRune('\n')
-			}
+		if y < end.Y && !softWrapped {
+			text.WriteRune('\n')
 		}
 	}
 

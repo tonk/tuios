@@ -508,10 +508,10 @@ Content is physical rows, not logical lines: a line longer than the pane width
 was wrapped by the emulator and comes back as several rows, so `lines`, `start`
 and `end` count wrapped rows. There is no unwrapped capture. Earlier builds
 documented a reserved `recent-unwrapped` source that was accepted but behaved
-exactly like `recent`; it is now rejected rather than silently ignored, because
-the emulator does not record which rows are continuations and unwrapping them
-would mean guessing. A caller that needs logical lines should widen the pane
-with `resize` before capturing.
+exactly like `recent`; it is rejected rather than silently ignored. The
+emulator now records which rows are continuations, and a resize reflows them,
+so a caller that needs logical lines can widen the pane with `resize` before
+capturing.
 
 ### resize
 

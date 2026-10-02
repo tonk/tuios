@@ -2,6 +2,8 @@ package terminal
 
 import (
 	uv "github.com/charmbracelet/ultraviolet"
+
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // ScrollbackLenSync returns the scrollback length without blocking on the
@@ -46,6 +48,21 @@ func (w *Window) ScrollbackLine(index int) uv.Line {
 		return nil
 	}
 	return w.Terminal.ScrollbackLine(index)
+}
+
+// LineWrap returns how absolute line absY ends: the scrollback lines first,
+// oldest at 0, then the rows of the active screen, the numbering copy mode
+// uses. A soft-wrapped line continues on the next one; it is one logical line
+// with it, which a copy joins without a newline.
+func (w *Window) LineWrap(absY int) vt.LineWrap {
+	if w.Terminal == nil {
+		return vt.HardBreak
+	}
+	n := w.Terminal.ScrollbackLen()
+	if absY < n {
+		return w.Terminal.ScrollbackLineWrap(absY)
+	}
+	return w.Terminal.LineWrap(absY - n)
 }
 
 // ClearScrollback clears the scrollback buffer.

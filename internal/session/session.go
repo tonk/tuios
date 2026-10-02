@@ -1798,6 +1798,7 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 			}
 		}
 	}
+	state.ScreenWrap = wrapsToWire(height, t.LineWrap)
 
 	if state.IsAltScreen {
 		state.MainScreen = make([][]CellState, height)
@@ -1809,6 +1810,7 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 				}
 			}
 		}
+		state.MainScreenWrap = wrapsToWire(height, t.MainLineWrap)
 	}
 
 	if maxScrollback == 0 {
@@ -1822,6 +1824,8 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 		first = scrollbackLen - maxScrollback
 	}
 
+	var sbWraps []uint8
+	anyWrapped := false
 	for i := first; i < scrollbackLen; i++ {
 		line := t.ScrollbackLine(i)
 		if line != nil {
@@ -1830,10 +1834,40 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 				row[x] = CellStateOf(&cell)
 			}
 			state.Scrollback = append(state.Scrollback, row)
+			w := t.ScrollbackLineWrap(i)
+			sbWraps = append(sbWraps, uint8(w))
+			anyWrapped = anyWrapped || w.Wrapped()
 		}
+	}
+	if anyWrapped {
+		state.ScrollbackWrap = sbWraps
 	}
 
 	return state
+}
+
+// wrapsToWire returns how each of the first n rows ends, as lineWrap reports
+// it, or nil when none of them is soft-wrapped, which is the common case and
+// what a snapshot from a daemon that predates the field says too.
+func wrapsToWire(n int, lineWrap func(int) vt.LineWrap) []uint8 {
+	var out []uint8
+	for y := range n {
+		if w := lineWrap(y); w.Wrapped() {
+			if out == nil {
+				out = make([]uint8, n)
+			}
+			out[y] = uint8(w)
+		}
+	}
+	return out
+}
+
+// wrapFromWire is entry i of a wire wrap slice, a hard break past its end.
+func wrapFromWire(wraps []uint8, i int) vt.LineWrap {
+	if i < 0 || i >= len(wraps) {
+		return vt.HardBreak
+	}
+	return vt.LineWrap(wraps[i])
 }
 
 // ApplyTerminalState brings an emulator to the state a snapshot describes. It
@@ -1920,18 +1954,22 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 	// sends a bounded window of its scrollback and a client keeps far more than
 	// that, so replacing the whole buffer would cut a long history down to the
 	// size of the window on every workspace switch.
+	//
+	// Each line keeps how it ended, so the rows the guest's output wrapped
+	// stay joined and a resize here reflows them the way the daemon's
+	// emulator reflows its own.
 	sb := t.Scrollback()
 	if have := sb.Len(); have == 0 {
-		for _, row := range state.Scrollback {
-			sb.PushLine(stateToLine(row))
+		for i, row := range state.Scrollback {
+			sb.PushLineWrap(stateToLine(row), wrapFromWire(state.ScrollbackWrap, i))
 		}
 	} else if missing := state.ScrollbackLen - have; missing > 0 {
-		rows := state.Scrollback
-		if missing < len(rows) {
-			rows = rows[len(rows)-missing:]
+		first := 0
+		if missing < len(state.Scrollback) {
+			first = len(state.Scrollback) - missing
 		}
-		for _, row := range rows {
-			sb.PushLine(stateToLine(row))
+		for i := first; i < len(state.Scrollback); i++ {
+			sb.PushLineWrap(stateToLine(state.Scrollback[i]), wrapFromWire(state.ScrollbackWrap, i))
 		}
 	}
 
@@ -1955,6 +1993,9 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 				t.SetCell(x, y, stateToCell(cellState))
 			}
 		}
+		for y := 0; y < len(state.Screen) && y < state.Height; y++ {
+			t.SetLineWrap(y, wrapFromWire(state.ScreenWrap, y))
+		}
 		// The cursor was serialized and thrown away. Whatever came next was
 		// written from wherever this client's emulator happened to be left,
 		// which on a pane rebuilt from nothing is the top left corner.
@@ -1973,6 +2014,9 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 			}
 			t.SetMainCell(x, y, stateToCell(cs))
 		}
+	}
+	for y := 0; y < len(state.MainScreen) && y < state.Height; y++ {
+		t.SetMainLineWrap(y, wrapFromWire(state.MainScreenWrap, y))
 	}
 }
 
@@ -2064,6 +2108,15 @@ type TerminalState struct {
 	KittyKbdStack []int         `json:"kitty_kbd_stack,omitempty"` // Kitty keyboard protocol flag stack, base entry first
 	Screen        [][]CellState `json:"screen"`
 	Scrollback    [][]CellState `json:"scrollback,omitempty"`
+	// ScreenWrap, ScrollbackWrap and MainScreenWrap say, row for row, how
+	// each row of Screen, Scrollback and MainScreen ends: a vt.LineWrap, zero
+	// for a hard break. They are what tells a row the guest's output wrapped
+	// from one it ended with a newline, which a resize reflows by and copy
+	// mode joins by; neither can be read back off the cells. Each is omitted
+	// when none of its rows is soft-wrapped.
+	ScreenWrap     []uint8 `json:"screen_wrap,omitempty"`
+	ScrollbackWrap []uint8 `json:"scrollback_wrap,omitempty"`
+	MainScreenWrap []uint8 `json:"main_screen_wrap,omitempty"`
 	// MainScreen is the normal screen, carried only while the alternate one is
 	// active. It is the shell's screen underneath a full-screen program, which
 	// quitting that program puts back on display. The alternate screen needs no

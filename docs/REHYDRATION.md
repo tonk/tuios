@@ -260,10 +260,14 @@ Two things had to be true for that rule to hold, and neither was:
 
 ## A resize is a point in the stream
 
-Where a line wraps is not a property of the line. It is decided once, by the
-width the emulator had when it consumed the bytes, and never revisited: nothing
-lays a scrollback line out again on either side. So two emulators fed the same
-bytes hold the same history only if they change width at the same byte.
+Where a line wraps is not a property of the line. It is decided by the width
+the emulator had when it consumed the bytes. A width change reflows the normal
+screen and its scrollback (soft-wrapped rows are joined and split again at the
+new width), but a row that ended in a newline at one width and wrapped at the
+other stays what it was. So two emulators fed the same bytes hold the same
+history only if they change width at the same byte. The snapshot carries how
+every row ends (`ScreenWrap`, `ScrollbackWrap`, `MainScreenWrap`), so a client
+seeded from it reflows the same rows the daemon does.
 
 They did not. A client resized its own emulator the moment its layout asked, and
 told the daemon over `TUIClient.ResizePTY`, which is fire-and-forget. Everything

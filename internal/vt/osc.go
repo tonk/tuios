@@ -369,15 +369,21 @@ func (e *Emulator) handleClipboard(data []byte) {
 	}
 }
 
+// handleHyperlink handles OSC 8 ; params ; URI. The parameters come first and
+// the URI last, which is the order they used to be read in the other way round:
+// every link landed in the cells with an empty URL and the target in Params,
+// and went back out as OSC 8 with the target in the parameter slot, which a
+// terminal reads as the end of a link. The URI is everything after the second
+// semicolon, since a URI may contain one.
 func (e *Emulator) handleHyperlink(cmd int, data []byte) {
-	parts := bytes.Split(data, []byte{';'})
+	parts := bytes.SplitN(data, []byte{';'}, 3)
 	if len(parts) != 3 || cmd != 8 {
 		// Invalid, ignore
 		return
 	}
 
-	e.scr.cur.Link.URL = string(parts[1])
-	e.scr.cur.Link.Params = string(parts[2])
+	e.scr.cur.Link.Params = string(parts[1])
+	e.scr.cur.Link.URL = string(parts[2])
 }
 
 // handleNotify9 handles OSC 9 (iTerm2 desktop notification): "9;<msg>".
