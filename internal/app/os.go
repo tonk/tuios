@@ -800,6 +800,10 @@ type OS struct {
 	// nil if the config failed to load at startup.
 	UserConfig *config.UserConfig
 
+	// staleRepaintTicks counts consecutive ticks drawn only for a window that is
+	// still ContentDirty (see OS.visibleContentDirty).
+	staleRepaintTicks int
+
 	// saveUserConfig, when set, replaces config.SaveUserConfig as the way the
 	// settings page persists UserConfig (see OSOptions.SaveUserConfig).
 	saveUserConfig func(*config.UserConfig) error

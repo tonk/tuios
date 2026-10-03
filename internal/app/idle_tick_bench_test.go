@@ -14,7 +14,9 @@ func idleOS(t testing.TB, n int) *OS {
 	t.Helper()
 	wins := make([]*terminal.Window, 0, n)
 	for i := 0; i < n; i++ {
-		wins = append(wins, newTestWindow(t, "idle-"+string(rune('a'+i)), 80, 24))
+		w := newTestWindow(t, "idle-"+string(rune('a'+i)), 80, 24)
+		w.ContentDirty = false // settled: a new window is dirty until first drawn
+		wins = append(wins, w)
 	}
 	return &OS{
 		Windows:        wins,

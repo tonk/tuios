@@ -16,6 +16,23 @@ func (m *OS) MarkAllDirty() {
 	m.sidebarCache.invalidate()
 }
 
+// maxStaleRepaintTicks bounds how many consecutive ticks may be drawn only
+// because a window is still ContentDirty (see visibleContentDirty).
+const maxStaleRepaintTicks = 5
+
+// visibleContentDirty reports whether a window that is on screen still has a
+// repaint request pending. A window being dragged or resized is served from
+// cache by design and is not counted.
+func (m *OS) visibleContentDirty() bool {
+	for _, w := range m.Windows {
+		if w != nil && w.Workspace == m.CurrentWorkspace && !w.Minimized && !w.Minimizing &&
+			w.Terminal != nil && w.ContentDirty && !w.IsBeingManipulated {
+			return true
+		}
+	}
+	return false
+}
+
 // MarkTerminalsWithNewContent marks terminals that have new content as dirty.
 func (m *OS) MarkTerminalsWithNewContent() bool {
 	// Fast path: no windows

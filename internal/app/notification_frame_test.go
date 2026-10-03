@@ -32,6 +32,7 @@ func TestNotificationKeepsTheFrameDrawing(t *testing.T) {
 	win := newTestWindow(t, "notif-frame-0001", 60, 34)
 	m := newTestOS(win)
 	m.Width, m.Height = 120, 40
+	win.ContentDirty = false // settled: a new window is dirty until first drawn
 
 	// Baseline: an idle session with nothing on screen may skip the frame.
 	if _, _ = m.Update(TickerMsg(time.Now())); !m.renderSkipped {

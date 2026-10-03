@@ -475,6 +475,13 @@ func (m *OS) tickNeedsWork() bool {
 	if m.hostTitleDrifted() {
 		return true
 	}
+	// A pane left ContentDirty by a frame that was not its emulator's true state
+	// (see OS.visibleContentDirty) needs a tick to draw it, a bounded number of
+	// times. Once nothing is dirty the bound starts over.
+	if m.visibleContentDirty() {
+		return m.staleRepaintTicks < maxStaleRepaintTicks
+	}
+	m.staleRepaintTicks = 0
 	return false
 }
 
@@ -948,6 +955,20 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		needsRender := hadAnimations || hasAnimations || m.InteractionMode || m.PrefixActive ||
 			dockInfoChanged || hasBackgroundChanges || hasNotifications || notifExpired || leftScriptMode ||
 			m.SidebarMarqueeActive() || m.TooltipPending() || railTitleChanged
+		// A pane left ContentDirty after a frame that was not its emulator's true
+		// state (served from cache while its output was being written, held for a
+		// synchronized update, or blank) is only repainted by a later frame, and a
+		// guest that has gone quiet never causes one. Draw it from the tick, a few
+		// times at most so a window that stays dirty for another reason, such as one
+		// that is never actually drawn, cannot keep the tick rendering forever.
+		if !needsRender && m.visibleContentDirty() {
+			if m.staleRepaintTicks < maxStaleRepaintTicks {
+				m.staleRepaintTicks++
+				needsRender = true
+			}
+		} else {
+			m.staleRepaintTicks = 0
+		}
 		if !needsRender {
 			m.renderSkipped = true
 			if len(cmds) > 1 {
