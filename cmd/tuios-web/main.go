@@ -87,6 +87,7 @@ func loadWebUserConfig() (*config.UserConfig, error) {
 
 func main() {
 	app.Version = version
+	app.BuildDate = date
 	rootCmd := &cobra.Command{
 		Use:   "tuios-web",
 		Short: "Web-based terminal server for TUIOS",

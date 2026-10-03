@@ -50,6 +50,7 @@ func (m *OS) RenderAbout() (string, overlay.Geometry) {
 			overlay.Style(bg).Foreground(pal.FgDim).Render(" - Terminal UI Operating System"),
 		"",
 		label("Version:  ")+value(version),
+		label("Built:    ")+value(buildDateLabel()),
 		label("Go:       ")+value(runtime.Version()),
 		label("Platform: ")+value(fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)),
 		"",

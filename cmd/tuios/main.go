@@ -56,6 +56,7 @@ var (
 
 func main() {
 	app.Version = version
+	app.BuildDate = date
 	rootCmd := newRootCommand()
 
 	// Command failures are printed here rather than by fang, which would query
