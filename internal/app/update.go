@@ -662,6 +662,14 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.renderSkipped = false
 	}
 
+	windowsBefore := len(m.Windows)
+	defer func() {
+		if windowsBefore > 0 && len(m.Windows) == 0 && config.QuitOnLastWindowClose && !m.QuitRequested {
+			m.QuitSession()
+			cmd = tea.Batch(cmd, tea.Quit)
+		}
+	}()
+
 	switch msg := msg.(type) {
 	case PTYDataMsg:
 		// PTY output arrived  - mark dirty terminals and re-render immediately.

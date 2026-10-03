@@ -510,6 +510,16 @@ Controls whether UI animations are enabled.
 
 **CLI override:** `--no-animations`
 
+### quit_on_last_window_close
+
+Controls what happens when the last window closes.
+
+**Valid values:**
+- `false` - Show the TUIOS screen (default)
+- `true` - Quit tuios completely (in a daemon session this ends the session)
+
+**Default:** `false`
+
 ### show_clock
 
 Controls whether the clock is shown in the status area.

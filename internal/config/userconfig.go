@@ -181,6 +181,7 @@ type DaemonConfig struct {
 type AppearanceConfig struct {
 	BorderStyle                    string  `toml:"border_style"`                       // Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block (borderless mode not yet implemented)
 	HideWindowButtons              bool    `toml:"hide_window_buttons"`                // Hide window control buttons (minimize, maximize, close)
+	QuitOnLastWindowClose          bool    `toml:"quit_on_last_window_close"`          // Quit tuios when the last window closes instead of showing the TUIOS screen (default: false)
 	HideScrollbar                  bool    `toml:"hide_scrollbar"`                     // Hide the window scrollbar thumb on the border
 	ScrollbackLines                int     `toml:"scrollback_lines"`                   // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000)
 	ScrollLines                    int     `toml:"scroll_lines"`                       // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
@@ -1066,6 +1067,7 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// assigned unconditionally: turning one off in the settings page has to
 	// survive a reload just as turning it on does.
 	HideWindowButtons = cfg.Appearance.HideWindowButtons
+	QuitOnLastWindowClose = cfg.Appearance.QuitOnLastWindowClose
 	HideScrollbar = cfg.Appearance.HideScrollbar
 	ShowClock = cfg.Appearance.ShowClock
 	ClockPill = cfg.Appearance.ClockPill

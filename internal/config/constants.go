@@ -645,6 +645,11 @@ var DockWindowList = false
 // Set via appearance.cursor_blink config.
 var CursorBlink = true
 
+// QuitOnLastWindowClose makes tuios quit when its last window closes, rather
+// than falling back to the empty TUIOS screen.
+// Set via appearance.quit_on_last_window_close config.
+var QuitOnLastWindowClose = false
+
 // HideWindowButtons controls whether to hide window control buttons
 // Set via --hide-window-buttons flag or appearance.hide_window_buttons config
 var HideWindowButtons = false

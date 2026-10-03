@@ -36,6 +36,7 @@ var exampleTables = []exampleTable{
 		Fields: []exampleField{
 			{"border_style", `"rounded"`, `Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block. "hidden" also hides the window buttons.`},
 			{"hide_window_buttons", "false", "Hide window control buttons (minimize, maximize, close)."},
+			{"quit_on_last_window_close", "false", "Quit tuios when the last window closes, instead of showing the TUIOS screen."},
 			{"hide_scrollbar", "false", "Hide the scrollbar thumb on the pane border."},
 			{"scrollback_lines", "10000", "Lines of scrollback kept per window. Range 100-10000000."},
 			{"scroll_lines", "3", "Lines scrolled per mouse-wheel notch. Range 1-50."},

@@ -95,6 +95,10 @@ func ApplyOverrides(overrides Overrides, userConfig *UserConfig) {
 		HideWindowButtons = overrides.HideWindowButtons
 	}
 
+	if userConfig != nil {
+		QuitOnLastWindowClose = userConfig.Appearance.QuitOnLastWindowClose
+	}
+
 	// Hide Scrollbar - OR of CLI flag and user config
 	if userConfig != nil {
 		HideScrollbar = overrides.HideScrollbar || userConfig.Appearance.HideScrollbar

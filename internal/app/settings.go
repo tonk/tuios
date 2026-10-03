@@ -645,6 +645,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 					config.AlwaysConfirmQuit = v
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ConfirmQuit = boolPtr(v) })
 				}),
+			boolItem("Quit on last close", "Quit when the last window closes",
+				func() bool { return config.QuitOnLastWindowClose },
+				func(m *OS, v bool) {
+					config.QuitOnLastWindowClose = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.QuitOnLastWindowClose = v })
+				}),
 			boolItem("Which-key", "Show the leader-key hint popup",
 				func() bool { return config.WhichKeyEnabled },
 				func(m *OS, v bool) {
