@@ -341,6 +341,13 @@ func (d *Daemon) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to listen on socket: %w", err)
 	}
+	// net.Listen unlinks the socket when the listener closes, which shutdown
+	// does first thing. The socket's removal is the signal WaitForDaemonShutdown
+	// waits on and must come after the final state saves, so shutdown unlinks
+	// it itself, last.
+	if ul, ok := listener.(*net.UnixListener); ok {
+		ul.SetUnlinkOnClose(false)
+	}
 	d.listener = listener
 
 	if err := os.Chmod(socketPath, 0700); err != nil {
