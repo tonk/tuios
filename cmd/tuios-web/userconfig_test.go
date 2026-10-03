@@ -26,7 +26,7 @@ func TestUserSettingsPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.owner, func(t *testing.T) {
 			got, err := userSettingsPath(tt.owner)
-			if (err != nil) != tt.wantErr || got != tt.want {
+			if (err != nil) != tt.wantErr || got != filepath.FromSlash(tt.want) {
 				t.Errorf("userSettingsPath(%q) = %q, %v; want %q (err %v)", tt.owner, got, err, tt.want, tt.wantErr)
 			}
 		})
