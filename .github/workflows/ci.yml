@@ -1,12 +1,13 @@
 name: CI
 
-# Build and test on every push to main and every pull request, on each OS the
-# release ships for. The release workflow only runs on tags, so without this a
-# platform-specific break (pty_windows.go, for one) would surface at release time.
+# Build and test on each OS the release ships for, but only when a vX.X.X tag is
+# pushed, the same trigger the release workflow uses, or when started by hand
+# from the Actions tab. Pushes to branches and pull requests do not run it.
 on:
   push:
-    branches: [main]
-  pull_request:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
 
 permissions:
   contents: read
