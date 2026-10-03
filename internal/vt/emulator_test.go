@@ -612,3 +612,22 @@ func BenchmarkEmulator_Render(b *testing.B) {
 		_ = emu.Render()
 	}
 }
+
+// TestEmulator_OSCTitleWithUTF8ContinuationByte0x9C is the regression test for
+// stray text appearing in the screen after a title update. U+2733 encodes as
+// E2 9C B3, and the 0x9C in the middle used to end the OSC string.
+func TestEmulator_OSCTitleWithUTF8ContinuationByte0x9C(t *testing.T) {
+	emu := vt.NewEmulator(40, 3)
+	var title string
+	emu.SetCallbacks(vt.Callbacks{Title: func(s string) { title = s }})
+
+	if _, err := emu.Write([]byte("ab\x1b]0;✳ Claude Code\acd\x1b]2;✻ done\x1b\\ef")); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimRight(strings.SplitN(emu.String(), "\n", 2)[0], " "); got != "abcdef" {
+		t.Errorf("first row = %q, want abcdef (the title text leaked into the screen)", got)
+	}
+	if title != "✻ done" {
+		t.Errorf("title = %q, want %q", title, "✻ done")
+	}
+}
