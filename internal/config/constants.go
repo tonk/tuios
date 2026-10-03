@@ -712,7 +712,7 @@ var ShowWindowNumber = true
 // An empty format returns the title unchanged, which is what keeps the default
 // rendering free of any formatting work.
 func FormatWindowTitle(title string, index int, cwd string) string {
-	if WindowTitleFormat == "" {
+	if WindowTitleFormat == "" || WindowTitleFormat == WindowTitleFixed {
 		return title
 	}
 	return strings.NewReplacer(
@@ -728,6 +728,18 @@ func FormatWindowTitle(title string, index int, cwd string) string {
 // already gave it one), but can never overwrite it afterward.
 // Set via appearance.lock_titles config
 var LockTitles = false
+
+// WindowTitleFixed is the special window_title_format value that keeps every
+// window's title as it was created (see InitialTitleFormat): titles start
+// locked, so nothing running inside can rename them, and the displayed title is
+// used as-is, with no window number or template applied.
+const WindowTitleFixed = "fixed"
+
+// TitlesLocked reports whether new windows start with their title locked,
+// either through lock_titles or because window_title_format is "fixed".
+func TitlesLocked() bool {
+	return LockTitles || WindowTitleFormat == WindowTitleFixed
+}
 
 // InitialTitleFormat is the template used for a new window's title at the
 // moment it is created, before anything inside it has had a chance to set
@@ -877,6 +889,10 @@ func NeedsDockTick() bool {
 // ScrollbackLines controls the number of lines to keep in scrollback buffer
 // Set via --scrollback-lines flag or appearance.scrollback_lines config
 var ScrollbackLines = 10000
+
+// UnlimitedScrollbackLines is the ScrollbackLines value (and the
+// appearance.scrollback_lines setting) that keeps every line that scrolls off.
+const UnlimitedScrollbackLines = -1
 
 // ScrollLines is how many lines one mouse wheel notch scrolls in scrollback,
 // copy mode and the scrollback browser.

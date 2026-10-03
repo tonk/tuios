@@ -659,14 +659,14 @@ func (m *OS) updateWindowFromState(w *terminal.Window, ws *session.WindowState) 
 	sizeChanged := w.Width != ws.Width || w.Height != ws.Height
 
 	// Update all properties
-	if want := m.configuredWindowTitle(); want != "" && config.LockTitles {
+	if want := m.configuredWindowTitle(); want != "" && config.TitlesLocked() {
 		// Client appearance wins over a shell OSC title the daemon echoed:
 		// without this, every sync would undo applyConfiguredTitlesToWindows.
 		w.SetTitle(want)
 		w.SetTitleLocked(true)
 	} else {
 		w.SetTitle(ws.Title)
-		w.SetTitleLocked(ws.TitleLocked || config.LockTitles)
+		w.SetTitleLocked(ws.TitleLocked || config.TitlesLocked())
 	}
 	w.CustomName = ws.CustomName
 	w.X = ws.X

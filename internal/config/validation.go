@@ -433,6 +433,9 @@ var knownInitialTitlePlaceholders = []string{"{user}"}
 var titlePlaceholderPattern = regexp.MustCompile(`\{[^{}]*\}`)
 
 func validateTitleFormat(format, key string, known []string, result *ValidationResult) {
+	if key == "window_title_format" && format == WindowTitleFixed {
+		return
+	}
 	for _, placeholder := range titlePlaceholderPattern.FindAllString(format, -1) {
 		if slices.Contains(known, placeholder) {
 			continue

@@ -165,6 +165,7 @@ Client features:
 	registerCertFlags(rootCmd)
 	rootCmd.Flags().StringVar(&webTouch, "touch", "auto", "Whether a client is driven by a finger, which widens the gestures aimed at a single cell: auto, on, off")
 	rootCmd.Flags().StringVar(&webConfigPath, "config", "", "Path to a config.toml file to use instead of the default (~/.config/tuios/config.toml)")
+	rootCmd.Flags().StringVar(&webUserConfigDir, "user-config-dir", "", "Directory where each PAM-authenticated user's settings from the settings page are saved, one <username>.toml each (default: $STATE_DIRECTORY/users, else the XDG state home)")
 	rootCmd.Flags().StringVar(&webFontFamily, "font-family", "", "CSS font-family for the browser terminal, or a bundled font name (saucecodepro, saucecodeprosemibold, freemono, freemonobold, sourcecodepro, sourcecodeprobold). Default: the bundled JetBrains Mono Nerd Font")
 	rootCmd.Flags().StringVar(&webFontPath, "font-path", "", "Path to a custom font file (.ttf, .otf, .woff, .woff2) to serve and register as --font-family")
 	rootCmd.Flags().BoolVar(&webPAMAuth, "pam-auth", false, "Require PAM login (username/password) before serving a connection; each trainee gets their own session running as their own Unix account. Off by default. Needs a separately-run pam-helper process; see pam-helper/README.md")
@@ -182,7 +183,7 @@ Client features:
 	rootCmd.Flags().StringVar(&borderStyle, "border-style", "", "Window border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block")
 	rootCmd.Flags().StringVar(&dockbarPosition, "dockbar-position", "", "Dockbar position: bottom, top, hidden")
 	rootCmd.Flags().BoolVar(&hideWindowButtons, "hide-window-buttons", false, "Hide window control buttons (minimize, maximize, close)")
-	rootCmd.Flags().IntVar(&scrollbackLines, "scrollback-lines", 0, "Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 1000000)")
+	rootCmd.Flags().IntVar(&scrollbackLines, "scrollback-lines", 0, "Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000, -1: unlimited)")
 	rootCmd.Flags().BoolVar(&showKeys, "show-keys", false, "Enable showkeys overlay to display pressed keys")
 	rootCmd.Flags().BoolVar(&noAnimations, "no-animations", false, "Disable UI animations for instant transitions")
 
@@ -303,7 +304,7 @@ func runWebServer() error {
 	// the globals the render loop reads, no matter what is in the file.
 	config.ApplyAppearanceConfig(userConfig)
 
-	config.ApplyOverrides(config.Overrides{
+	webOverrides = config.Overrides{
 		ASCIIOnly:         asciiOnly,
 		BorderStyle:       borderStyle,
 		DockbarPosition:   dockbarPosition,
@@ -311,7 +312,8 @@ func runWebServer() error {
 		ScrollbackLines:   scrollbackLines,
 		NoAnimations:      noAnimations,
 		ThemeName:         themeName,
-	}, userConfig)
+	}
+	config.ApplyOverrides(webOverrides, userConfig)
 
 	// In --pam-auth or --web-settings mode, sip's own server binds
 	// loopback-only and plain HTTP; the front door (below, after
@@ -685,11 +687,9 @@ func shortID(id string) string {
 
 // createEphemeralTUIOSInstance creates a standalone TUIOS instance (old behavior)
 func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption) {
-	// Load user configuration
-	userConfig, err := loadWebUserConfig()
-	if err != nil {
-		userConfig = config.DefaultConfig()
-	}
+	// Load user configuration. No identity here, so nothing the settings page
+	// changes is written back.
+	userConfig, saveConfig := webSessionConfigOrDefault("")
 
 	// Set up the input handler
 	app.SetInputHandler(input.HandleInput)
@@ -704,6 +704,7 @@ func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch
 	tuiosInstance := app.NewOS(app.OSOptions{
 		KeybindRegistry:           keybindRegistry,
 		UserConfig:                userConfig,
+		SaveUserConfig:            saveConfig,
 		ShowKeys:                  showKeys,
 		Width:                     width,
 		Height:                    height,
@@ -729,10 +730,7 @@ func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch
 // same reason: there is no daemon process in either case for a session to
 // live in independently of this one connection.
 func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut *os.File, touch bool) tea.Model {
-	userConfig, err := loadWebUserConfig()
-	if err != nil {
-		userConfig = config.DefaultConfig()
-	}
+	userConfig, saveConfig := webSessionConfigOrDefault(login.Username())
 	// A trainee logging in should land in a ready, typeable shell, not a
 	// blank tuios screen or one sitting in window-management mode where
 	// keystrokes are bindings rather than input.
@@ -745,6 +743,7 @@ func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut
 	return app.NewOS(app.OSOptions{
 		KeybindRegistry:           keybindRegistry,
 		UserConfig:                userConfig,
+		SaveUserConfig:            saveConfig,
 		ShowKeys:                  showKeys,
 		Width:                     width,
 		Height:                    height,
@@ -768,7 +767,7 @@ func createDaemonTUIOSInstance(ctx context.Context, sessionName string, width, h
 	if sessionName == "" {
 		sessionName = "web"
 	}
-	return attachDaemonSession(ctx, sessionName, true, width, height, graphicsOut, touch, "")
+	return attachDaemonSession(ctx, sessionName, true, width, height, graphicsOut, touch, "", "")
 }
 
 // attachDaemonSession connects to the daemon and attaches to sessionName,
@@ -783,7 +782,11 @@ func createDaemonTUIOSInstance(ctx context.Context, sessionName string, width, h
 // initialTitleUser is who appearance.initial_title_format's {user} expands
 // to for this client's panes (classroom trainee / session owner). Empty for
 // ordinary non-classroom web sessions.
-func attachDaemonSession(ctx context.Context, sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool, initialTitleUser string) (tea.Model, []tea.ProgramOption, error) {
+//
+// configOwner is the PAM username whose own settings this client reads and
+// saves (see loadWebSessionConfig); empty for a connection with no identity,
+// which shares the server's config and saves nothing.
+func attachDaemonSession(ctx context.Context, sessionName string, createNew bool, width, height int, graphicsOut *os.File, touch bool, initialTitleUser, configOwner string) (tea.Model, []tea.ProgramOption, error) {
 	// Connect to daemon
 	client := session.NewTUIClient()
 	v := webServerConfig.version
@@ -841,11 +844,7 @@ func attachDaemonSession(ctx context.Context, sessionName string, createNew bool
 	}()
 
 	// Load user configuration
-	userConfig, err := loadWebUserConfig()
-	if err != nil {
-		log.Printf("Warning: Failed to load config for web session, using defaults: %v", err)
-		userConfig = config.DefaultConfig()
-	}
+	userConfig, saveConfig := webSessionConfigOrDefault(configOwner)
 	keybindRegistry := config.NewKeybindRegistry(userConfig)
 
 	// Set up the input handler
@@ -857,6 +856,7 @@ func attachDaemonSession(ctx context.Context, sessionName string, createNew bool
 	tuiosInstance := app.NewOS(app.OSOptions{
 		KeybindRegistry:           keybindRegistry,
 		UserConfig:                userConfig,
+		SaveUserConfig:            saveConfig,
 		ShowKeys:                  showKeys,
 		Width:                     width,
 		Height:                    height,
@@ -957,7 +957,7 @@ func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, wid
 		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
 	}
 
-	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName)
+	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName, sessionName)
 }
 
 // createTrainerAttachInstance builds a daemon-backed instance for an
@@ -973,8 +973,11 @@ func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, wid
 // immediately; the target session must already be live (the trainee is
 // actually logged in) or this returns an error.
 func createTrainerAttachInstance(ctx context.Context, login *pamauth.Login, sessionName string, width, height int, graphicsOut *os.File, touch bool) (tea.Model, []tea.ProgramOption, error) {
+	// The settings are the trainer's own, not those of the trainee whose
+	// session this is.
+	trainer := login.Username()
 	_ = login.Close()
-	model, opts, err := attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName)
+	model, opts, err := attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName, trainer)
 	if err != nil {
 		return nil, nil, fmt.Errorf("trainee %q is not currently logged in (or the daemon is unreachable): %w", sessionName, err)
 	}

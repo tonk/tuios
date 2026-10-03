@@ -213,7 +213,7 @@ func (s *Session) registerDaemonWindow(windowID, title string, width, height int
 			Height:      height,
 			Workspace:   workspace,
 			PTYID:       pty.ID,
-			TitleLocked: config.LockTitles,
+			TitleLocked: config.TitlesLocked(),
 			// The daemon has no viewport, so this box is a placeholder that keeps
 			// the PTY a usable size until a client places the window properly.
 			Unplaced: true,

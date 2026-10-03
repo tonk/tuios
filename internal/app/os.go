@@ -800,6 +800,10 @@ type OS struct {
 	// nil if the config failed to load at startup.
 	UserConfig *config.UserConfig
 
+	// saveUserConfig, when set, replaces config.SaveUserConfig as the way the
+	// settings page persists UserConfig (see OSOptions.SaveUserConfig).
+	saveUserConfig func(*config.UserConfig) error
+
 	// startupApplied guards the one-shot startup preferences (open a default
 	// window, start tiled) so they run only on the first WindowSizeMsg, once
 	// the real terminal dimensions are known, and never again.

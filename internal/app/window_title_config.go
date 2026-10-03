@@ -52,13 +52,13 @@ func (m *OS) applyConfiguredWindowTitle(w *terminal.Window) bool {
 	changed := false
 	if want := m.configuredWindowTitle(); want != "" {
 		cur := w.Title()
-		force := config.LockTitles || strings.HasPrefix(cur, "Terminal ")
+		force := config.TitlesLocked() || strings.HasPrefix(cur, "Terminal ")
 		if force && cur != want {
 			w.SetTitle(want)
 			changed = true
 		}
 	}
-	if config.LockTitles && !w.TitleLocked() {
+	if config.TitlesLocked() && !w.TitleLocked() {
 		w.SetTitleLocked(true)
 		changed = true
 	}

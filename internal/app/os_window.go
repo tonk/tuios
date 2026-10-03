@@ -477,7 +477,7 @@ func (m *OS) AddWindow(name string) *OS {
 		m.LogError("Failed to create window %s (PTY creation failed)", title)
 		return m // Failed to create window
 	}
-	window.SetTitleLocked(config.LockTitles)
+	window.SetTitleLocked(config.TitlesLocked())
 
 	caps := GetHostCapabilities()
 	if caps.CellWidth > 0 && caps.CellHeight > 0 {

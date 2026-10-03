@@ -133,6 +133,8 @@ func isDefaultTitle(title, windowID string) bool {
 // placeholder of appearance.window_title_format.
 func numberWindowName(windowName string, position int, cwd string) string {
 	switch {
+	case config.WindowTitleFormat == config.WindowTitleFixed:
+		return windowName
 	case config.WindowTitleFormat != "":
 		// A format that mentions only {index} or {cwd} still has something to
 		// say about a window whose title is empty.

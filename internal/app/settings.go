@@ -130,7 +130,11 @@ func (m *OS) persistSettings() {
 	if m.UserConfig == nil {
 		return
 	}
-	if err := config.SaveUserConfig(m.UserConfig); err != nil {
+	save := config.SaveUserConfig
+	if m.saveUserConfig != nil {
+		save = m.saveUserConfig
+	}
+	if err := save(m.UserConfig); err != nil {
 		m.ShowNotification("Could not save settings: "+err.Error(), "error", 0)
 	}
 }
@@ -271,6 +275,38 @@ func intItem(label, desc string, lo, hi, step int, get func() int, set func(m *O
 	}
 }
 
+// scrollbackItem is an int stepper from 100 to 100000 lines whose last step
+// up is Unlimited (config.UnlimitedScrollbackLines), and whose step down from
+// there lands back on the largest number. A value above the stepper's range,
+// as the config file allows, steps down from the top.
+func scrollbackItem(get func() int, set func(m *OS, v int)) settingItem {
+	const lo, hi, step = 100, 100000, 1000
+	return settingItem{
+		Label:   "Scrollback lines",
+		Desc:    "Lines kept per window, or Unlimited (applies to new windows)",
+		Control: controlInt,
+		value: func(_ *OS) string {
+			if get() < 0 {
+				return "Unlimited"
+			}
+			return strconv.Itoa(get())
+		},
+		adjust: func(m *OS, dir int) {
+			cur := get()
+			switch {
+			case cur < 0 && dir < 0:
+				set(m, hi)
+			case cur < 0:
+				// already unlimited
+			case cur >= hi && dir > 0:
+				set(m, config.UnlimitedScrollbackLines)
+			default:
+				set(m, clampInt(cur+dir*step, lo, hi))
+			}
+		},
+	}
+}
+
 // stringItem builds a free-text field. get reads the current value (nil-safe
 // against a missing config), set commits a trimmed value. Editing happens inline
 // via the settings input handler; set is called on commit and the change is
@@ -388,7 +424,7 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.BorderUnfocusedColor = v })
 					m.applyBorderColors()
 				}),
-			stringItem("Window title format", "Template: {title}, {index}, {cwd}", "{index}: {title}", "(raw title)",
+			stringItem("Window title format", "Template: {title}, {index}, {cwd}; or \"fixed\" to keep the initial title", "{index}: {title}", "(raw title)",
 				func(m *OS) string { return config.WindowTitleFormat },
 				func(m *OS, v string) {
 					config.WindowTitleFormat = v
@@ -739,7 +775,7 @@ func (m *OS) settingsCategories() []settingsCategory {
 	advanced := settingsCategory{
 		Name: "Advanced",
 		Items: []settingItem{
-			intItem("Scrollback lines", "Lines kept per window (applies to new windows)", 100, 100000, 1000,
+			scrollbackItem(
 				func() int { return config.ScrollbackLines },
 				func(m *OS, v int) {
 					config.ScrollbackLines = v

@@ -1,6 +1,8 @@
 package vt
 
 import (
+	"math"
+
 	uv "github.com/charmbracelet/ultraviolet"
 )
 
@@ -8,13 +10,24 @@ import (
 // scrollback buffer.
 const DefaultScrollbackSize = 10000
 
+// UnlimitedScrollback, passed to SetMaxLines (or any negative value), keeps
+// every line that scrolls off: the ring only ever grows.
+const UnlimitedScrollback = math.MaxInt
+
+// initialScrollbackRing is how many slots a ring starts with. The ring grows
+// from here up to maxLines as lines arrive, so a large (or unlimited) limit
+// costs nothing until the history is actually that long.
+const initialScrollbackRing = 1024
+
 // Scrollback represents a scrollback buffer that stores lines that have
 // scrolled off the top of the visible screen.
 // Uses a ring buffer for O(1) insertions instead of O(n) slice reallocations.
 // Every line carries how it ended (see LineWrap), which is what lets a resize
 // lay the history out again at the new width.
 type Scrollback struct {
-	// lines stores the scrollback lines in a ring buffer
+	// lines stores the scrollback lines in a ring buffer. Its length is the
+	// ring's current size, which grows towards maxLines (see grow); every
+	// wrap-around is on len(lines), not on maxLines.
 	lines []uv.Line
 	// maxLines is the maximum number of lines to keep in scrollback
 	maxLines int
@@ -22,7 +35,8 @@ type Scrollback struct {
 	head int
 	// tail is the index where the next line will be inserted
 	tail int
-	// full indicates whether the ring buffer is at capacity
+	// full indicates whether the ring has no free slot left. At maxLines that
+	// means the next push evicts the oldest line; below it, the ring grows.
 	full bool
 	// lastWidthCaptured tracks the terminal width when lines were last added
 	// Used for detecting when reflow is needed on resize
@@ -45,15 +59,36 @@ func NewScrollback(maxLines int) *Scrollback {
 	if maxLines <= 0 {
 		maxLines = DefaultScrollbackSize
 	}
+	size := min(maxLines, initialScrollbackRing)
 	return &Scrollback{
-		lines:             make([]uv.Line, maxLines), // Pre-allocate full ring buffer
+		lines:             make([]uv.Line, size),
 		maxLines:          maxLines,
 		head:              0,
 		tail:              0,
 		full:              false,
 		lastWidthCaptured: 0,
-		wraps:             make([]LineWrap, maxLines),
+		wraps:             make([]LineWrap, size),
 	}
+}
+
+// grow makes the ring hold at least minSize slots (at most maxLines), laying
+// the lines out from slot 0 so the ring is not wrapped afterwards.
+func (sb *Scrollback) grow(minSize int) {
+	size := min(sb.maxLines, max(minSize, 2*len(sb.lines), initialScrollbackRing))
+	if size <= len(sb.lines) {
+		return
+	}
+	n := sb.Len()
+	lines := make([]uv.Line, size)
+	wraps := make([]LineWrap, size)
+	for i := range n {
+		p := (sb.head + i) % len(sb.lines)
+		lines[i], wraps[i] = sb.lines[p], sb.wraps[p]
+	}
+	sb.lines, sb.wraps = lines, wraps
+	sb.head = 0
+	sb.tail = n % size
+	sb.full = n == size
 }
 
 // PushLine adds a line that ends in a hard break to the scrollback buffer. If
@@ -134,6 +169,10 @@ func (sb *Scrollback) pushOwned(line uv.Line, wrap LineWrap) uv.Line {
 
 	lineCopy := line
 
+	if sb.full && len(sb.lines) < sb.maxLines {
+		sb.grow(len(sb.lines) + 1)
+	}
+
 	// The slot about to be written holds the oldest line once the ring is full,
 	// and nothing can reach it after head advances below.
 	var evicted uv.Line
@@ -145,12 +184,12 @@ func (sb *Scrollback) pushOwned(line uv.Line, wrap LineWrap) uv.Line {
 	sb.lines[sb.tail] = lineCopy
 	sb.wraps[sb.tail] = wrap
 
-	// Advance tail (wraps around at maxLines)
-	sb.tail = (sb.tail + 1) % sb.maxLines
+	// Advance tail (wraps around at the ring's size)
+	sb.tail = (sb.tail + 1) % len(sb.lines)
 
 	// If buffer is full, advance head (oldest line pointer) as well
 	if sb.full {
-		sb.head = (sb.head + 1) % sb.maxLines
+		sb.head = (sb.head + 1) % len(sb.lines)
 		if sb.pending > 0 {
 			sb.pending--
 		}
@@ -170,12 +209,12 @@ func (sb *Scrollback) pushOwned(line uv.Line, wrap LineWrap) uv.Line {
 // Len returns the number of lines currently in the scrollback buffer.
 func (sb *Scrollback) Len() int {
 	if sb.full {
-		return sb.maxLines
+		return len(sb.lines)
 	}
 	if sb.tail >= sb.head {
 		return sb.tail - sb.head
 	}
-	return sb.maxLines - sb.head + sb.tail
+	return len(sb.lines) - sb.head + sb.tail
 }
 
 // Line returns the line at the specified index in the scrollback buffer.
@@ -186,11 +225,8 @@ func (sb *Scrollback) Line(index int) uv.Line {
 	if index < 0 || index >= length {
 		return nil
 	}
-	if sb.maxLines <= 0 {
-		return nil
-	}
 	// Map logical index to physical ring buffer index
-	physicalIndex := (sb.head + index) % sb.maxLines
+	physicalIndex := (sb.head + index) % len(sb.lines)
 	if physicalIndex < 0 || physicalIndex >= len(sb.lines) {
 		return nil
 	}
@@ -208,7 +244,7 @@ func (sb *Scrollback) Lines() []uv.Line {
 	// Build a slice in correct order from the ring buffer
 	result := make([]uv.Line, length)
 	for i := range length {
-		physicalIndex := (sb.head + i) % sb.maxLines
+		physicalIndex := (sb.head + i) % len(sb.lines)
 		result[i] = sb.lines[physicalIndex]
 	}
 	return result
@@ -238,7 +274,7 @@ func (sb *Scrollback) LineWrap(index int) LineWrap {
 	if index < 0 || index >= sb.Len() {
 		return HardBreak
 	}
-	return sb.wraps[(sb.head+index)%sb.maxLines]
+	return sb.wraps[(sb.head+index)%len(sb.lines)]
 }
 
 // IsSoftWrapped reports whether the line at index (0 is the oldest) continues
@@ -277,7 +313,7 @@ func (sb *Scrollback) Reflow(newWidth int) {
 // appendRange appends lines [from, to) and how each ended, oldest first.
 func (sb *Scrollback) appendRange(lines []uv.Line, wraps []LineWrap, from, to int) ([]uv.Line, []LineWrap) {
 	for i := from; i < to; i++ {
-		p := (sb.head + i) % sb.maxLines
+		p := (sb.head + i) % len(sb.lines)
 		lines = append(lines, sb.lines[p])
 		wraps = append(wraps, sb.wraps[p])
 	}
@@ -304,7 +340,7 @@ func (sb *Scrollback) reflowTailStart(width, height int) int {
 		cells := 0
 		for {
 			start--
-			p := (sb.head + start) % sb.maxLines
+			p := (sb.head + start) % len(sb.lines)
 			if w := sb.wraps[p]; w.Wrapped() {
 				cells += max(len(sb.lines[p])-w.Spacer(), 0)
 			} else {
@@ -329,23 +365,27 @@ func (sb *Scrollback) replaceTail(from int, lines []uv.Line, wraps []LineWrap) (
 	n := sb.Len()
 	from = min(max(from, 0), n)
 	for i := from; i < n; i++ {
-		p := (sb.head + i) % sb.maxLines
+		p := (sb.head + i) % len(sb.lines)
 		sb.lines[p], sb.wraps[p] = nil, HardBreak
 	}
-	sb.tail = (sb.head + from) % sb.maxLines
+	sb.tail = (sb.head + from) % len(sb.lines)
+	sb.full = from == len(sb.lines)
+	if want := min(sb.maxLines, from+len(lines)); want > len(sb.lines) {
+		sb.grow(want)
+	}
 	length := from
 	for i, line := range lines {
-		if length == sb.maxLines {
+		if length == len(sb.lines) {
 			// tail has come round to head: the oldest line goes.
-			sb.head = (sb.head + 1) % sb.maxLines
+			sb.head = (sb.head + 1) % len(sb.lines)
 			length--
 			dropped++
 		}
 		sb.lines[sb.tail], sb.wraps[sb.tail] = line, wraps[i]
-		sb.tail = (sb.tail + 1) % sb.maxLines
+		sb.tail = (sb.tail + 1) % len(sb.lines)
 		length++
 	}
-	sb.full = length == sb.maxLines
+	sb.full = length == len(sb.lines)
 	sb.pending = max(0, sb.pending-dropped)
 	return dropped
 }
@@ -353,7 +393,7 @@ func (sb *Scrollback) replaceTail(from int, lines []uv.Line, wraps []LineWrap) (
 // appendTo appends the retained lines and how each ended, oldest first.
 func (sb *Scrollback) appendTo(lines []uv.Line, wraps []LineWrap) ([]uv.Line, []LineWrap) {
 	for i, n := 0, sb.Len(); i < n; i++ {
-		p := (sb.head + i) % sb.maxLines
+		p := (sb.head + i) % len(sb.lines)
 		lines = append(lines, sb.lines[p])
 		wraps = append(wraps, sb.wraps[p])
 	}
@@ -368,13 +408,18 @@ func (sb *Scrollback) replace(lines []uv.Line, wraps []LineWrap) {
 		drop := len(lines) - sb.maxLines
 		lines, wraps = lines[drop:], wraps[drop:]
 	}
-	clear(sb.lines)
-	clear(sb.wraps)
+	if size := min(sb.maxLines, max(len(lines), len(sb.lines))); size != len(sb.lines) {
+		sb.lines = make([]uv.Line, size)
+		sb.wraps = make([]LineWrap, size)
+	} else {
+		clear(sb.lines)
+		clear(sb.wraps)
+	}
 	n := copy(sb.lines, lines)
 	copy(sb.wraps, wraps)
 	sb.head = 0
-	sb.tail = n % sb.maxLines
-	sb.full = n == sb.maxLines
+	sb.tail = n % len(sb.lines)
+	sb.full = n == len(sb.lines)
 }
 
 // SetCaptureWidth sets the terminal width at which scrollback lines are being captured.
@@ -400,7 +445,9 @@ func (sb *Scrollback) MaxLines() int {
 // If the new limit is smaller than the current number of lines, older lines
 // are discarded to fit the new limit.
 func (sb *Scrollback) SetMaxLines(maxLines int) {
-	if maxLines <= 0 {
+	if maxLines < 0 {
+		maxLines = UnlimitedScrollback
+	} else if maxLines == 0 {
 		maxLines = DefaultScrollbackSize
 	}
 
@@ -411,8 +458,9 @@ func (sb *Scrollback) SetMaxLines(maxLines int) {
 	oldLen := sb.Len()
 	if oldLen == 0 {
 		// Empty buffer, just resize
-		sb.lines = make([]uv.Line, maxLines)
-		sb.wraps = make([]LineWrap, maxLines)
+		size := min(maxLines, initialScrollbackRing)
+		sb.lines = make([]uv.Line, size)
+		sb.wraps = make([]LineWrap, size)
 		sb.maxLines = maxLines
 		sb.head = 0
 		sb.tail = 0
@@ -421,14 +469,15 @@ func (sb *Scrollback) SetMaxLines(maxLines int) {
 	}
 
 	// Create new ring buffer and copy existing lines
-	newLines := make([]uv.Line, maxLines)
-	newWraps := make([]LineWrap, maxLines)
 	newLen := min(oldLen, maxLines)
+	size := min(maxLines, max(newLen, initialScrollbackRing))
+	newLines := make([]uv.Line, size)
+	newWraps := make([]LineWrap, size)
 
 	// Copy the most recent newLen lines
 	startIndex := oldLen - newLen // Skip oldest lines if downsizing
 	for i := range newLen {
-		physicalIndex := (sb.head + startIndex + i) % sb.maxLines
+		physicalIndex := (sb.head + startIndex + i) % len(sb.lines)
 		newLines[i] = sb.lines[physicalIndex]
 		newWraps[i] = sb.wraps[physicalIndex]
 	}
@@ -437,8 +486,8 @@ func (sb *Scrollback) SetMaxLines(maxLines int) {
 	sb.wraps = newWraps
 	sb.maxLines = maxLines
 	sb.head = 0
-	sb.tail = newLen % maxLines
-	sb.full = (newLen == maxLines)
+	sb.tail = newLen % size
+	sb.full = newLen == size
 	sb.pending = max(0, sb.pending-(oldLen-newLen))
 
 	// Downsizing dropped the oldest oldLen-newLen lines; re-base semantic

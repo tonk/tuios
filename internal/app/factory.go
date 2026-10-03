@@ -24,6 +24,12 @@ type OSOptions struct {
 	// and/or ApplyAppearanceConfig) before constructing the OS.
 	UserConfig *config.UserConfig
 
+	// SaveUserConfig persists UserConfig after a change in the settings page.
+	// Nil means the standard config file (config.SaveUserConfig). A host that
+	// serves many users from one process (tuios-web) passes its own, so one
+	// user's changes are not written to the file everyone else reads.
+	SaveUserConfig func(*config.UserConfig) error
+
 	// ShowKeys enables the key display overlay.
 	ShowKeys bool
 
@@ -196,6 +202,7 @@ func NewOS(opts OSOptions) *OS {
 		// Hold the loaded config so the in-app settings page can persist live
 		// changes back to disk.
 		os.UserConfig = cfg
+		os.saveUserConfig = opts.SaveUserConfig
 		// Collected here and reported from Init, once there is a TUI to report
 		// them in.
 		os.ConfigWarnings = config.ConfigWarnings(cfg)

@@ -205,3 +205,27 @@ func TestSetMaxLinesDownsizeCallsOnTrim(t *testing.T) {
 		t.Errorf("onTrim total = %d, want 2 (oldest lines dropped on downsize)", trimmed)
 	}
 }
+
+func TestScrollbackUnlimitedGrows(t *testing.T) {
+	sb := NewScrollback(5)
+	sb.SetMaxLines(-1)
+	if sb.MaxLines() != UnlimitedScrollback {
+		t.Fatalf("MaxLines() = %d, want unlimited", sb.MaxLines())
+	}
+	const total = 5000 // well past the initial ring
+	for i := range total {
+		sb.PushLine(uv.Line{{Content: string(rune('a' + i%26)), Width: 1}})
+	}
+	if sb.Len() != total {
+		t.Fatalf("Len() = %d, want %d", sb.Len(), total)
+	}
+	for _, i := range []int{0, 1, 1023, 1024, 4999} {
+		if got, want := sb.Line(i)[0].Content, string(rune('a'+i%26)); got != want {
+			t.Errorf("Line(%d) = %q, want %q", i, got, want)
+		}
+	}
+	sb.SetMaxLines(100)
+	if sb.Len() != 100 || sb.Line(99)[0].Content != string(rune('a'+4999%26)) {
+		t.Errorf("after shrinking: Len() = %d, newest = %q", sb.Len(), sb.Line(99)[0].Content)
+	}
+}

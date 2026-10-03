@@ -327,11 +327,11 @@ Controls whether window control buttons (minimize, maximize, close) are displaye
 
 Controls the number of lines stored in the scrollback buffer for each terminal window.
 
-**Valid values:** Integer between 100 and 1,000,000
+**Valid values:** Integer between 100 and 10,000,000, or `-1` for unlimited (every line is kept)
 
 **Default:** `10000`
 
-**Note:** Values outside the valid range are automatically clamped. Higher values consume more memory.
+**Note:** Other values outside the valid range are automatically clamped. The buffer grows as lines arrive, but with a large or unlimited setting the memory use grows with it. Also settable from the in-app settings page (Advanced, "Scrollback lines", where the step after the largest number is "Unlimited").
 
 **CLI override:** `--scrollback-lines <number>`
 
@@ -452,6 +452,8 @@ A template that overrides how a window's title is built, when you want more cont
 - `{title}` - The custom name or terminal-reported title
 - `{index}` - The window's 1-based position in its workspace
 - `{cwd}` - The shell's working directory (empty when it cannot be read)
+
+**Special value:** `"fixed"` keeps every window's title as it was created. Titles start locked (like `lock_titles`), so nothing running inside can rename them, and the title is shown as-is with no number or template. Combine with `initial_title_format` to choose the title.
 
 **Default:** `""` (empty, meaning the title is shown as-is, subject to `show_window_number`)
 

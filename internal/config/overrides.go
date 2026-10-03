@@ -142,7 +142,9 @@ func ApplyOverrides(overrides Overrides, userConfig *UserConfig) {
 	}
 
 	// Scrollback Lines - CLI flag takes precedence, otherwise use user config
-	if overrides.ScrollbackLines > 0 {
+	if overrides.ScrollbackLines < 0 {
+		ScrollbackLines = UnlimitedScrollbackLines
+	} else if overrides.ScrollbackLines > 0 {
 		// Clamp to valid range
 		lines := overrides.ScrollbackLines
 		if lines < 100 {
@@ -151,7 +153,7 @@ func ApplyOverrides(overrides Overrides, userConfig *UserConfig) {
 			lines = 10000000
 		}
 		ScrollbackLines = lines
-	} else if userConfig != nil && userConfig.Appearance.ScrollbackLines > 0 {
+	} else if userConfig != nil && userConfig.Appearance.ScrollbackLines != 0 {
 		ScrollbackLines = userConfig.Appearance.ScrollbackLines
 	}
 

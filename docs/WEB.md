@@ -171,9 +171,21 @@ they'd silently fall back to ASCII art or nothing at all.
 | `--insecure` | `false` | Serve a non-loopback host unencrypted |
 | `--touch` | `auto` | Whether a client is driven by a finger: `auto`, `on`, `off` |
 | `--config` | | Path to a config.toml file to use instead of the default (`~/.config/tuios/config.toml`) |
+| `--user-config-dir` | | Where each `--pam-auth` user's settings from the settings page are saved, one `<username>.toml` each (default: `$STATE_DIRECTORY/users`, else the XDG state home) |
 | `--font-family` | | CSS font-family for the browser terminal, or a bundled font name (`saucecodepro`, `saucecodeprosemibold`). Default: the bundled JetBrains Mono Nerd Font |
 | `--font-path` | | Path to a custom font file (`.ttf`, `.otf`, `.woff`, `.woff2`) to serve and register as `--font-family`; overrides a bundled name |
 | `--web-settings` | `false` | Add a Theme and Font Family picker to the browser's settings panel. Costs real WebTransport (falls back to WebSocket) since it needs the same front-door proxy `--pam-auth` uses |
+
+#### Per-user settings
+
+Settings changed from the in-app settings menu are not written to the shared config file.
+
+- **With `--pam-auth`**, each user gets their own settings. On connect, the server's config is the base, then `[appearance]`, `[notifications]` and `[keybindings]` from `~/.config/tuios/config.toml` in the user's home directory when the server can read it, then whatever the user last saved from the menu. Saves go to `<user-config-dir>/<username>.toml`, never into the home directory, because the server runs unprivileged. Because that saved file holds every appearance key, it takes precedence over later edits to the home config.
+- **Without `--pam-auth`** there is no identity to attach settings to: the shared config is used and changes made in the menu apply to that session only, they are not saved.
+
+Only those three sections are taken from a user's files. `[hooks]`, `[tape]`, `[classroom]`, `[daemon]`, `[startup]` and `env` always come from the server's config, since they run as, or decide things for, the server's account.
+
+The appearance settings are process-wide, so applying one user's settings as they connect also changes what other sessions already open on the server read until they next change something.
 | `--default-session` | | Default session name for all connections |
 | `--ephemeral` | `false` | Disable daemon mode (sessions don't persist) |
 

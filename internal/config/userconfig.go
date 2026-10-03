@@ -183,7 +183,7 @@ type AppearanceConfig struct {
 	HideWindowButtons              bool    `toml:"hide_window_buttons"`                // Hide window control buttons (minimize, maximize, close)
 	QuitOnLastWindowClose          bool    `toml:"quit_on_last_window_close"`          // Quit tuios when the last window closes instead of showing the TUIOS screen (default: false)
 	HideScrollbar                  bool    `toml:"hide_scrollbar"`                     // Hide the window scrollbar thumb on the border
-	ScrollbackLines                int     `toml:"scrollback_lines"`                   // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000)
+	ScrollbackLines                int     `toml:"scrollback_lines"`                   // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000, -1: unlimited)
 	ScrollLines                    int     `toml:"scroll_lines"`                       // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
 	CopyOnSelect                   *bool   `toml:"copy_on_select"`                     // Copy a mouse selection to the clipboard on release (default: true)
 	FocusFollowsMouse              *bool   `toml:"focus_follows_mouse"`                // Focus the pane under the cursor as the mouse moves (default: false)
@@ -932,7 +932,10 @@ func fillMissingAppearance(cfg, defaultCfg *UserConfig) {
 	// In borderless mode, buttons are hidden automatically regardless of this setting
 
 	// Validate and set scrollback lines (min: 100, max: 10000000)
-	if cfg.Appearance.ScrollbackLines <= 0 {
+	// -1 means unlimited; 0 (unset) takes the default.
+	if cfg.Appearance.ScrollbackLines < 0 {
+		cfg.Appearance.ScrollbackLines = UnlimitedScrollbackLines
+	} else if cfg.Appearance.ScrollbackLines == 0 {
 		cfg.Appearance.ScrollbackLines = defaultCfg.Appearance.ScrollbackLines
 	} else if cfg.Appearance.ScrollbackLines < 100 {
 		cfg.Appearance.ScrollbackLines = 100
@@ -1080,7 +1083,7 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	LockTitles = cfg.Appearance.LockTitles
 	InitialTitleFormat = cfg.Appearance.InitialTitleFormat
 
-	if cfg.Appearance.ScrollbackLines > 0 {
+	if cfg.Appearance.ScrollbackLines != 0 {
 		ScrollbackLines = cfg.Appearance.ScrollbackLines
 	}
 
