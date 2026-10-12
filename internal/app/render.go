@@ -255,7 +255,7 @@ func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {
 		m.SidebarHits = m.SidebarHits[:0]
 	}
 
-	canvas.Compose(lipgloss.NewCompositor(layers...))
+	m.composeLayers(canvas, layers)
 
 	return canvas
 }

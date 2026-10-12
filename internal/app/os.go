@@ -317,6 +317,13 @@ type OS struct {
 	// reused so a mouse drag does not allocate a map per motion event.
 	bspResizeScratch map[int]layout.Rect
 	renderCanvas     *lipgloss.Canvas // Reused across frames; resized on change, cleared per frame
+	// layerCells holds each composed layer's decoded cells, keyed by layer, so
+	// a layer kept across frames (a clean window's CachedLayer) is not measured
+	// and parsed again. layerCellsNext is the map the current frame fills; the
+	// two swap after every compose. composeScratch is the z-sorted layer list.
+	layerCells     map[*lipgloss.Layer]*layerCells
+	layerCellsNext map[*lipgloss.Layer]*layerCells
+	composeScratch []*lipgloss.Layer
 	// scrollbarRects is where each pane's scrollbar was drawn on the last frame,
 	// keyed by window ID. Recorded by the renderer, read by input.
 	scrollbarRects map[string]ScrollbarRect
