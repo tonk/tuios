@@ -23,14 +23,15 @@ func (m *OS) GetCanvas(render bool) *lipgloss.Canvas {
 
 	// Reuse the canvas across frames. Allocating a fresh one each frame was the
 	// single largest source of allocations (a full-screen cell buffer per frame).
-	// Resize is a no-op when the dimensions are unchanged; Clear resets the cells
-	// in place. Safe because GetCanvas is only called from View on one goroutine.
+	// Resize is a no-op when the dimensions are unchanged. The canvas is not
+	// cleared: composeLayers keeps the previous frame and redraws only the rows
+	// that changed. Safe because GetCanvas is only called from View on one
+	// goroutine.
 	rw, rh := m.GetRenderWidth(), m.GetRenderHeight()
 	if m.renderCanvas == nil {
 		m.renderCanvas = lipgloss.NewCanvas(rw, rh)
 	} else {
 		m.renderCanvas.Resize(rw, rh)
-		m.renderCanvas.Clear()
 	}
 	canvas := m.renderCanvas
 
@@ -369,7 +370,7 @@ func (m *OS) composeFrame() string {
 	if window, ok := m.fullscreenFastWindow(); ok && !fastPathDisabled {
 		return m.buildFullscreenFrame(window)
 	}
-	return lipgloss.Sprint(m.GetCanvas(true).Render())
+	return lipgloss.Sprint(m.renderComposed(m.GetCanvas(true)))
 }
 
 // fullscreenFastWindow returns the single window that fills the content area with

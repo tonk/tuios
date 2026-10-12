@@ -86,3 +86,33 @@ func BenchmarkCompositorGetCanvas(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkCompositorFrame measures what View pays per frame with one busy
+// pane: the compose plus turning the canvas into the frame string. "rows"
+// renders only the rows the compose changed, as composeFrame does; "full"
+// renders the whole canvas, as it did before the row cache.
+func BenchmarkCompositorFrame(b *testing.B) {
+	for _, n := range []int{4, 9} {
+		for _, mode := range []string{"rows", "full"} {
+			b.Run(fmt.Sprintf("windows-%d/one-dirty/%s", n, mode), func(b *testing.B) {
+				m := benchOS(b, n)
+				for _, w := range m.Windows {
+					w.MarkContentDirty()
+				}
+				_ = m.renderComposed(m.GetCanvas(false))
+
+				b.ReportAllocs()
+				b.ResetTimer()
+				for b.Loop() {
+					m.Windows[0].MarkContentDirty()
+					canvas := m.GetCanvas(false)
+					if mode == "rows" {
+						_ = m.renderComposed(canvas)
+					} else {
+						_ = canvas.Render()
+					}
+				}
+			})
+		}
+	}
+}

@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"image"
 	"os"
 	"regexp"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/ssh"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/google/uuid"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/hooks"
@@ -316,14 +318,29 @@ type OS struct {
 	// bspResizeScratch holds the layout rebuilt on each resize step. It is
 	// reused so a mouse drag does not allocate a map per motion event.
 	bspResizeScratch map[int]layout.Rect
-	renderCanvas     *lipgloss.Canvas // Reused across frames; resized on change, cleared per frame
-	// layerCells holds each composed layer's decoded cells, keyed by layer, so
-	// a layer kept across frames (a clean window's CachedLayer) is not measured
-	// and parsed again. layerCellsNext is the map the current frame fills; the
-	// two swap after every compose. composeScratch is the z-sorted layer list.
+	renderCanvas     *lipgloss.Canvas // Reused across frames; resized on change, kept and partly redrawn by composeLayers
+	// layerCells holds what composeLayers knows of each layer it drew last
+	// frame (size, position, decoded cells), keyed by layer, so a layer kept
+	// across frames (a clean window's CachedLayer) is not measured and parsed
+	// again, and so the rows that changed can be told from the ones that did
+	// not. layerCellsNext is the map the current frame fills; the two swap
+	// after every compose. composeScratch is the z-sorted layer list.
 	layerCells     map[*lipgloss.Layer]*layerCells
 	layerCellsNext map[*lipgloss.Layer]*layerCells
 	composeScratch []*lipgloss.Layer
+	// composedCanvas and composedBounds are the canvas composeLayers last drew
+	// and its size; any other canvas or size is recomposed whole. damageRows
+	// is the per-row damage of the current compose.
+	composedCanvas *lipgloss.Canvas
+	composedBounds image.Rectangle
+	damageRows     []bool
+	// rowStrings caches each canvas row rendered to a string and frameString
+	// their join; rowDirty marks the rows composed since they were rendered.
+	// rowScratch is the line renderComposed copies a row into.
+	rowStrings  []string
+	rowDirty    []bool
+	rowScratch  uv.Line
+	frameString string
 	// scrollbarRects is where each pane's scrollbar was drawn on the last frame,
 	// keyed by window ID. Recorded by the renderer, read by input.
 	scrollbarRects map[string]ScrollbarRect

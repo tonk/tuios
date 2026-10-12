@@ -1,6 +1,9 @@
 package app
 
 import (
+	"math/rand/v2"
+	"slices"
+	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -65,9 +68,8 @@ func TestComposeLayersMatchesCompositor(t *testing.T) {
 				want := lipgloss.NewCanvas(40, 10)
 				want.Compose(lipgloss.NewCompositor(layers...))
 
-				canvas.Clear()
 				m.composeLayers(canvas, layers)
-				if got := canvas.Render(); got != want.Render() {
+				if got := m.renderComposed(canvas); got != want.Render() {
 					t.Fatalf("frame %d differs\n got: %q\nwant: %q", frame, got, want.Render())
 				}
 			}
@@ -95,5 +97,92 @@ func TestComposeLayersDropsUnusedLayers(t *testing.T) {
 	}
 	if _, ok := m.layerCells[kept]; !ok {
 		t.Error("layer composed this frame is not cached")
+	}
+}
+
+// randomLayerContent builds a few lines mixing narrow, wide and emoji
+// graphemes, styled runs, blank lines and ragged ends: the shapes that decide
+// whether a layer's cells break up the wide cells of the layer beneath it.
+func randomLayerContent(rng *rand.Rand) string {
+	pieces := []string{"a", "bc", " ", "  ", "日", "本語", "🙂", "x日", "é", "e\u0301", "\u200b"}
+	styles := []lipgloss.Style{
+		lipgloss.NewStyle(),
+		lipgloss.NewStyle().Bold(true),
+		lipgloss.NewStyle().Background(lipgloss.Color("#204060")),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Underline(true),
+	}
+	lines := make([]string, 1+rng.IntN(5))
+	for i := range lines {
+		var b strings.Builder
+		for range rng.IntN(8) {
+			b.WriteString(styles[rng.IntN(len(styles))].Render(pieces[rng.IntN(len(pieces))]))
+		}
+		lines[i] = b.String()
+	}
+	return strings.Join(lines, "\n")
+}
+
+// TestComposeLayersRandomFrames composes random frames, keeping, moving,
+// replacing, dropping and reordering layers between them as a running session
+// does, and checks every frame, and its rendered string, against a full
+// compose by lipgloss's Compositor.
+func TestComposeLayersRandomFrames(t *testing.T) {
+	const width, height = 24, 10
+	for seed := range uint64(300) {
+		rng := rand.New(rand.NewPCG(seed, 0x7475696f73))
+		newLayer := func() *lipgloss.Layer {
+			return lipgloss.NewLayer(randomLayerContent(rng)).
+				X(rng.IntN(width+6) - 4).Y(rng.IntN(height+4) - 2).Z(rng.IntN(4))
+		}
+
+		m := &OS{}
+		w, h := width, height
+		canvas := lipgloss.NewCanvas(w, h)
+		layers := make([]*lipgloss.Layer, 1+rng.IntN(6))
+		for i := range layers {
+			layers[i] = newLayer()
+		}
+
+		for frame := range 12 {
+			if frame > 0 {
+				for i := range layers {
+					switch rng.IntN(12) {
+					case 0:
+						layers[i] = newLayer()
+					case 1:
+						layers[i].X(layers[i].GetX() + rng.IntN(5) - 2).Y(layers[i].GetY() + rng.IntN(3) - 1)
+					case 2:
+						layers[i].Z(rng.IntN(4))
+					}
+				}
+				switch rng.IntN(4) {
+				case 0:
+					layers = append(layers, newLayer())
+				case 1:
+					if len(layers) > 1 {
+						layers = slices.Delete(layers, 0, 1)
+					}
+				}
+			}
+
+			// Now and then the screen is resized, which recomposes it whole.
+			if rng.IntN(10) == 0 {
+				w, h = width-rng.IntN(4), height-rng.IntN(3)
+				canvas.Resize(w, h)
+			}
+
+			want := lipgloss.NewCanvas(w, h)
+			want.Compose(lipgloss.NewCompositor(layers...))
+
+			// Most frames change nothing or one layer; the canvas keeps the
+			// previous frame, so only damaged rows are redrawn.
+			m.composeLayers(canvas, layers)
+			if got := canvas.Render(); got != want.Render() {
+				t.Fatalf("seed %d frame %d: canvas differs\n got: %q\nwant: %q", seed, frame, got, want.Render())
+			}
+			if got := m.renderComposed(canvas); got != want.Render() {
+				t.Fatalf("seed %d frame %d: rendered rows differ\n got: %q\nwant: %q", seed, frame, got, want.Render())
+			}
+		}
 	}
 }
