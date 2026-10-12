@@ -199,8 +199,18 @@ func getWindowTitle(window *terminal.Window, position int, maxWidth int) string 
 	return windowName
 }
 
+// addToBorder replaces the top and bottom edges of a bordered box with the
+// window's chrome: the title, the buttons and the scroll position. content is
+// the box lipgloss rendered; its last line, the bottom edge, is dropped.
 func addToBorder(content string, color color.Color, window *terminal.Window, position int, isTiling bool) string {
-	width := max(lipgloss.Width(content)-2, 0)
+	lines := strings.Split(content, "\n")
+	return borderChrome(lines[:len(lines)-1], max(lipgloss.Width(content)-2, 0), color, window, position, isTiling)
+}
+
+// borderChrome frames a box's side-bordered lines with the window's top and
+// bottom chrome. width is the box width less two, which is how wide the chrome
+// between the corners is.
+func borderChrome(sides []string, width int, color color.Color, window *terminal.Window, position int, isTiling bool) string {
 	titlePos := config.WindowTitlePosition
 
 	style := pool.GetStyle()
@@ -279,12 +289,20 @@ func addToBorder(content string, color color.Color, window *terminal.Window, pos
 		bottomBorder = borderStyle.Render(config.GetWindowBorderBottomLeft() + strings.Repeat(config.GetWindowBorderBottom(), width) + config.GetWindowBorderBottomRight())
 	}
 
-	lines := strings.Split(content, "\n")
-
-	if len(lines) > 0 {
-		lines[len(lines)-1] = bottomBorder
+	var out strings.Builder
+	n := len(topBorder) + len(bottomBorder) + len(sides) + 1
+	for _, l := range sides {
+		n += len(l)
 	}
-	return topBorder + "\n" + strings.Join(lines, "\n")
+	out.Grow(n)
+	out.WriteString(topBorder)
+	out.WriteByte('\n')
+	for _, l := range sides {
+		out.WriteString(l)
+		out.WriteByte('\n')
+	}
+	out.WriteString(bottomBorder)
+	return out.String()
 }
 
 // renderTitleWithButtons renders a top/bottom border with a title badge and buttons.

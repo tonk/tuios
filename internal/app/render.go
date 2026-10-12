@@ -333,26 +333,20 @@ func rendersBorderless(window *terminal.Window) bool {
 // window is borderless. Shared by the compositor path and the fullscreen fast
 // path so both produce identical output.
 func (m *OS) renderWindowBox(window *terminal.Window, index int, isFocused bool, borderColorObj color.Color) string {
-	content := fitToContentBox(
-		m.renderTerminal(window, isFocused, m.Mode == TerminalMode),
-		window.ContentWidth(), window.ContentHeight(),
-	)
+	content := m.renderTerminal(window, isFocused, m.Mode == TerminalMode)
+	contentW, contentH := window.ContentWidth(), window.ContentHeight()
 	if rendersBorderless(window) {
-		return content
+		return fitToContentBox(content, contentW, contentH)
 	}
-	box := lipgloss.NewStyle().
-		Align(lipgloss.Left).
-		AlignVertical(lipgloss.Top).
-		Border(getBorder()).
-		BorderTop(false)
 	// The title bar keeps showing the name the window still has while a rename
 	// is in flight: the dialog owns the new one, so the two together are the
 	// old-vs-new comparison.
+	border := getBorder()
+	if sides, width, ok := boxSides(content, contentW, contentH, window.Width, window.Height-1, border, borderColorObj); ok {
+		return borderChrome(sides, width, borderColorObj, window, m.workspacePosition(window), m.AutoTiling)
+	}
 	return addToBorder(
-		box.Width(window.Width).
-			Height(window.Height-1).
-			BorderForeground(borderColorObj).
-			Render(content),
+		lipglossWindowBox(content, contentW, contentH, window.Width, window.Height-1, border, borderColorObj),
 		borderColorObj,
 		window,
 		m.workspacePosition(window),

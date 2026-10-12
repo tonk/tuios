@@ -41,8 +41,11 @@ type layerCells struct {
 
 	// x, y and order are where the last compose drew the layer and its index
 	// in that frame's z order. fresh marks a layer first composed this frame.
+	// gen is the compose that last drew it, and content its content then.
 	x, y, order int
 	fresh       bool
+	gen         uint64
+	content     string
 }
 
 // cellRecorder is a uv.Screen that records the cells drawn on it instead of
@@ -192,6 +195,10 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 	if m.layerCells == nil {
 		m.layerCells = make(map[*lipgloss.Layer]*layerCells)
 		m.layerCellsNext = make(map[*lipgloss.Layer]*layerCells)
+		m.layersByID = make(map[string]*layerCells)
+		m.layersByIDNext = make(map[string]*layerCells)
+		m.layersByContent = make(map[string]*layerCells)
+		m.layersByContentNext = make(map[string]*layerCells)
 	}
 
 	// The compositor sorted by z with an unstable sort; for the short lists
@@ -210,6 +217,8 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 	damage = append(damage, make([]bool, screen.Dy())...)
 	m.damageRows = damage
 
+	m.composeGen++
+	gen := m.composeGen
 	lastOrder := -1
 	for i, layer := range sorted {
 		if _, dup := m.layerCellsNext[layer]; dup {
@@ -218,6 +227,14 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 		}
 		x, y := layer.GetX(), layer.GetY()
 		lc, ok := m.layerCells[layer]
+		if ok && lc.gen == gen {
+			// A layer rebuilt in its place this frame already took its
+			// cells; this one is drawn as new.
+			ok = false
+		}
+		if !ok {
+			lc, ok = m.matchRebuiltLayer(layer, gen)
+		}
 		if !ok {
 			lc = measureLayer(layer)
 			lc.fresh = true
@@ -233,11 +250,16 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 				markRows(damage, y, lc)
 			}
 		}
-		lc.x, lc.y, lc.order = x, y, i
+		lc.x, lc.y, lc.order, lc.gen, lc.content = x, y, i, gen, layer.GetContent()
 		m.layerCellsNext[layer] = lc
+		if id := layer.GetID(); id != "" {
+			m.layersByIDNext[id] = lc
+		} else {
+			m.layersByContentNext[lc.content] = lc
+		}
 	}
-	for layer, lc := range m.layerCells {
-		if _, kept := m.layerCellsNext[layer]; !kept {
+	for _, lc := range m.layerCells {
+		if lc.gen != gen {
 			markRows(damage, lc.y, lc)
 		}
 	}
@@ -303,7 +325,31 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 	// What was drawn this frame is next frame's cache; the rest is released.
 	clear(m.layerCells)
 	m.layerCells, m.layerCellsNext = m.layerCellsNext, m.layerCells
+	clear(m.layersByID)
+	m.layersByID, m.layersByIDNext = m.layersByIDNext, m.layersByID
+	clear(m.layersByContent)
+	m.layersByContent, m.layersByContentNext = m.layersByContentNext, m.layersByContent
 	clear(m.composeScratch)
+}
+
+// matchRebuiltLayer finds the layer last frame drew that layer stands in for:
+// the dock, the sidebar, scrollbars, separators and overlays are built anew
+// every frame, as a new layer with, most frames, the same content. One with
+// the same ID, or with no ID and the same content, and the same content
+// either way, is that layer again: it keeps its cells and, unless it moved,
+// damages nothing. Each old layer stands in for one new layer at most.
+func (m *OS) matchRebuiltLayer(layer *lipgloss.Layer, gen uint64) (*layerCells, bool) {
+	content := layer.GetContent()
+	var lc *layerCells
+	if id := layer.GetID(); id != "" {
+		lc = m.layersByID[id]
+	} else {
+		lc = m.layersByContent[content]
+	}
+	if lc == nil || lc.gen == gen || lc.content != content {
+		return nil, false
+	}
+	return lc, true
 }
 
 // renderComposed returns canvas.Render() for the canvas composeLayers last

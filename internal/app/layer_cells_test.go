@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -122,6 +123,21 @@ func randomLayerContent(rng *rand.Rand) string {
 	return strings.Join(lines, "\n")
 }
 
+// composeStable composes layers as lipgloss's Compositor does, but keeps
+// layers of equal z in the order given. The Compositor's sort is stable only
+// while it sorts at most 12 layers (its root among them), where Go's sort is an
+// insertion sort; past that the order of equal z is arbitrary, so a long list
+// cannot serve as a reference as it is.
+func composeStable(width, height int, layers []*lipgloss.Layer) *lipgloss.Canvas {
+	sorted := slices.Clone(layers)
+	slices.SortStableFunc(sorted, func(a, b *lipgloss.Layer) int { return a.GetZ() - b.GetZ() })
+	canvas := lipgloss.NewCanvas(width, height)
+	for _, l := range sorted {
+		canvas.Compose(lipgloss.NewCompositor(l))
+	}
+	return canvas
+}
+
 // TestComposeLayersRandomFrames composes random frames, keeping, moving,
 // replacing, dropping and reordering layers between them as a running session
 // does, and checks every frame, and its rendered string, against a full
@@ -130,9 +146,21 @@ func TestComposeLayersRandomFrames(t *testing.T) {
 	const width, height = 24, 10
 	for seed := range uint64(300) {
 		rng := rand.New(rand.NewPCG(seed, 0x7475696f73))
+		ids := 0
 		newLayer := func() *lipgloss.Layer {
-			return lipgloss.NewLayer(randomLayerContent(rng)).
+			l := lipgloss.NewLayer(randomLayerContent(rng)).
 				X(rng.IntN(width+6) - 4).Y(rng.IntN(height+4) - 2).Z(rng.IntN(4))
+			if rng.IntN(2) == 0 {
+				ids++
+				l.ID(fmt.Sprintf("layer-%d", ids))
+			}
+			return l
+		}
+		// rebuild makes a new layer standing in for l, as the dock or a
+		// scrollbar is rebuilt every frame: the same ID, here and there with
+		// other content, or, without an ID, the same content.
+		rebuild := func(l *lipgloss.Layer, content string) *lipgloss.Layer {
+			return lipgloss.NewLayer(content).X(l.GetX()).Y(l.GetY()).Z(l.GetZ()).ID(l.GetID())
 		}
 
 		m := &OS{}
@@ -153,6 +181,15 @@ func TestComposeLayersRandomFrames(t *testing.T) {
 						layers[i].X(layers[i].GetX() + rng.IntN(5) - 2).Y(layers[i].GetY() + rng.IntN(3) - 1)
 					case 2:
 						layers[i].Z(rng.IntN(4))
+					case 3, 4, 5:
+						layers[i] = rebuild(layers[i], layers[i].GetContent())
+					case 6:
+						layers[i] = rebuild(layers[i], randomLayerContent(rng))
+					case 7:
+						// Two layers with one ID, or one content: only one
+						// may take the old layer's place.
+						j := rng.IntN(len(layers))
+						layers[i] = rebuild(layers[j], layers[j].GetContent()).X(layers[i].GetX())
 					}
 				}
 				switch rng.IntN(4) {
@@ -171,8 +208,7 @@ func TestComposeLayersRandomFrames(t *testing.T) {
 				canvas.Resize(w, h)
 			}
 
-			want := lipgloss.NewCanvas(w, h)
-			want.Compose(lipgloss.NewCompositor(layers...))
+			want := composeStable(w, h, layers)
 
 			// Most frames change nothing or one layer; the canvas keeps the
 			// previous frame, so only damaged rows are redrawn.

@@ -328,6 +328,16 @@ type OS struct {
 	layerCells     map[*lipgloss.Layer]*layerCells
 	layerCellsNext map[*lipgloss.Layer]*layerCells
 	composeScratch []*lipgloss.Layer
+	// layersByID and layersByContent index last frame's layers by ID, or by
+	// content for layers without one, so a layer rebuilt with the same content
+	// (the dock, the sidebar, a scrollbar) is recognised as unchanged. The Next
+	// maps are filled by the current frame and swap in like layerCellsNext.
+	// composeGen counts composes.
+	layersByID          map[string]*layerCells
+	layersByIDNext      map[string]*layerCells
+	layersByContent     map[string]*layerCells
+	layersByContentNext map[string]*layerCells
+	composeGen          uint64
 	// composedCanvas and composedBounds are the canvas composeLayers last drew
 	// and its size; any other canvas or size is recomposed whole. damageRows
 	// is the per-row damage of the current compose.

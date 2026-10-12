@@ -116,3 +116,27 @@ func BenchmarkCompositorFrame(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkCompositorBorderedFrame is the frame of a session like a real one:
+// floating panes with their own borders and title chrome, and the dock and
+// sidebar drawn, with one pane busy. It covers the window box and the layers
+// rebuilt every frame, which the borderless benchmarks above do not reach.
+func BenchmarkCompositorBorderedFrame(b *testing.B) {
+	for _, n := range []int{4, 9} {
+		b.Run(fmt.Sprintf("windows-%d/one-dirty", n), func(b *testing.B) {
+			m := benchOS(b, n)
+			for _, w := range m.Windows {
+				w.Tiled = false
+				w.MarkContentDirty()
+			}
+			_ = m.renderComposed(m.GetCanvas(true))
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				m.Windows[0].MarkContentDirty()
+				_ = m.renderComposed(m.GetCanvas(true))
+			}
+		})
+	}
+}
