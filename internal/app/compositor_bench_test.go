@@ -121,22 +121,37 @@ func BenchmarkCompositorFrame(b *testing.B) {
 // floating panes with their own borders and title chrome, and the dock and
 // sidebar drawn, with one pane busy. It covers the window box and the layers
 // rebuilt every frame, which the borderless benchmarks above do not reach.
+//
+// "one-dirty" marks the pane dirty with its content unchanged, which the
+// compositor now recognises as nothing to redraw. "one-changing" writes a new
+// status line to the pane every frame, as a spinner does, so the pane really
+// is drawn again: that is the cost a busy pane has.
 func BenchmarkCompositorBorderedFrame(b *testing.B) {
 	for _, n := range []int{4, 9} {
-		b.Run(fmt.Sprintf("windows-%d/one-dirty", n), func(b *testing.B) {
-			m := benchOS(b, n)
-			for _, w := range m.Windows {
-				w.Tiled = false
-				w.MarkContentDirty()
-			}
-			_ = m.renderComposed(m.GetCanvas(true))
-
-			b.ReportAllocs()
-			b.ResetTimer()
-			for b.Loop() {
-				m.Windows[0].MarkContentDirty()
+		for _, mode := range []string{"one-dirty", "one-changing"} {
+			b.Run(fmt.Sprintf("windows-%d/%s", n, mode), func(b *testing.B) {
+				m := benchOS(b, n)
+				for _, w := range m.Windows {
+					w.Tiled = false
+					w.MarkContentDirty()
+				}
 				_ = m.renderComposed(m.GetCanvas(true))
-			}
-		})
+				busy := m.Windows[0]
+
+				b.ReportAllocs()
+				b.ResetTimer()
+				frame := 0
+				for b.Loop() {
+					if mode == "one-changing" {
+						frame++
+						busy.LockIO()
+						_, _ = busy.Terminal.Write(fmt.Appendf(nil, "\x1b[1;1H\x1b[33m%c working %d\x1b[m", "|/-\\"[frame%4], frame))
+						busy.UnlockIO()
+					}
+					busy.MarkContentDirty()
+					_ = m.renderComposed(m.GetCanvas(true))
+				}
+			})
+		}
 	}
 }
