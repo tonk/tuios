@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-wordmark.svg">
+    <img alt="tuios" src="assets/logo-wordmark-light.svg" width="360">
+  </picture>
+</p>
+
 This started as a clone from https://github.com/Gaurav-Gosain/tuios,
 but I have changed it a lot, to make it exactly work the way I want it.
 That's probably not the way it was intended to work and surely not
