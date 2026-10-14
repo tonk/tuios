@@ -158,10 +158,7 @@ func (m *OS) RefreshTextSizing() {
 			continue
 		}
 
-		scrollbackLen := 0
-		if w.Terminal != nil {
-			scrollbackLen = w.Terminal.ScrollbackLen()
-		}
+		scrollbackLen := w.ScrollbackLenSync()
 		borderOff := w.BorderOffset()
 		contentHeight := w.Height - 2*borderOff
 		contentWidth := w.Width - 2*borderOff

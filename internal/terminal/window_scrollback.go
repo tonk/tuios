@@ -34,6 +34,11 @@ func (w *Window) ScrollbackLenSync() int {
 }
 
 // ScrollbackLen returns the number of lines in the scrollback buffer.
+//
+// Callers must hold the window's I/O read lock. Reading the history first
+// settles a reflow a resize left pending, which rewrites the scrollback, and
+// only the lock keeps that apart from the PTY reader resizing and writing the
+// same emulator. Without a lock, use ScrollbackLenSync.
 func (w *Window) ScrollbackLen() int {
 	if w.Terminal == nil {
 		return 0
@@ -42,7 +47,8 @@ func (w *Window) ScrollbackLen() int {
 }
 
 // ScrollbackLine returns a line from the scrollback buffer at the given index.
-// Index 0 is the oldest line. Returns nil if index is out of bounds.
+// Index 0 is the oldest line. Returns nil if index is out of bounds. Callers
+// must hold the window's I/O read lock; see ScrollbackLen.
 func (w *Window) ScrollbackLine(index int) uv.Line {
 	if w.Terminal == nil {
 		return nil
@@ -53,7 +59,8 @@ func (w *Window) ScrollbackLine(index int) uv.Line {
 // LineWrap returns how absolute line absY ends: the scrollback lines first,
 // oldest at 0, then the rows of the active screen, the numbering copy mode
 // uses. A soft-wrapped line continues on the next one; it is one logical line
-// with it, which a copy joins without a newline.
+// with it, which a copy joins without a newline. Callers must hold the
+// window's I/O read lock; see ScrollbackLen.
 func (w *Window) LineWrap(absY int) vt.LineWrap {
 	if w.Terminal == nil {
 		return vt.HardBreak
@@ -99,7 +106,7 @@ func (w *Window) ScrollUp(lines int) {
 		return
 	}
 
-	maxOffset := w.ScrollbackLen()
+	maxOffset := w.ScrollbackLenSync()
 	w.ScrollbackOffset = min(w.ScrollbackOffset+lines, maxOffset)
 	w.InvalidateCache()
 }

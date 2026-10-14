@@ -504,7 +504,7 @@ func (m *OS) renderDockString() (string, int) {
 		// deliberate vim-navigation session here to give keybinding help for.
 		scrollbackLen := 0
 		if focusedWindow.Terminal != nil {
-			scrollbackLen = focusedWindow.Terminal.ScrollbackLen()
+			scrollbackLen = focusedWindow.ScrollbackLenSync()
 		}
 		tiers := implicitCopyModeHelpTiers(focusedWindow.CopyMode.ScrollOffset, scrollbackLen)
 		for i, tier := range tiers {

@@ -146,7 +146,7 @@ func scrollTerminalBack(win *terminal.Window, lines int) {
 	if win == nil {
 		return
 	}
-	if !win.InCopyMode() && win.ScrollbackLen() > 0 {
+	if !win.InCopyMode() && win.ScrollbackLenSync() > 0 {
 		win.EnterCopyModeImplicit()
 	}
 	scrollCopyModeUpBy(win, lines)

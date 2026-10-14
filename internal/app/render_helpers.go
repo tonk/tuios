@@ -269,7 +269,7 @@ func borderChrome(sides []string, width int, color color.Color, window *terminal
 	if window.CopyMode != nil && window.CopyMode.Active && window.CopyMode.ScrollOffset > 0 {
 		scrollbackLen := 0
 		if window.Terminal != nil {
-			scrollbackLen = window.Terminal.ScrollbackLen()
+			scrollbackLen = window.ScrollbackLenSync()
 		}
 		if scrollbackLen > 0 {
 			scrollIndicator = fmt.Sprintf(" %d/%d ", window.CopyMode.ScrollOffset, scrollbackLen)

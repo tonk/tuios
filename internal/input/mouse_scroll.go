@@ -40,7 +40,7 @@ func scrollCopyModeUpBy(win *terminal.Window, lines int) {
 	if cm == nil || !cm.Active {
 		return
 	}
-	limit := win.ScrollbackLen()
+	limit := win.ScrollbackLenSync()
 	moved := min(cm.ScrollOffset+lines, limit) - cm.ScrollOffset
 	if moved <= 0 {
 		return

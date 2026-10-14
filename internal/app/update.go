@@ -713,7 +713,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 					midPoint := w.Height / 2
 					if cm.CursorY > midPoint {
 						cm.CursorY--
-					} else if w.Terminal != nil && cm.ScrollOffset < w.Terminal.ScrollbackLen() {
+					} else if w.Terminal != nil && cm.ScrollOffset < w.ScrollbackLenSync() {
 						cm.ScrollOffset++
 						w.ScrollbackOffset = cm.ScrollOffset
 					} else if cm.CursorY > 0 {
@@ -736,7 +736,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			if cm.State == terminal.CopyModeVisualChar || cm.State == terminal.CopyModeVisualLine {
 				scrollbackLen := 0
 				if w.Terminal != nil {
-					scrollbackLen = w.Terminal.ScrollbackLen()
+					scrollbackLen = w.ScrollbackLenSync()
 				}
 				absY := scrollbackLen - cm.ScrollOffset + cm.CursorY
 				cm.VisualEnd = terminal.Position{X: cm.CursorX, Y: absY}

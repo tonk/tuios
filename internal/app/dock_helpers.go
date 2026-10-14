@@ -786,7 +786,7 @@ func (m *OS) calculateDockRightWidth() int {
 		// correctly only to be truncated straight back out at render time.
 		scrollbackLen := 0
 		if focusedWindow.Terminal != nil {
-			scrollbackLen = focusedWindow.Terminal.ScrollbackLen()
+			scrollbackLen = focusedWindow.ScrollbackLenSync()
 		}
 		tiers := implicitCopyModeHelpTiers(focusedWindow.CopyMode.ScrollOffset, scrollbackLen)
 		if len(tiers) == 0 {

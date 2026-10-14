@@ -109,7 +109,7 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 				if focusedWindow.InCopyMode() {
 					// Already in copy mode  - scroll up
 					scrollCopyModeUp(focusedWindow)
-				} else if o.Mode == app.TerminalMode && focusedWindow.Terminal != nil && !focusedWindow.Terminal.HasMouseMode() && !focusedWindow.IsAltScreen() && focusedWindow.ScrollbackLen() > 0 {
+				} else if o.Mode == app.TerminalMode && focusedWindow.Terminal != nil && !focusedWindow.Terminal.HasMouseMode() && !focusedWindow.IsAltScreen() && focusedWindow.ScrollbackLenSync() > 0 {
 					// No mouse tracking, not alt screen, and there is history to
 					// show: turn the wheel and the view scrolls. Copy mode is the
 					// only thing that can render scrollback, so it is switched on
@@ -139,7 +139,7 @@ func handleMouseWheel(msg tea.MouseWheelMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			case tea.MouseWheelUp:
 				if focusedWindow.InCopyMode() {
 					scrollCopyModeUp(focusedWindow)
-				} else if focusedWindow.ScrollbackLen() > 0 {
+				} else if focusedWindow.ScrollbackLenSync() > 0 {
 					// Same silent entry as terminal mode: the wheel scrolls, it
 					// does not put the pane into a mode and teach keys for it.
 					focusedWindow.EnterCopyModeImplicit()
