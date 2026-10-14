@@ -49,8 +49,8 @@ func TestResizeSizeShowsTheNewSizeAndHides(t *testing.T) {
 	if !m.ResizeSizeShown() {
 		t.Fatal("a resize did not show the size")
 	}
-	if got := frameText(m); !strings.Contains(got, "101 × 30") {
-		t.Errorf("the frame does not show 101 × 30")
+	if got := frameText(m); !strings.Contains(got, "99 × 26") {
+		t.Errorf("the frame does not show 99 × 26")
 	}
 
 	// The hide the first resize scheduled is superseded by the second.
@@ -63,7 +63,7 @@ func TestResizeSizeShowsTheNewSizeAndHides(t *testing.T) {
 	if m.ResizeSizeShown() {
 		t.Fatal("the last resize's hide left the popup up")
 	}
-	if got := frameText(m); strings.Contains(got, "101 × 30") {
+	if got := frameText(m); strings.Contains(got, "99 × 26") {
 		t.Error("the frame after hiding still shows the size")
 	}
 }
@@ -92,8 +92,8 @@ func TestResizeSizeASCII(t *testing.T) {
 	t.Cleanup(func() { config.UseASCIIOnly = prev })
 
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	if got := frameText(m); !strings.Contains(got, "100 x 30") {
-		t.Error("ASCII mode does not show 100 x 30")
+	if got := frameText(m); !strings.Contains(got, "98 x 26") {
+		t.Error("ASCII mode does not show 98 x 26")
 	}
 }
 

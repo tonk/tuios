@@ -77,6 +77,7 @@ func (m *OS) resizeSizeLayer() *lipgloss.Layer {
 	if config.UseASCIIOnly {
 		sep, border = "x", lipgloss.ASCIIBorder()
 	}
+	cols, rows := m.fullPaneSize()
 	pal := theme.UI()
 	box := lipgloss.NewStyle().
 		Border(border).
@@ -86,6 +87,18 @@ func (m *OS) resizeSizeLayer() *lipgloss.Layer {
 		Foreground(pal.Fg).
 		Bold(true).
 		Padding(0, 2).
-		Render(fmt.Sprintf("%d %s %d", m.Width, sep, m.Height))
+		Render(fmt.Sprintf("%d %s %d", cols, sep, rows))
 	return m.centeredBoxLayer(box, config.ZIndexNotifications, "resize-size")
+}
+
+// fullPaneSize is the size, in columns and rows, a pane filling the screen
+// can draw in: the host terminal less the dock and the pane's own border,
+// which is what stty reports inside it. The raw terminal size would overstate
+// it by the chrome. Tiled panes carry no border of their own.
+func (m *OS) fullPaneSize() (int, int) {
+	_, _, width, height := m.calculateSnapBounds(SnapFullScreen)
+	if m.AutoTiling {
+		return max(width, 1), max(height, 1)
+	}
+	return max(width-2, 1), max(height-2, 1)
 }
