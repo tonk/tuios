@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">TUIOS</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24294a"/>
+      <stop offset="1" stop-color="#0e1124"/>
+    </linearGradient>
+    <linearGradient id="focus" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7dcfff"/>
+      <stop offset="1" stop-color="#7aa2f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App tile -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Focused pane with a prompt -->
+  <rect x="64" y="72" width="216" height="296" rx="22" fill="#161a33" stroke="url(#focus)" stroke-width="8"/>
+  <path d="M104 150 l36 30 l-36 30" fill="none" stroke="#9ece6a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="154" y="200" width="50" height="14" rx="4" fill="#9ece6a"/>
+  <rect x="100" y="258" width="132" height="12" rx="6" fill="#3b4261"/>
+  <rect x="100" y="288" width="96" height="12" rx="6" fill="#3b4261"/>
+  <rect x="100" y="318" width="116" height="12" rx="6" fill="#3b4261"/>
+
+  <!-- Two tiled panes -->
+  <rect x="300" y="72" width="148" height="138" rx="22" fill="#161a33" stroke="#3b4261" stroke-width="6"/>
+  <rect x="326" y="106" width="72" height="12" rx="6" fill="#bb9af7"/>
+  <rect x="326" y="136" width="96" height="12" rx="6" fill="#3b4261"/>
+  <rect x="326" y="166" width="60" height="12" rx="6" fill="#3b4261"/>
+
+  <rect x="300" y="230" width="148" height="138" rx="22" fill="#161a33" stroke="#3b4261" stroke-width="6"/>
+  <rect x="326" y="264" width="90" height="12" rx="6" fill="#3b4261"/>
+  <rect x="326" y="294" width="64" height="12" rx="6" fill="#e0af68"/>
+  <rect x="326" y="324" width="80" height="12" rx="6" fill="#3b4261"/>
+
+  <!-- Dock -->
+  <rect x="64" y="400" width="384" height="48" rx="24" fill="#1a1e38"/>
+  <rect x="80" y="412" width="92" height="24" rx="12" fill="#7aa2f7"/>
+  <rect x="184" y="412" width="72" height="24" rx="12" fill="#3b4261"/>
+  <rect x="268" y="412" width="72" height="24" rx="12" fill="#ff9e64"/>
+  <circle cx="420" cy="424" r="10" fill="#9ece6a"/>
+</svg>
