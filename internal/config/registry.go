@@ -368,9 +368,10 @@ var ActionDescriptions = map[string]string{
 	"prev_session":        "Previous session",
 
 	// Clipboard
-	"copy_selection":  "Copy selection to clipboard",
-	"paste_clipboard": "Paste from clipboard",
-	"clear_selection": "Clear the text selection",
+	"copy_selection":     "Copy selection to clipboard",
+	"paste_clipboard":    "Paste from clipboard",
+	"clear_selection":    "Clear the text selection",
+	"open_selection_url": "Open the selected URL in the browser",
 
 	// Session lifecycle (context menu rows; no default keybinding)
 	"settings_sidebar":  "Sidebar settings",

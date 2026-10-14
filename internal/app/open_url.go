@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Double-clicking a URL in a pane opens it in the default browser
@@ -106,10 +107,36 @@ func isOpenableURL(s string) bool {
 	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
-// CanOpenURLs reports whether a URL opened here would reach the user's own
-// browser: on, and not an SSH or tuios-web session, whose host is the server.
+// CanStartBrowser reports whether a URL opened here would reach the user's own
+// browser: not an SSH or tuios-web session, whose host is the server.
+func (m *OS) CanStartBrowser() bool {
+	return !m.IsSSHMode && !m.IsWebSession
+}
+
+// CanOpenURLs reports whether a double-click on a URL opens it:
+// appearance.open_url_on_double_click is on and CanStartBrowser.
 func (m *OS) CanOpenURLs() bool {
-	return config.OpenURLOnDoubleClick && !m.IsSSHMode && !m.IsWebSession
+	return config.OpenURLOnDoubleClick && m.CanStartBrowser()
+}
+
+// selectionURL is the http(s) URL a window's selection stands for, or "". It
+// is input's to answer, because reading a selection is copy mode's machinery,
+// which lives there; input registers it with SetSelectionURLFunc.
+var selectionURL = func(*terminal.Window) string { return "" }
+
+// SetSelectionURLFunc registers how to read the URL a window's selection
+// stands for. The input package does this from its init.
+func SetSelectionURLFunc(fn func(*terminal.Window) string) {
+	selectionURL = fn
+}
+
+// SelectionURL is the http(s) URL a window's selection stands for, or "" when
+// it holds none or the selection is not one.
+func SelectionURL(win *terminal.Window) string {
+	if win == nil || !win.HasSelection() {
+		return ""
+	}
+	return selectionURL(win)
 }
 
 // startURLOpener hands a URL to the platform's opener without waiting for it.

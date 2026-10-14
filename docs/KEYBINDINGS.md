@@ -410,10 +410,17 @@ the menu shows.
 
 | Target | Offers |
 |--------|--------|
-| A pane, anywhere on it | Copy selection, paste, split right, split down, rename, zoom, minimize, close |
+| A pane, anywhere on it | Copy selection, open in browser, paste, split right, split down, rename, zoom, minimize, close |
+| A selection, right-clicked in terminal mode | Copy selection, open in browser, paste, clear selection |
 | Dock entry | Restore that window, restore all |
 | Dock background | New window, toggle tiling, restore all |
 | Empty desktop | New window, toggle tiling, command palette, settings, help |
+
+**Open in browser** appears only while the selection is a web address: an
+`http://` or `https://` URL and nothing else around it but blanks or a trailing
+full stop, or text that a program linked (OSC 8). It is left out over the SSH
+server and in `tuios-web`, where the browser would start on the server, and it
+does not depend on `open_url_on_double_click`.
 
 A pane is one target. Its border rows are part of it, so the whole surface of a
 pane opens the same menu and there is nothing to aim at.

@@ -285,29 +285,56 @@ func finishMouseSelection(o *app.OS, window *terminal.Window) tea.Cmd {
 	return o.DeferSelection(text, openURL, remainingClickWindow(window))
 }
 
-// selectionURL is the http(s) URL a double-clicked word stands for: the OSC 8
-// hyperlink on any of its cells, else a URL in its text. "" when it holds none.
+func init() { app.SetSelectionURLFunc(selectionURL) }
+
+// selectionURL is the http(s) URL a selection stands for: the OSC 8 hyperlink
+// every one of its cells carries, else its text when that is a single URL
+// (surrounding blanks and trailing sentence punctuation aside). "" when it is
+// neither, so a line that merely mentions a URL is not one.
 func selectionURL(window *terminal.Window) string {
+	fields := strings.Fields(selectionText(window))
+	word := ""
+	if len(fields) == 1 {
+		word = fields[0]
+		// FindURL looks for a URL inside the word, which a double-click word
+		// needs; a selection has to be the URL, give or take its punctuation.
+		if url := app.FindURL("", word); url != "" && !strings.HasPrefix(word, url) {
+			word = ""
+		}
+	}
+	return app.FindURL(selectionLink(window), word)
+}
+
+// selectionLink is the OSC 8 hyperlink a one-line selection carries on every
+// non-blank cell, or "" when the selection spans lines or any cell differs.
+func selectionLink(window *terminal.Window) string {
 	window.RLockIO()
 	defer window.RUnlockIO()
 	cm := window.CopyMode
-	if window.Terminal == nil || cm.VisualStart.Y != cm.VisualEnd.Y {
+	if window.Terminal == nil || cm == nil || cm.VisualStart.Y != cm.VisualEnd.Y {
 		return ""
 	}
 	cells := copyModeLineCells(window, cm.VisualStart.Y)
 	startX, endX := min(cm.VisualStart.X, cm.VisualEnd.X), max(cm.VisualStart.X, cm.VisualEnd.X)
+	if cm.State == terminal.CopyModeVisualLine {
+		startX, endX = 0, len(cells)-1
+	}
 	if startX < 0 || endX >= len(cells) {
 		return ""
 	}
-	var link string
-	var word strings.Builder
+	link := ""
 	for _, cell := range cells[startX : endX+1] {
+		if cell.Content == "" || cell.Content == " " {
+			continue
+		}
 		if link == "" {
 			link = cell.Link.URL
 		}
-		word.WriteString(cell.Content)
+		if link == "" || cell.Link.URL != link {
+			return ""
+		}
 	}
-	return app.FindURL(link, word.String())
+	return link
 }
 
 // selectionText is the text of a pane's current selection, or "" when it holds

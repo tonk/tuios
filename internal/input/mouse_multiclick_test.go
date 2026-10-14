@@ -383,3 +383,12 @@ func TestDoubleClickOpensAnOSC8Link(t *testing.T) {
 		t.Errorf("opened %v, want the link target", *opened)
 	}
 }
+
+// disableDoubleClickOpen turns appearance.open_url_on_double_click off for the
+// rest of the test.
+func disableDoubleClickOpen(t *testing.T) {
+	t.Helper()
+	prev := config.OpenURLOnDoubleClick
+	config.OpenURLOnDoubleClick = false
+	t.Cleanup(func() { config.OpenURLOnDoubleClick = prev })
+}

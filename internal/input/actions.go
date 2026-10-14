@@ -155,6 +155,7 @@ func (d *ActionDispatcher) registerHandlers() {
 	d.Register("copy_selection", handleCopySelection)
 	d.Register("paste_clipboard", handlePasteClipboard)
 	d.Register("clear_selection", handleClearSelection)
+	d.Register("open_selection_url", handleOpenSelectionURL)
 
 	// Session lifecycle actions (context menu rows; the quit menu's kill rows
 	// route through the same OS methods, so the two cannot drift apart)
@@ -735,6 +736,19 @@ func handlePasteClipboard(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			// Request clipboard content from Bubbletea
 			return o, tea.ReadClipboard
 		}
+	}
+	return o, nil
+}
+
+// handleOpenSelectionURL opens the focused window's selection in the browser
+// when it is an http(s) URL. Offered on the context menus only while it is
+// one, and never over SSH or tuios-web, where the browser is the server's.
+func handleOpenSelectionURL(_ tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
+	if !o.CanStartBrowser() {
+		return o, nil
+	}
+	if url := app.SelectionURL(o.GetFocusedWindow()); url != "" {
+		o.OpenURL(url, false)
 	}
 	return o, nil
 }

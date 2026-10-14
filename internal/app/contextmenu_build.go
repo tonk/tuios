@@ -27,6 +27,7 @@ const (
 	glyphDetach   = ""
 	glyphSwitch   = ""
 	glyphClear    = ""
+	glyphBrowser  = ""
 )
 
 // OpenContextMenu opens the context menu for whatever is under the screen cell
@@ -270,8 +271,11 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 	closeItem := m.item(glyphClose, "Close pane", "close_window", false)
 	closeItem.Warn = true
 
-	return contextMenuWindowName(m, windowIndex, "Pane"), []ContextMenuItem{
+	items := []ContextMenuItem{
 		m.item(glyphCopy, "Copy selection", "copy_selection", !hasSelection),
+	}
+	items = append(items, m.openURLItems(win)...)
+	return contextMenuWindowName(m, windowIndex, "Pane"), append(items,
 		m.item(glyphPaste, "Paste", "paste_clipboard", !canPaste),
 		separator(),
 		m.item(glyphSplitV, "Split right", "split_vertical", false),
@@ -286,7 +290,18 @@ func (m *OS) paneMenu(windowIndex int) (string, []ContextMenuItem) {
 		m.item(glyphZoom, "Zoom", "toggle_zoom", false),
 		m.item(glyphMinimize, "Minimize", "minimize_window", false),
 		closeItem,
+	)
+}
+
+// openURLItems is the "Open in browser" row, offered only while the selection
+// is an http(s) URL and a browser started here would be the user's own (not
+// over SSH or tuios-web). A row that is only sometimes meaningful is left out
+// rather than dimmed: dimmed, it would sit on every selection menu asking why.
+func (m *OS) openURLItems(win *terminal.Window) []ContextMenuItem {
+	if !m.CanStartBrowser() || SelectionURL(win) == "" {
+		return nil
 	}
+	return []ContextMenuItem{m.item(glyphBrowser, "Open in browser", "open_selection_url", false)}
 }
 
 // dockItemMenu is the menu for one minimized window in the dock.
@@ -412,11 +427,12 @@ func (m *OS) OpenSelectionMenu(x, y, windowIndex int) {
 		ItemH:       1,
 	}
 	cm.Title = "Selection"
-	cm.Items = []ContextMenuItem{
-		m.item(glyphCopy, "Copy selection", "copy_selection", false),
+	cm.Items = []ContextMenuItem{m.item(glyphCopy, "Copy selection", "copy_selection", false)}
+	cm.Items = append(cm.Items, m.openURLItems(m.Windows[windowIndex])...)
+	cm.Items = append(cm.Items,
 		m.item(glyphPaste, "Paste", "paste_clipboard", false),
 		m.item(glyphClear, "Clear selection", "clear_selection", false),
-	}
+	)
 	cm.Selected = cm.Next(1)
 	m.ContextMenu = cm
 }
