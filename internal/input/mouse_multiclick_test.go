@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/tonk/tuios/internal/app"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // A triple-click arrives as a double-click plus a third press, so copying on
@@ -252,4 +253,133 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(b[i:])
+}
+
+// stubURLOpener records what would have been opened instead of starting a
+// browser, and turns the option on for the length of the test.
+func stubURLOpener(t *testing.T) *[]string {
+	t.Helper()
+	var opened []string
+	t.Cleanup(app.SetURLOpener(func(target string) error {
+		opened = append(opened, target)
+		return nil
+	}))
+	prev := config.OpenURLOnDoubleClick
+	config.OpenURLOnDoubleClick = true
+	t.Cleanup(func() { config.OpenURLOnDoubleClick = prev })
+	return &opened
+}
+
+// A double-click on a URL opens it once the multi-click window closes, and
+// still copies it.
+func TestDoubleClickOpensAURL(t *testing.T) {
+	opened := stubURLOpener(t)
+	o, _ := selectPane(t, "see https://example.com/a. now")
+
+	pressAt(o, 8, 0)
+	pressAt(o, 8, 0)
+	cmd := release(o, 8, 0)
+	if len(*opened) != 0 {
+		t.Fatal("the URL was opened before the multi-click window closed")
+	}
+	if settle(t, o, cmd) == nil {
+		t.Error("the URL was not copied")
+	}
+	if len(*opened) != 1 || (*opened)[0] != "https://example.com/a" {
+		t.Errorf("opened %v, want [https://example.com/a]", *opened)
+	}
+}
+
+// A triple-click on a URL selects the line; the double-click on the way there
+// must not have started a browser.
+func TestTripleClickOnAURLDoesNotOpenIt(t *testing.T) {
+	opened := stubURLOpener(t)
+	o, _ := selectPane(t, "https://example.com")
+
+	pressAt(o, 3, 0)
+	pressAt(o, 3, 0)
+	first := release(o, 3, 0)
+	pressAt(o, 3, 0)
+	second := release(o, 3, 0)
+	settle(t, o, first)
+	settle(t, o, second)
+	if len(*opened) != 0 {
+		t.Errorf("a triple-click opened %v", *opened)
+	}
+}
+
+// With the option off, or over SSH, a double-click on a URL is only a word.
+func TestDoubleClickURLNotOpenedWhenDisabled(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		setup func(o *app.OS)
+	}{
+		{"option off", func(*app.OS) { config.OpenURLOnDoubleClick = false }},
+		{"ssh", func(o *app.OS) { o.IsSSHMode = true }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			opened := stubURLOpener(t)
+			o, _ := selectPane(t, "https://example.com")
+			tt.setup(o)
+
+			pressAt(o, 3, 0)
+			pressAt(o, 3, 0)
+			settle(t, o, release(o, 3, 0))
+			if len(*opened) != 0 {
+				t.Errorf("opened %v", *opened)
+			}
+			if copyCount(o) != 1 {
+				t.Errorf("the URL was not copied as a word: %v", notificationMessages(o))
+			}
+		})
+	}
+}
+
+// With copy_on_select off the URL still opens; nothing reaches the clipboard.
+func TestDoubleClickOpensAURLWithoutCopyOnSelect(t *testing.T) {
+	opened := stubURLOpener(t)
+	prev := config.CopyOnSelect
+	config.CopyOnSelect = false
+	t.Cleanup(func() { config.CopyOnSelect = prev })
+	o, _ := selectPane(t, "https://example.com")
+
+	pressAt(o, 3, 0)
+	pressAt(o, 3, 0)
+	if settle(t, o, release(o, 3, 0)) != nil {
+		t.Error("copied with copy_on_select off")
+	}
+	if len(*opened) != 1 {
+		t.Errorf("opened %v, want the URL", *opened)
+	}
+}
+
+// A double-click anywhere in a URL selects all of it, although ":" is not a
+// word character, and only it: not the sentence punctuation after it.
+func TestDoubleClickSelectsTheWholeURL(t *testing.T) {
+	stubURLOpener(t)
+	for _, x := range []int{4, 9, 18, 26} {
+		o, win := selectPane(t, "see https://example.com/a?b=1. ok")
+		pressAt(o, x, 0)
+		pressAt(o, x, 0)
+		release(o, x, 0)
+		if got := selectedText(win); got != "https://example.com/a?b=1" {
+			t.Errorf("double-click at %d selected %q", x, got)
+		}
+	}
+}
+
+// A double-click on an OSC 8 link opens its target, not its label.
+func TestDoubleClickOpensAnOSC8Link(t *testing.T) {
+	opened := stubURLOpener(t)
+	o, win := selectPane(t, "\x1b]8;;https://example.com/target\x1b\\docs\x1b]8;;\x1b\\ page")
+
+	pressAt(o, 1, 0)
+	pressAt(o, 1, 0)
+	settle(t, o, release(o, 1, 0))
+	if got := selectedText(win); got != "docs" {
+		t.Errorf("selected %q, want the link's label", got)
+	}
+	if len(*opened) != 1 || (*opened)[0] != "https://example.com/target" {
+		t.Errorf("opened %v, want the link target", *opened)
+	}
 }

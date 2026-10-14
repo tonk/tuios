@@ -41,6 +41,7 @@ var exampleTables = []exampleTable{
 			{"scrollback_lines", "10000", "Lines of scrollback kept per window. Range 100-10000000, or -1 for unlimited."},
 			{"scroll_lines", "3", "Lines scrolled per mouse-wheel notch. Range 1-50."},
 			{"copy_on_select", "true", "Copy a mouse selection to the clipboard as soon as it's released."},
+			{"open_url_on_double_click", "true", "Open an http(s) URL in the default browser when it is double-clicked in a pane. Never over SSH or tuios-web, where the browser would start on the server."},
 			{"focus_follows_mouse", "false", "Focus the pane under the cursor as the mouse moves."},
 			{"focus_follows_mouse_in_terminal", "false", "Also hover-focus while in terminal mode."},
 			{"alt_drag", "true", "Alt + left-drag moves a pane, like most desktop window managers."},

@@ -71,6 +71,9 @@ func beginMouseSelection(cm *terminal.CopyMode, window *terminal.Window, screenX
 		func() {
 			window.RLockIO()
 			defer window.RUnlockIO()
+			if config.OpenURLOnDoubleClick && selectURLUnderCursor(cm, window) {
+				return
+			}
 			if !selectWordUnderCursor(cm, window) {
 				// Nothing word-shaped under the pointer. Leave the one-cell
 				// selection the drag started rather than inventing one.
@@ -114,6 +117,74 @@ func selectWordUnderCursor(cm *terminal.CopyMode, window *terminal.Window) bool 
 	endX := cm.CursorX
 	for endX < len(cells)-1 && isSelectionWordChar(cells[endX+1]) {
 		endX++
+	}
+
+	cm.State = terminal.CopyModeVisualChar
+	cm.VisualStart = terminal.Position{X: startX, Y: absY}
+	cm.VisualEnd = terminal.Position{X: endX, Y: absY}
+	cm.CursorX = endX
+	return true
+}
+
+// selectURLUnderCursor puts a visual-character selection around the URL the
+// copy-mode cursor sits in, so a double-click takes all of it rather than the
+// stretch between two characters word_characters leaves out (the ":" of
+// "https://", for one). The URL is the cursor cell's OSC 8 hyperlink run when
+// it has an http(s) one, else an http(s) URL in the line's text. It reports
+// false when the cursor is on neither, leaving the ordinary word selection.
+//
+// A URL the program wrapped onto the next line is selected up to the wrap.
+//
+// Callers must hold the window's I/O read lock.
+func selectURLUnderCursor(cm *terminal.CopyMode, window *terminal.Window) bool {
+	absY := getAbsoluteY(cm, window)
+	cells := copyModeLineCells(window, absY)
+	x := cm.CursorX
+	if x < 0 || x >= len(cells) {
+		return false
+	}
+
+	startX, endX := -1, -1
+	if link := cells[x].Link.URL; app.FindURL(link, "") != "" {
+		startX, endX = x, x
+		for startX > 0 && cells[startX-1].Link.URL == link {
+			startX--
+		}
+		for endX < len(cells)-1 && cells[endX+1].Link.URL == link {
+			endX++
+		}
+	} else {
+		// The line as text, with the byte offset each cell starts at. A wide
+		// character's continuation cell adds nothing; an unwritten cell reads
+		// as the blank it shows.
+		var text strings.Builder
+		offsets := make([]int, len(cells))
+		for i, cell := range cells {
+			offsets[i] = text.Len()
+			switch {
+			case cell.Content != "":
+				text.WriteString(cell.Content)
+			case cell.Width != 0:
+				text.WriteByte(' ')
+			}
+		}
+		for _, span := range app.URLSpans(text.String()) {
+			if offsets[x] < span[0] || offsets[x] >= span[1] {
+				continue
+			}
+			for i := range cells {
+				if startX < 0 && offsets[i] >= span[0] {
+					startX = i
+				}
+				if offsets[i] < span[1] {
+					endX = i
+				}
+			}
+			break
+		}
+	}
+	if startX < 0 || endX < startX {
+		return false
 	}
 
 	cm.State = terminal.CopyModeVisualChar
@@ -193,19 +264,50 @@ func finishMouseSelection(o *app.OS, window *terminal.Window) tea.Cmd {
 		return nil
 	}
 
-	if !config.CopyOnSelect {
-		return nil
+	// A double-click on a URL also opens it. Only a double-click: a drag is
+	// a selection someone shaped by hand, and a triple-click is a line.
+	var openURL string
+	if !o.SelectionDragged && window.ClickCount == 2 && o.CanOpenURLs() {
+		openURL = selectionURL(window)
 	}
 
-	text := selectionText(window)
-	if text == "" {
+	var text string
+	if config.CopyOnSelect {
+		text = selectionText(window)
+	}
+	if text == "" && openURL == "" {
 		return nil
 	}
 
 	if o.SelectionDragged || window.ClickCount < 2 {
 		return o.CopyToClipboard(text)
 	}
-	return o.DeferCopyToClipboard(text, remainingClickWindow(window))
+	return o.DeferSelection(text, openURL, remainingClickWindow(window))
+}
+
+// selectionURL is the http(s) URL a double-clicked word stands for: the OSC 8
+// hyperlink on any of its cells, else a URL in its text. "" when it holds none.
+func selectionURL(window *terminal.Window) string {
+	window.RLockIO()
+	defer window.RUnlockIO()
+	cm := window.CopyMode
+	if window.Terminal == nil || cm.VisualStart.Y != cm.VisualEnd.Y {
+		return ""
+	}
+	cells := copyModeLineCells(window, cm.VisualStart.Y)
+	startX, endX := min(cm.VisualStart.X, cm.VisualEnd.X), max(cm.VisualStart.X, cm.VisualEnd.X)
+	if startX < 0 || endX >= len(cells) {
+		return ""
+	}
+	var link string
+	var word strings.Builder
+	for _, cell := range cells[startX : endX+1] {
+		if link == "" {
+			link = cell.Link.URL
+		}
+		word.WriteString(cell.Content)
+	}
+	return app.FindURL(link, word.String())
 }
 
 // selectionText is the text of a pane's current selection, or "" when it holds

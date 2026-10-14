@@ -800,6 +800,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 					config.CopyOnSelect = v
 					m.setAppearance(func(a *config.AppearanceConfig) { a.CopyOnSelect = &v })
 				}),
+			boolItem("Open URL on double-click", "Open a double-clicked http(s) URL in the default browser",
+				func() bool { return config.OpenURLOnDoubleClick },
+				func(m *OS, v bool) {
+					config.OpenURLOnDoubleClick = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.OpenURLOnDoubleClick = &v })
+				}),
 			stringItem("Word characters", "Punctuation double-click keeps inside a word (letters and digits always count)", "@-./_~?&=%+#", "(default)",
 				func(m *OS) string { return config.WordCharacters },
 				func(m *OS, v string) {

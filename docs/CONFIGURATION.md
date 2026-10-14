@@ -359,6 +359,20 @@ A drag copies the moment the button comes up. A double-click or triple-click wai
 
 **Note:** The clipboard is written with OSC 52, the same path copy mode's `y` uses, so it reaches whatever the host terminal supports (including over SSH). Also settable from the in-app settings page (Advanced, "Copy on select").
 
+### open_url_on_double_click
+
+Controls whether double-clicking a web address in a pane opens it in your default browser. A double-click anywhere in the URL selects all of it (the `:` in `https://` would otherwise end the word), and it is still copied when `copy_on_select` is on. If a program attached a link to its text (OSC 8, as `ls --hyperlink` does), the link's target is opened rather than the text shown.
+
+The browser starts once the double-click is settled, so a triple-click on a URL selects the line without opening anything.
+
+Only `http://` and `https://` addresses are opened; a `file://` or any other kind of link never is, whatever a program prints. A URL that wraps onto the next line is taken up to the wrap.
+
+**Valid values:** `true`, `false`
+
+**Default:** `true`
+
+**Note:** The browser is started with `xdg-open` (Linux and BSD, which needs a graphical session), `open` (macOS) or the default URL handler (Windows), on the machine running tuios. That is why it never happens over the SSH server or in `tuios-web`: the browser would start on the server. The URL is still selected and copied there. Programs that use the mouse themselves (vim, htop) receive the double-click instead. Also settable from the in-app settings page (Advanced, "Open URL on double-click").
+
 ### alt_drag
 
 Controls whether Alt + left-drag moves a pane, the gesture nearly every desktop window manager binds. It works from anywhere on the pane, including its content while you are typing in it, and typing resumes when the pane lands.

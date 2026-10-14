@@ -50,11 +50,20 @@ func (m *OS) CopyToClipboard(text string) tea.Cmd {
 // correct at this instant, and the pane may have scrolled or been closed by the
 // time the message arrives.
 func (m *OS) DeferCopyToClipboard(text string, delay time.Duration) tea.Cmd {
-	if text == "" {
+	return m.DeferSelection(text, "", delay)
+}
+
+// DeferSelection is DeferCopyToClipboard for a double-click that may also open
+// a URL: both wait out the multi-click window together, so a triple-click on a
+// URL selects its line without having started a browser on the way. Either
+// may be empty; with both empty there is nothing to defer.
+func (m *OS) DeferSelection(text, url string, delay time.Duration) tea.Cmd {
+	if text == "" && url == "" {
 		return nil
 	}
 	m.selectionSeq++
 	m.pendingCopy = text
+	m.pendingURL = url
 	seq := m.selectionSeq
 	return tea.Tick(max(delay, time.Millisecond), func(time.Time) tea.Msg {
 		return PendingCopyMsg{Seq: seq}
@@ -67,6 +76,7 @@ func (m *OS) DeferCopyToClipboard(text string, delay time.Duration) tea.Cmd {
 func (m *OS) CancelPendingCopy() {
 	m.selectionSeq++
 	m.pendingCopy = ""
+	m.pendingURL = ""
 }
 
 // HandlePendingCopy performs a deferred write if seq is still the current
@@ -74,15 +84,27 @@ func (m *OS) CancelPendingCopy() {
 // selection, and the text this timer was carrying was never what the user
 // ended up with.
 func (m *OS) HandlePendingCopy(seq uint64) tea.Cmd {
-	if seq != m.selectionSeq || m.pendingCopy == "" {
+	if seq != m.selectionSeq || (m.pendingCopy == "" && m.pendingURL == "") {
 		return nil
 	}
-	text := m.pendingCopy
-	m.pendingCopy = ""
-	m.ShowNotification(fmt.Sprintf("Copied %d chars", len(text)), "success", config.NotificationDuration)
+	text, url := m.pendingCopy, m.pendingURL
+	m.pendingCopy, m.pendingURL = "", ""
+	if url != "" {
+		// One toast for the gesture: opening says it all, and the copy rides
+		// along in it rather than stacking a second notification.
+		m.OpenURL(url, text != "")
+	} else {
+		m.ShowNotification(fmt.Sprintf("Copied %d chars", len(text)), "success", config.NotificationDuration)
+	}
+	if text == "" {
+		return nil
+	}
 	return tea.SetClipboard(text)
 }
 
 // PendingCopyText reports the text a deferred write is holding, for tests and
 // for anything that needs to know a gesture has not settled yet.
 func (m *OS) PendingCopyText() string { return m.pendingCopy }
+
+// PendingURL reports the URL a settled double-click is waiting to open.
+func (m *OS) PendingURL() string { return m.pendingURL }

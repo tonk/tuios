@@ -186,6 +186,7 @@ type AppearanceConfig struct {
 	ScrollbackLines                int     `toml:"scrollback_lines"`                   // Number of lines to keep in scrollback buffer (default: 10000, min: 100, max: 10000000, -1: unlimited)
 	ScrollLines                    int     `toml:"scroll_lines"`                       // Lines scrolled per mouse wheel notch (default: 3, min: 1, max: 50)
 	CopyOnSelect                   *bool   `toml:"copy_on_select"`                     // Copy a mouse selection to the clipboard on release (default: true)
+	OpenURLOnDoubleClick           *bool   `toml:"open_url_on_double_click"`           // Open a double-clicked http(s) URL in the default browser (default: true)
 	FocusFollowsMouse              *bool   `toml:"focus_follows_mouse"`                // Focus the pane under the cursor as the mouse moves (default: false)
 	FocusFollowsMouseInTerminal    *bool   `toml:"focus_follows_mouse_in_terminal"`    // Also hover-focus while in terminal mode (default: false)
 	AltDrag                        *bool   `toml:"alt_drag"`                           // Alt + left-drag moves a pane (default: true)
@@ -1167,6 +1168,11 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// CopyOnSelect defaults to true (nil means use default)
 	if cfg.Appearance.CopyOnSelect != nil {
 		CopyOnSelect = *cfg.Appearance.CopyOnSelect
+	}
+
+	// OpenURLOnDoubleClick defaults to true (nil means use default)
+	if cfg.Appearance.OpenURLOnDoubleClick != nil {
+		OpenURLOnDoubleClick = *cfg.Appearance.OpenURLOnDoubleClick
 	}
 
 	// FocusFollowsMouse defaults to false; a pointer so turning it off in the

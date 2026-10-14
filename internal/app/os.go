@@ -183,8 +183,8 @@ type OS struct {
 	// maintenance tick only forces a render when that text actually changed
 	// instead of every tick the feature happens to be enabled.
 	lastDockRightInfo string
-	AutoTiling         bool                       // Automatic tiling mode enabled
-	MasterRatio        float64                    // Master window width ratio for tiling (0.3-0.7)
+	AutoTiling        bool    // Automatic tiling mode enabled
+	MasterRatio       float64 // Master window width ratio for tiling (0.3-0.7)
 	// TouchClient marks a session whose pointer is a finger. It is per session
 	// rather than a config global because one server holds several at once and
 	// a phone attaching must not change what the desktop beside it can hit.
@@ -272,6 +272,9 @@ type OS struct {
 	// clipboard_copy.go for why the write waits.
 	pendingCopy  string
 	selectionSeq uint64
+	// pendingURL is the URL a settled double-click opens, deferred with
+	// pendingCopy for the same reason: it may yet turn into a triple-click.
+	pendingURL string
 
 	// Performance optimization caches
 	cachedSeparator      string // Cached dock separator string
@@ -368,6 +371,8 @@ type OS struct {
 	// SSH mode fields
 	SSHSession ssh.Session // SSH session reference (nil in local mode)
 	IsSSHMode  bool        // True when running over SSH
+	// IsWebSession is true when tuios-web serves this OS to a browser.
+	IsWebSession bool
 	// Daemon mode fields
 	IsDaemonSession bool               // True when running as part of a persistent daemon session
 	DaemonClient    *session.TUIClient // Client for daemon communication (nil in local mode)

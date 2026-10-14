@@ -911,6 +911,12 @@ var ScrollLines = 3
 // Set via appearance.copy_on_select config.
 var CopyOnSelect = true
 
+// OpenURLOnDoubleClick opens an http(s) URL in the default browser when it is
+// double-clicked in a pane, on top of selecting (and copying) it as a word.
+// Off leaves a double-click on a URL an ordinary word selection.
+// Set via appearance.open_url_on_double_click config.
+var OpenURLOnDoubleClick = true
+
 // FocusFollowsMouse focuses the pane under the cursor as the mouse moves over
 // it, without a click and without entering terminal mode. It is a divisive
 // window-manager habit, so it defaults off and users opt in.

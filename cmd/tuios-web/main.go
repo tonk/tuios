@@ -712,6 +712,7 @@ func createEphemeralTUIOSInstance(width, height int, graphicsOut *os.File, touch
 		ForceGraphicsEnabled:      true,
 		GraphicsOutput:            graphicsOut,
 		TouchClient:               touch,
+		IsWebSession:              true,
 	})
 
 	return tuiosInstance, []tea.ProgramOption{
@@ -751,6 +752,7 @@ func createPAMTUIOSInstance(login *pamauth.Login, width, height int, graphicsOut
 		ForceGraphicsEnabled:      true,
 		GraphicsOutput:            graphicsOut,
 		TouchClient:               touch,
+		IsWebSession:              true,
 		PAMLogin:                  login,
 	})
 }
@@ -868,6 +870,7 @@ func attachDaemonSession(ctx context.Context, sessionName string, createNew bool
 		ForceGraphicsEnabled:      true,
 		GraphicsOutput:            graphicsOut,
 		TouchClient:               touch,
+		IsWebSession:              true,
 		ReadOnly:                  client.IsReadOnly(),
 	})
 

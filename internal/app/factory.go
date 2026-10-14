@@ -60,6 +60,11 @@ type OSOptions struct {
 	// IsSSHMode indicates this is an SSH session.
 	IsSSHMode bool
 
+	// IsWebSession indicates this OS is served to a browser by tuios-web, so
+	// anything it starts on the host (a URL opener) runs on the server, not on
+	// the machine of the person using it.
+	IsWebSession bool
+
 	// SSHSession is the SSH session reference (nil in local mode).
 	SSHSession ssh.Session
 
@@ -147,6 +152,7 @@ func NewOS(opts OSOptions) *OS {
 		// Mode flags
 		IsDaemonSession: opts.IsDaemonSession,
 		IsSSHMode:       opts.IsSSHMode,
+		IsWebSession:    opts.IsWebSession,
 		SSHSession:      opts.SSHSession,
 		TouchClient:     opts.TouchClient,
 		ReadOnly:        opts.ReadOnly,
