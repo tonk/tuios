@@ -4,6 +4,7 @@ tuios.exe
 dist/
 *.mov
 .DS_Store
+Thumbs.db
 !tuios/
 !cmd/tuios/
 !cmd/tuios-web/
