@@ -313,6 +313,9 @@ func (m *OS) initCmds() []tea.Cmd {
 		cmds = append(cmds, ListenForClientEvents(m.ClientEventChan))
 	}
 
+	// The update check keeps its own clock; see update_check.go.
+	cmds = append(cmds, updateCheckDue(updateCheckFirst))
+
 	// If this is a restored daemon session, enable callbacks after a delay
 	// This allows buffered PTY output to settle before callbacks start tracking changes
 	if m.IsDaemonSession && m.RestoredFromState {
@@ -1366,6 +1369,13 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// The PTY resize, the SIGWINCH it carries and the whole-screen redraw
 		// every guest answers with land in ViewportResizeSettledMsg instead.
 		return m, settle
+
+	case UpdateCheckDueMsg:
+		return m, tea.Batch(m.maybeStartUpdateCheck(time.Now()), updateCheckDue(updateCheckPoll))
+
+	case UpdateCheckMsg:
+		m.handleUpdateCheck(msg)
+		return m, nil
 
 	case ResizeSizeHideMsg:
 		m.hideResizeSize(msg.Gen)

@@ -798,6 +798,22 @@ until you focus the window.
 
 **Also settable from:** the in-app settings page (Dock, "Blink on attention").
 
+### check_for_updates
+
+Checks GitHub for the newest tuios release and, when it is newer than the version you are running, shows it at the right-hand end of the dock with an up arrow (`^` in ASCII mode). Hovering it says which version you run; clicking it opens the release page in your browser.
+
+The first check is a few seconds after tuios starts, then every 12 hours. A failed check (no network) is silent and keeps what an earlier check found.
+
+Nothing is checked over the SSH server or in `tuios-web`, or by a build that cannot tell its own version. A release or `make` build has its version built in; a plain `go build` in a git checkout gets it from git.
+
+**Valid values:**
+- `true` - Check for a newer release (default)
+- `false` - Never contact GitHub
+
+**Default:** `true`
+
+**Note:** The check is one request to `https://api.github.com/repos/tonk/tuios/releases/latest`, which sends nothing but the tuios version in its `User-Agent`. Also settable from the in-app settings page (Advanced, "Check for updates").
+
 ### show_resize_size
 
 While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size. It stays for about a second after the last change. The size tuios starts or attaches in is not shown, only changes.

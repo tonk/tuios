@@ -539,6 +539,14 @@ func (m *OS) renderDockString() (string, int) {
 				kind: DockIndicatorFocusFollowsMouse,
 			})
 		}
+		// Last, so it is the last thing a narrow dock gives up: it is the one
+		// readout here that is news rather than a state the user set.
+		if notice := m.UpdateNotice(); notice != "" {
+			parts = append(parts, sysInfoPart{
+				text: dr.background(lipgloss.NewStyle().Foreground(dr.pal.Warning).Bold(true)).Render(updateNoticeText(notice)),
+				kind: DockIndicatorUpdate,
+			})
+		}
 		joiner := dr.fill(" ")
 		// The CPU graph is the first thing dropped on a dock too narrow for all
 		// the readouts, then RAM, then the mode indicators - the figures a user

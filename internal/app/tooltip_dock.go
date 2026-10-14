@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"charm.land/lipgloss/v2"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/theme"
@@ -158,6 +160,9 @@ func (m *OS) renderDockIndicatorTooltip() *lipgloss.Layer {
 			text = m.GetTilingIndicator()
 		case DockIndicatorFocusFollowsMouse:
 			text = m.GetFocusFollowsMouseIndicator()
+		case DockIndicatorUpdate:
+			text = fmt.Sprintf("tuios %s is available (running %s) - click for the release page",
+				m.UpdateAvailable, runningVersion())
 		default:
 			return nil
 		}

@@ -96,6 +96,7 @@ const (
 	DockIndicatorMouse
 	DockIndicatorTiling
 	DockIndicatorFocusFollowsMouse
+	DockIndicatorUpdate
 )
 
 // dockIndicatorHit is where one mode-indicator glyph was drawn last frame.
@@ -814,6 +815,9 @@ func (m *OS) calculateDockRightWidth() int {
 	}
 	if config.ShowFocusFollowsMouseIndicator {
 		parts = append(parts, " "+config.GetDockIndicatorFocusFollowsMouseGlyph()+" ")
+	}
+	if notice := m.UpdateNotice(); notice != "" {
+		parts = append(parts, updateNoticeText(notice))
 	}
 	if len(parts) == 0 {
 		return 0

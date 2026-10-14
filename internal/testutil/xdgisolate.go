@@ -129,6 +129,11 @@ func RunIsolated(m *testing.M, setup ...func(dir string)) int {
 	// every `go test`, and spawn processes on a CI box that has no device.
 	os.Setenv(sound.DisableEnv, "1") //nolint:errcheck,gosec // a failure here only means the tests are audible
 
+	// Nor the network: the dock's update check (app.UpdateCheckDisableEnv,
+	// named here because app's own tests import this package) would ask
+	// GitHub from every test that drives a tick.
+	os.Setenv("TUIOS_NO_UPDATE_CHECK", "1") //nolint:errcheck,gosec // a failure here only means a test may reach GitHub
+
 	dir, check := isolateXDG()
 	for _, fn := range setup {
 		fn(dir)

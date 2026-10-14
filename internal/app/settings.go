@@ -824,6 +824,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.ShowKeys = v
 					m.setDebug(func(d *config.DebugConfig) { d.ShowKeyEvents = v })
 				}),
+			boolItem("Check for updates", "Check GitHub for a newer tuios release every 12 hours and show it in the dock",
+				func() bool { return config.CheckForUpdates },
+				func(m *OS, v bool) {
+					config.CheckForUpdates = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.CheckForUpdates = boolPtr(v) })
+				}),
 			boolItem("Resize size popup", "Show the terminal's size in columns x rows while its window is resized",
 				func() bool { return config.ShowResizeSize },
 				func(m *OS, v bool) {

@@ -106,6 +106,9 @@ func handleMouseClick(msg tea.MouseClickMsg, o *app.OS) (*app.OS, tea.Cmd) {
 			return handleToggleTiling(tea.KeyPressMsg{}, o)
 		case app.DockIndicatorFocusFollowsMouse:
 			return handlePrefixToggleFocusFollowsMouse(tea.KeyPressMsg{}, o)
+		case app.DockIndicatorUpdate:
+			o.OpenUpdatePage()
+			return o, nil
 		}
 		// The message block owns its own columns at the bar's right-hand end,
 		// ahead of the dock items: its body jumps to the pane the message came

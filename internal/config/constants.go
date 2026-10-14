@@ -263,6 +263,10 @@ var (
 	// indicator (Nerd Font: nf-md-crosshairs_gps).
 	DockIndicatorFocusFollowsMouseGlyph string
 
+	// DockIndicatorUpdateGlyph marks the newer release the dock offers
+	// (Nerd Font: nf-fa-arrow_circle_up).
+	DockIndicatorUpdateGlyph string
+
 	// DockSeparator is the separator between dock sections
 	DockSeparator = "  " // Two spaces for breathing room
 
@@ -292,6 +296,7 @@ func init() {
 	DockIndicatorMouseGlyph = md.Mouse.String()
 	DockIndicatorTilingGlyph = md.ViewQuilt.String()
 	DockIndicatorFocusFollowsMouseGlyph = md.CrosshairsGps.String()
+	DockIndicatorUpdateGlyph = fa.ArrowCircleUp.String()
 	WindowPillLeft = ple.LeftHalfCircleThick.String()
 	WindowPillRight = ple.RightHalfCircleThick.String()
 	NotificationGlyphError = fa.TimesCircle.String()
@@ -351,6 +356,9 @@ const (
 	// DockIndicatorFocusFollowsMouseGlyphASCII is the ASCII fallback for the
 	// focus-follows-mouse indicator.
 	DockIndicatorFocusFollowsMouseGlyphASCII = "+"
+
+	// DockIndicatorUpdateGlyphASCII is the ASCII fallback for the update notice.
+	DockIndicatorUpdateGlyphASCII = "^"
 
 	// DockSeparatorASCII is the ASCII fallback separator
 	DockSeparatorASCII = " | "
@@ -650,6 +658,12 @@ var DockAttentionBlink = true
 // moment after. Off resizes silently.
 // Set via appearance.show_resize_size config.
 var ShowResizeSize = true
+
+// CheckForUpdates asks GitHub for the newest tuios release now and then and
+// shows it at the right-hand end of the dock when it is newer than the build
+// that is running. Off, tuios never contacts GitHub.
+// Set via appearance.check_for_updates config.
+var CheckForUpdates = true
 
 // CursorBlink is whether the focused pane's host cursor blinks, until a guest
 // application sets a cursor style via DECSCUSR. Off starts the cursor steady.
@@ -1157,6 +1171,14 @@ func GetDockIndicatorFocusFollowsMouseGlyph() string {
 		return DockIndicatorFocusFollowsMouseGlyphASCII
 	}
 	return DockIndicatorFocusFollowsMouseGlyph
+}
+
+// GetDockIndicatorUpdateGlyph returns the update notice's glyph.
+func GetDockIndicatorUpdateGlyph() string {
+	if UseASCIIOnly {
+		return DockIndicatorUpdateGlyphASCII
+	}
+	return DockIndicatorUpdateGlyph
 }
 
 // GetDockSeparator returns the appropriate separator based on UseASCIIOnly

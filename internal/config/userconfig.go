@@ -235,6 +235,7 @@ type AppearanceConfig struct {
 	DockWindowList       *bool  `toml:"dock_window_list"`       // List every window of the current workspace in the dock, not just minimized ones; a window wanting attention blinks (default: false)
 	DockAttentionBlink   *bool  `toml:"dock_attention_blink"`   // Blink a dock window entry wanting attention; off highlights it steadily (default: true)
 	ShowResizeSize       *bool  `toml:"show_resize_size"`       // Pop the terminal size (columns x rows) while the terminal window is resized (default: true)
+	CheckForUpdates      *bool  `toml:"check_for_updates"`      // Check GitHub for a newer release and show it in the dock (default: true)
 	CursorBlink          *bool  `toml:"cursor_blink"`           // Blink the focused pane's cursor until a guest sets DECSCUSR (default: true)
 
 	// Legacy flat sidebar keys, superseded by the [appearance.sidebar] table.
@@ -1060,6 +1061,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.ShowResizeSize != nil {
 		ShowResizeSize = *cfg.Appearance.ShowResizeSize
+	}
+	if cfg.Appearance.CheckForUpdates != nil {
+		CheckForUpdates = *cfg.Appearance.CheckForUpdates
 	}
 	if cfg.Appearance.CursorBlink != nil {
 		CursorBlink = *cfg.Appearance.CursorBlink

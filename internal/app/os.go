@@ -281,6 +281,15 @@ type OS struct {
 	resizeSizeShown bool
 	resizeSizeGen   uint64
 
+	// UpdateAvailable and UpdateURL are the newer release the last update
+	// check found and its page, both empty when the build is current. The
+	// check itself is tracked by updateCheckRunning and updateCheckedAt; see
+	// update_check.go.
+	UpdateAvailable    string
+	UpdateURL          string
+	updateCheckRunning bool
+	updateCheckedAt    time.Time
+
 	// Performance optimization caches
 	cachedSeparator      string // Cached dock separator string
 	cachedSeparatorWidth int    // Width of cached separator
