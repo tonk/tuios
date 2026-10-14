@@ -1244,6 +1244,12 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		m.noteResizeStep(time.Now())
 		settle := viewportResizeSettleCmd(m.viewportResizeGen)
 
+		// The size popup answers a resize the user made, so not the first
+		// size, which only reports the terminal tuios started or attached in.
+		if m.startupApplied && (oldWidth != msg.Width || oldHeight != msg.Height) {
+			settle = tea.Batch(settle, m.showResizeSize())
+		}
+
 		// Apply the one-shot [startup] preferences now that the real terminal
 		// size is known: NewOS runs before the first WindowSizeMsg, so opening a
 		// window or tiling there would place them against a zero-sized screen.
@@ -1360,6 +1366,10 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// The PTY resize, the SIGWINCH it carries and the whole-screen redraw
 		// every guest answers with land in ViewportResizeSettledMsg instead.
 		return m, settle
+
+	case ResizeSizeHideMsg:
+		m.hideResizeSize(msg.Gen)
+		return m, nil
 
 	case ViewportResizeSettledMsg:
 		if msg.Gen != m.viewportResizeGen {

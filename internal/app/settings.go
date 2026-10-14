@@ -824,6 +824,12 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.ShowKeys = v
 					m.setDebug(func(d *config.DebugConfig) { d.ShowKeyEvents = v })
 				}),
+			boolItem("Resize size popup", "Show the terminal's size in columns x rows while its window is resized",
+				func() bool { return config.ShowResizeSize },
+				func(m *OS, v bool) {
+					config.ShowResizeSize = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowResizeSize = boolPtr(v) })
+				}),
 			boolItem("Terminal title", `Set the host terminal's window title to the focused pane's title (or "tuios")`,
 				func() bool { return config.SetTerminalTitle },
 				func(m *OS, v bool) {

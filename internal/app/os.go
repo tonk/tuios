@@ -276,6 +276,11 @@ type OS struct {
 	// pendingCopy for the same reason: it may yet turn into a triple-click.
 	pendingURL string
 
+	// resizeSizeShown is whether the terminal-size popup is up, and
+	// resizeSizeGen names the resize that put it there. See resize_size.go.
+	resizeSizeShown bool
+	resizeSizeGen   uint64
+
 	// Performance optimization caches
 	cachedSeparator      string // Cached dock separator string
 	cachedSeparatorWidth int    // Width of cached separator

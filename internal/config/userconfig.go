@@ -234,6 +234,7 @@ type AppearanceConfig struct {
 	SetTerminalTitle     *bool  `toml:"set_terminal_title"`     // Set the host terminal's window title to the focused pane's title, or "tuios" (default: true)
 	DockWindowList       *bool  `toml:"dock_window_list"`       // List every window of the current workspace in the dock, not just minimized ones; a window wanting attention blinks (default: false)
 	DockAttentionBlink   *bool  `toml:"dock_attention_blink"`   // Blink a dock window entry wanting attention; off highlights it steadily (default: true)
+	ShowResizeSize       *bool  `toml:"show_resize_size"`       // Pop the terminal size (columns x rows) while the terminal window is resized (default: true)
 	CursorBlink          *bool  `toml:"cursor_blink"`           // Blink the focused pane's cursor until a guest sets DECSCUSR (default: true)
 
 	// Legacy flat sidebar keys, superseded by the [appearance.sidebar] table.
@@ -1056,6 +1057,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.DockAttentionBlink != nil {
 		DockAttentionBlink = *cfg.Appearance.DockAttentionBlink
+	}
+	if cfg.Appearance.ShowResizeSize != nil {
+		ShowResizeSize = *cfg.Appearance.ShowResizeSize
 	}
 	if cfg.Appearance.CursorBlink != nil {
 		CursorBlink = *cfg.Appearance.CursorBlink

@@ -68,6 +68,7 @@ type configSnapshot struct {
 	sidebarOn                          bool
 	borderStyle, dockPos, sidebarPos   string
 	sidebarWidth                       int
+	showResizeSize                     bool
 }
 
 func snapshotConfig() configSnapshot {
@@ -76,7 +77,7 @@ func snapshotConfig() configSnapshot {
 		ascii: config.UseASCIIOnly, sessionColors: config.SessionColors,
 		sidebarOn: config.SidebarEnabled, borderStyle: config.BorderStyle,
 		dockPos: config.DockbarPosition, sidebarPos: config.SidebarPosition,
-		sidebarWidth: config.SidebarWidth,
+		sidebarWidth: config.SidebarWidth, showResizeSize: config.ShowResizeSize,
 	}
 }
 
@@ -86,6 +87,7 @@ func (c configSnapshot) restore() {
 	config.SidebarEnabled, config.BorderStyle = c.sidebarOn, c.borderStyle
 	config.DockbarPosition, config.SidebarPosition = c.dockPos, c.sidebarPos
 	config.SidebarWidth = c.sidebarWidth
+	config.ShowResizeSize = c.showResizeSize
 }
 
 // New builds a target. stateDir is a scratch directory the app's XDG state root
@@ -121,6 +123,10 @@ func (t *Target) Reset() error {
 	config.SidebarPosition = "left"
 	config.SidebarWidth = config.SidebarDefaultWidth
 	config.SessionColors = true
+	// The resize-size popup covers the middle of the screen for a moment
+	// after every resize, and the run has no clock to take it down, so it
+	// would hide the pane cells the frame rules read. It has tests of its own.
+	config.ShowResizeSize = false
 
 	// Redirected for the life of the target, not just for this call: the rail
 	// persists a collapse, a drag order and a width, and it does so from inside

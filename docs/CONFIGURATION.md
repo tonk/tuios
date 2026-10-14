@@ -798,6 +798,18 @@ until you focus the window.
 
 **Also settable from:** the in-app settings page (Dock, "Blink on attention").
 
+### show_resize_size
+
+While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size. It stays for about a second after the last change. The size tuios starts or attaches in is not shown, only changes.
+
+**Valid values:**
+- `true` - Show the size while resizing (default)
+- `false` - Resize without the popup
+
+**Default:** `true`
+
+**Note:** The size is in character cells, which every terminal reports; a size in pixels is not shown, because not every terminal answers that question. In ASCII mode (`--ascii-only`) the popup reads `120 x 40`. Also settable from the in-app settings page (Advanced, "Resize size popup").
+
 ### cursor_blink
 
 Whether the focused pane's cursor blinks. TUIOS draws a real host-terminal

@@ -645,6 +645,12 @@ var DockWindowList = false
 // until it is focused.
 var DockAttentionBlink = true
 
+// ShowResizeSize pops the terminal's new size in columns x rows in the middle
+// of the screen while the host terminal window is being resized, and for a
+// moment after. Off resizes silently.
+// Set via appearance.show_resize_size config.
+var ShowResizeSize = true
+
 // CursorBlink is whether the focused pane's host cursor blinks, until a guest
 // application sets a cursor style via DECSCUSR. Off starts the cursor steady.
 // A guest that never sends a style keeps this default for the life of the pane.
