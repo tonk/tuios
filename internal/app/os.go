@@ -280,6 +280,9 @@ type OS struct {
 	// resizeSizeGen names the resize that put it there. See resize_size.go.
 	resizeSizeShown bool
 	resizeSizeGen   uint64
+	// firstSizeAt is when the first terminal size arrived; resizes within
+	// resizeSizeStartupGrace of it do not pop the size.
+	firstSizeAt time.Time
 
 	// UpdateAvailable and UpdateURL are the newer release the last update
 	// check found and its page, both empty when the build is current. The

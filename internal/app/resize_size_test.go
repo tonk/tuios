@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -21,6 +22,8 @@ func newResizeSizeOS(t *testing.T) *OS {
 	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
 	t.Cleanup(func() { closeWindows(m) })
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	// Past the startup grace, so the next size is a resize the user made.
+	m.firstSizeAt = time.Now().Add(-resizeSizeStartupGrace)
 	return m
 }
 
@@ -91,5 +94,21 @@ func TestResizeSizeASCII(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	if got := frameText(m); !strings.Contains(got, "100 x 30") {
 		t.Error("ASCII mode does not show 100 x 30")
+	}
+}
+
+// A window that is enlarged right after it opens (kitty --start-as=maximized,
+// a tiling window manager placing it) is settling, not being resized.
+func TestResizeSizeNotShownWhileTheWindowSettles(t *testing.T) {
+	prev := config.ShowResizeSize
+	config.ShowResizeSize = true
+	t.Cleanup(func() { config.ShowResizeSize = prev })
+
+	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
+	t.Cleanup(func() { closeWindows(m) })
+	m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.Update(tea.WindowSizeMsg{Width: 278, Height: 70})
+	if m.ResizeSizeShown() {
+		t.Error("the window maximizing right after start popped the size")
 	}
 }

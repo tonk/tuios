@@ -1248,8 +1248,11 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		settle := viewportResizeSettleCmd(m.viewportResizeGen)
 
 		// The size popup answers a resize the user made, so not the first
-		// size, which only reports the terminal tuios started or attached in.
-		if m.startupApplied && (oldWidth != msg.Width || oldHeight != msg.Height) {
+		// size, which only reports the terminal tuios started or attached in,
+		// nor the sizes of a window still settling just after (see
+		// resizeSizeStartupGrace).
+		if m.startupApplied && (oldWidth != msg.Width || oldHeight != msg.Height) &&
+			time.Since(m.firstSizeAt) >= resizeSizeStartupGrace {
 			settle = tea.Batch(settle, m.showResizeSize())
 		}
 
@@ -1258,6 +1261,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 		// window or tiling there would place them against a zero-sized screen.
 		if !m.startupApplied {
 			m.startupApplied = true
+			m.firstSizeAt = time.Now()
 			m.applyStartupPreferences()
 		}
 

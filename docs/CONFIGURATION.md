@@ -816,7 +816,7 @@ Nothing is checked over the SSH server or in `tuios-web`, or by a build that can
 
 ### show_resize_size
 
-While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size. It stays for about a second after the last change. The size tuios starts or attaches in is not shown, only changes.
+While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size. It stays for about a second after the last change. The size tuios starts or attaches in is not shown, only changes, and neither are changes in the first two seconds: a terminal started maximized (such as `kitty --start-as=maximized`) is enlarged by the window manager just after it opens, which is the window settling rather than you resizing it.
 
 **Valid values:**
 - `true` - Show the size while resizing (default)

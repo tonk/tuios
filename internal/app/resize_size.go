@@ -20,6 +20,14 @@ import (
 // restarts that wait by bumping resizeSizeGen, so a drag shows the popup
 // throughout and only the hide scheduled by the final size takes it down.
 
+// resizeSizeStartupGrace is how long after the first size a resize still
+// counts as the window settling rather than the user resizing it. A terminal
+// started maximized or fullscreen (kitty --start-as=maximized) opens at its
+// default size and is enlarged by the window manager a moment later, which
+// arrives as an ordinary resize; so can a tiling window manager placing a new
+// window. None of that is the user dragging an edge.
+const resizeSizeStartupGrace = 2 * time.Second
+
 // resizeSizeHold is how long the popup stays after the last resize: long
 // enough to read the final size once the pointer has let go.
 const resizeSizeHold = 1200 * time.Millisecond
