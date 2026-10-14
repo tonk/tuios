@@ -639,6 +639,12 @@ var SetTerminalTitle = true
 // leaves the dock's item strip exactly as it was: minimized windows only.
 var DockWindowList = false
 
+// DockAttentionBlink is whether a dock_window_list entry wanting attention
+// blinks. Off holds it in the same inverse highlight steadily instead, for
+// whoever finds a blinking dock distracting; the window is flagged either way
+// until it is focused.
+var DockAttentionBlink = true
+
 // CursorBlink is whether the focused pane's host cursor blinks, until a guest
 // application sets a cursor style via DECSCUSR. Off starts the cursor steady.
 // A guest that never sends a style keeps this default for the life of the pane.

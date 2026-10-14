@@ -917,6 +917,7 @@ func (m *OS) dockWindowNeedsAttention(windowIndex int) bool {
 
 // dockBlinkOn is the shared on/off phase for every blinking dock entry, so a
 // frame never draws two attention-seeking windows out of sync with each other.
+// With dock_attention_blink off the render loop skips it and holds the entry on.
 func dockBlinkOn() bool {
 	return (time.Now().UnixMilli()/dockBlinkPeriodMs)%2 == 0
 }

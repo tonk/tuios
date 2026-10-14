@@ -770,6 +770,20 @@ Clicking an entry focuses that window; a minimized one is also restored.
 
 **Also settable from:** the in-app settings page (Dock, "Window list").
 
+### dock_attention_blink
+
+Whether a `dock_window_list` entry wanting attention blinks. Turned off, the
+entry is highlighted steadily (the same inverse pill, without the on/off cycle)
+until you focus the window.
+
+**Valid values:**
+- `true` - The entry blinks (default)
+- `false` - The entry is highlighted without blinking
+
+**Default:** `true`
+
+**Also settable from:** the in-app settings page (Dock, "Blink on attention").
+
 ### cursor_blink
 
 Whether the focused pane's cursor blinks. TUIOS draws a real host-terminal

@@ -382,7 +382,7 @@ func (m *OS) renderDockString() (string, int) {
 			// dock_window_list's own look: the same oval body and caps as the
 			// workspace strip beside it, rather than the minimized-only strip's
 			// filled circle pills.
-			needsAttention := m.dockWindowNeedsAttention(windowIndex) && dockBlinkOn()
+			needsAttention := m.dockWindowNeedsAttention(windowIndex) && (!config.DockAttentionBlink || dockBlinkOn())
 			focused := windowIndex == m.FocusedWindow && !window.Minimizing
 			chunk = dockWindowPill(dockItem.Label, focused, isHighlighted, needsAttention, pal, dr)
 		} else {

@@ -87,3 +87,29 @@ dock_window_list = true
 		t.Error("an explicit true was dropped")
 	}
 }
+
+// TestDockAttentionBlink covers both directions of the tri-state: an old file
+// keeps the blink, and an explicit false survives a reload.
+func TestDockAttentionBlink(t *testing.T) {
+	prev := DockAttentionBlink
+	t.Cleanup(func() { DockAttentionBlink = prev })
+
+	tests := []struct {
+		name string
+		toml string
+		want bool
+	}{
+		{"absent keeps the blink", "[appearance]\nborder_style = \"rounded\"\n", true},
+		{"explicit false", "[appearance]\ndock_attention_blink = false\n", false},
+		{"explicit true", "[appearance]\ndock_attention_blink = true\n", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			DockAttentionBlink = true
+			ApplyAppearanceConfig(loadTOML(t, tt.toml))
+			if DockAttentionBlink != tt.want {
+				t.Errorf("DockAttentionBlink = %v, want %v", DockAttentionBlink, tt.want)
+			}
+		})
+	}
+}

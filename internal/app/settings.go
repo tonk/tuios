@@ -581,6 +581,13 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.DockWindowList = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Blink on attention", "Blink a window-list entry wanting attention; off highlights it steadily instead",
+				func() bool { return config.DockAttentionBlink },
+				func(m *OS, v bool) {
+					config.DockAttentionBlink = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.DockAttentionBlink = boolPtr(v) })
+					m.applyAppearanceLive(false)
+				}),
 		},
 	}
 
