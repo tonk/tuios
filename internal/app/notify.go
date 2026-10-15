@@ -79,6 +79,9 @@ func (m *OS) setupNotificationPassthrough(window *terminal.Window) {
 	var lastNotify, lastBell time.Time
 
 	window.NotifyFunc = func(title, body string) {
+		if !config.NotificationGuest {
+			return
+		}
 		mu.Lock()
 		if time.Since(lastNotify) < notifyRateLimit {
 			mu.Unlock()

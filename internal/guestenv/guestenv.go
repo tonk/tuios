@@ -3,6 +3,8 @@
 // path build a guest environment, and they must agree on what they advertise.
 package guestenv
 
+import "strings"
+
 // TermProgram returns the TERM_PROGRAM value for a guest process, given the
 // graphics capabilities tuios can actually forward to the host terminal.
 //
@@ -23,4 +25,24 @@ func TermProgram(kittyGraphics, sixelGraphics bool) string {
 	default:
 		return "TUIOS"
 	}
+}
+
+// Environ returns the environment tuios starts a guest from: its own, minus the
+// variables that describe the terminal tuios itself runs in rather than the
+// one it presents to the guest.
+//
+// VTE_VERSION is the one that matters. It is inherited from a VTE host such as
+// gnome-terminal, and Fedora/RHEL's /etc/profile.d/vte.sh keys off it alone to
+// install a PROMPT_COMMAND that sends an OSC 777 "Command completed" desktop
+// notification after every command. Inside tuios that is not a VTE, so every
+// finished command raised a popup in the dock.
+func Environ(environ []string) []string {
+	out := make([]string, 0, len(environ))
+	for _, kv := range environ {
+		if strings.HasPrefix(kv, "VTE_VERSION=") {
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
 }

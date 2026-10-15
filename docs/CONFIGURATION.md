@@ -861,6 +861,7 @@ duration = 6           # info and success
 warning_duration = 8   # warnings
 error_duration = 15    # errors, only used when error_sticky = false
 error_sticky = true    # errors wait for esc instead of expiring
+guest = true           # show notifications raised by programs inside a pane
 ```
 
 Every message is dismissible with `esc`, in any mode. `esc` is not consumed:
@@ -910,6 +911,25 @@ like everything else, in which case `error_duration` applies.
 **Valid values:**
 - `true` - Errors wait for `esc` (default)
 - `false` - Errors expire after `error_duration` seconds
+
+**Default:** `true`
+
+### guest
+
+Whether a program running inside a pane may raise a notification of its own,
+through OSC 9, OSC 777 or OSC 99. When it does, the message appears in the dock
+and is forwarded to the host terminal as a desktop notification.
+
+The usual culprit is a shell prompt hook that announces every finished command,
+for example `Command completed: ls`. Set this to `false` to drop those. The bell
+is not affected, and neither are the agent alerts in `[notifications.agent]`.
+
+tuios no longer passes `VTE_VERSION` on to its panes, which is what made Fedora's
+`/etc/profile.d/vte.sh` install that hook inside tuios in the first place.
+
+**Valid values:**
+- `true` - Guest notifications are shown (default)
+- `false` - Guest notifications are dropped
 
 **Default:** `true`
 

@@ -20,6 +20,7 @@ import (
 	"github.com/creack/pty"
 
 	"github.com/tonk/tuios/internal/config"
+	"github.com/tonk/tuios/internal/guestenv"
 	"github.com/tonk/tuios/internal/theme"
 	"github.com/tonk/tuios/internal/vt"
 )
@@ -633,7 +634,7 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 		}
 	}
 
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(guestenv.Environ(os.Environ()),
 		"TERM="+termType,
 		"COLORTERM="+colorTerm,
 		"TERM_PROGRAM="+guestTermProgram(), // Terminal identity guests can act on

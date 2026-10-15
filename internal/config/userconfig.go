@@ -55,6 +55,10 @@ type NotificationsConfig struct {
 	// ErrorSticky makes errors wait for esc instead of expiring (default true).
 	ErrorSticky *bool `toml:"error_sticky"`
 
+	// Guest lets programs inside a pane raise notifications (OSC 9, 777 and 99)
+	// in the dock and on the host terminal (default true). False drops them.
+	Guest *bool `toml:"guest"`
+
 	// Agent is the [notifications.agent] table: what happens when a pane's
 	// agent state changes. See agent_alerts.go.
 	Agent AgentAlertsConfig `toml:"agent"`
@@ -1280,6 +1284,10 @@ func ApplyNotificationConfig(cfg *UserConfig) {
 	// explicit false turns it off.
 	if cfg.Notifications.ErrorSticky != nil {
 		NotificationErrorSticky = *cfg.Notifications.ErrorSticky
+	}
+	// Guest also defaults to true; only an explicit false turns it off.
+	if cfg.Notifications.Guest != nil {
+		NotificationGuest = *cfg.Notifications.Guest
 	}
 }
 

@@ -79,6 +79,11 @@ var (
 	// expiring. The dock's rule stops burning down when this is what is on
 	// screen, which is the affordance that it is waiting for you.
 	NotificationErrorSticky = true
+
+	// NotificationGuest lets a program inside a pane raise a notification of
+	// its own (OSC 9, 777, 99). Off drops them before they reach the dock or
+	// the host terminal; the bell is not affected.
+	NotificationGuest = true
 )
 
 // =============================================================================

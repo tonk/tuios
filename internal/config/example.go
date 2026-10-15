@@ -124,6 +124,7 @@ var exampleTables = []exampleTable{
 			{"warning_duration", "8", "Seconds a warning stays up."},
 			{"error_duration", "15", "Seconds an error stays up, used only when error_sticky = false."},
 			{"error_sticky", "true", "Errors wait for esc instead of expiring on a timer."},
+			{"guest", "true", "Show notifications raised by programs inside a pane (OSC 9/777/99), such as a shell's \"Command completed\". false drops them."},
 		},
 	},
 	{

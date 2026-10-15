@@ -1424,7 +1424,7 @@ func envVarsFromConfig() []string {
 }
 
 func (s *Session) buildEnv(windowID string, restored bool) []string {
-	env := os.Environ()
+	env := guestenv.Environ(os.Environ())
 
 	term := "xterm-256color"
 	if s.config != nil && s.config.Term != "" {
