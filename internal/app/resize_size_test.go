@@ -15,9 +15,13 @@ import (
 // next WindowSizeMsg is a resize the user made.
 func newResizeSizeOS(t *testing.T) *OS {
 	t.Helper()
-	prev := config.ShowResizeSize
+	prev, prevDock := config.ShowResizeSize, config.DockbarPosition
 	config.ShowResizeSize = true
-	t.Cleanup(func() { config.ShowResizeSize = prev })
+	// The popup shows the pane's drawable size, which is the terminal less the
+	// dock, so the tests that quote a size assume the dock is there. Other tests
+	// in the package leave the position at "hidden".
+	config.DockbarPosition = "bottom"
+	t.Cleanup(func() { config.ShowResizeSize, config.DockbarPosition = prev, prevDock })
 
 	m := NewOS(OSOptions{UserConfig: config.DefaultConfig()})
 	t.Cleanup(func() { closeWindows(m) })
