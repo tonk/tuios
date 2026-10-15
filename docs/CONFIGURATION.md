@@ -359,7 +359,7 @@ A drag copies the moment the button comes up. A double-click or triple-click wai
 
 **Note:** The clipboard is written with OSC 52, the same path copy mode's `y` uses, so it reaches whatever the host terminal supports (including over SSH).
 
-**VTE terminals (xfce4-terminal, gnome-terminal):** these ignore OSC 52, so a copy would go nowhere. When tuios runs on a machine with its own display, it therefore also writes the clipboard through the display's helper - `wl-copy` on Wayland, `xclip` or `xsel` on X11 - and reads it back the same way for `ctrl+shift+v`. Install one of them (`dnf install xclip`, `apt install xclip`). Over `tuios ssh` and in a web session the display belongs to the server, so only OSC 52 is used there. Also settable from the in-app settings page (Advanced, "Copy on select").
+**VTE terminals (xfce4-terminal, gnome-terminal):** these ignore OSC 52, so a copy would go nowhere. When tuios runs on a machine with its own display, it therefore also writes the clipboard through the display's helper - `wl-copy` on Wayland, `xclip` or `xsel` on X11 - and reads it back the same way for `ctrl+shift+v`. It fills both the clipboard and the primary selection, so the terminal's own `shift+insert` and middle-click paste work too. Install one of them (`dnf install xclip`, `apt install xclip`). Over `tuios ssh` and in a web session the display belongs to the server, so only OSC 52 is used there. Also settable from the in-app settings page (Advanced, "Copy on select").
 
 ### open_url_on_double_click
 

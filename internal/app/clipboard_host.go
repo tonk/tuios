@@ -17,20 +17,24 @@ import (
 const hostClipTimeout = 2 * time.Second
 
 // hostClipTool is one way to reach the display server's clipboard: the argv
-// that writes stdin to the clipboard, and the argv that prints it.
+// that writes stdin to the clipboard, the argv that prints it, and the argv
+// that writes stdin to the primary selection. The primary selection is what
+// Shift+Insert and a middle click paste in most terminals, so a copy fills
+// both, the way selecting text does in any X11 terminal.
 type hostClipTool struct {
-	write []string
-	read  []string
+	write   []string
+	read    []string
+	primary []string
 }
 
 // hostClipTools lists the helpers by display server, most specific first.
 var (
 	waylandClipTools = []hostClipTool{
-		{[]string{"wl-copy"}, []string{"wl-paste", "--no-newline"}},
+		{[]string{"wl-copy"}, []string{"wl-paste", "--no-newline"}, []string{"wl-copy", "--primary"}},
 	}
 	x11ClipTools = []hostClipTool{
-		{[]string{"xclip", "-selection", "clipboard", "-in"}, []string{"xclip", "-selection", "clipboard", "-out"}},
-		{[]string{"xsel", "--clipboard", "--input"}, []string{"xsel", "--clipboard", "--output"}},
+		{[]string{"xclip", "-selection", "clipboard", "-in"}, []string{"xclip", "-selection", "clipboard", "-out"}, []string{"xclip", "-selection", "primary", "-in"}},
+		{[]string{"xsel", "--clipboard", "--input"}, []string{"xsel", "--clipboard", "--output"}, []string{"xsel", "--primary", "--input"}},
 	}
 )
 
@@ -89,14 +93,17 @@ func (m *OS) SetHostClipboard(text string) tea.Cmd {
 		return osc
 	}
 	return tea.Batch(osc, func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), hostClipTimeout)
-		defer cancel()
-		// #nosec G204 - argv comes from the fixed tables above
-		cmd := exec.CommandContext(ctx, tool.write[0], tool.write[1:]...)
-		cmd.Stdin = strings.NewReader(text)
-		// Stdout and Stderr stay nil: the helper forks to hold the selection,
-		// and an inherited pipe would make Run wait for that child.
-		_ = cmd.Run()
+		for _, argv := range [][]string{tool.write, tool.primary} {
+			ctx, cancel := context.WithTimeout(context.Background(), hostClipTimeout)
+			// #nosec G204 - argv comes from the fixed tables above
+			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+			cmd.Stdin = strings.NewReader(text)
+			// Stdout and Stderr stay nil: the helper forks to hold the
+			// selection, and an inherited pipe would make Run wait for that
+			// child.
+			_ = cmd.Run()
+			cancel()
+		}
 		return nil
 	})
 }
