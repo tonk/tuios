@@ -309,9 +309,9 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 	// matching the tmux/zellij convention. Ctrl+Shift+V and host bracketed paste remain.
 	if keyStr == "ctrl+shift+v" || keyStr == "super+v" || keyStr == "super+shift+v" {
 		if focusedWindow != nil {
-			// Use tea.ReadClipboard to request clipboard via OSC 52
+			// Read the host clipboard (display helper, else OSC 52)
 			// This will generate a tea.ClipboardMsg which we handle in handler.go
-			return o, tea.ReadClipboard
+			return o, o.ReadHostClipboard()
 		}
 		return o, nil
 	}

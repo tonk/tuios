@@ -60,7 +60,7 @@ func (fx *copyModeEffects) ExitCopyMode() { fx.exitCopyMode = true }
 // EnterTerminalMode marks the OS for a switch into terminal mode.
 func (fx *copyModeEffects) EnterTerminalMode() { fx.enterTerminal = true }
 
-// SetClipboard queues an OSC 52 clipboard write for the yanked text.
+// SetClipboard queues a clipboard write for the yanked text.
 func (fx *copyModeEffects) SetClipboard(text string) {
 	fx.clipboard = text
 	fx.setClipboard = true
@@ -89,7 +89,11 @@ func (fx *copyModeEffects) apply(o *app.OS, window *terminal.Window) (*app.OS, t
 		cmd = o.EnterTerminalMode()
 	}
 	if fx.setClipboard {
-		cmd = tea.SetClipboard(fx.clipboard)
+		if o != nil {
+			cmd = o.SetHostClipboard(fx.clipboard)
+		} else {
+			cmd = tea.SetClipboard(fx.clipboard)
+		}
 	}
 	return o, cmd
 }

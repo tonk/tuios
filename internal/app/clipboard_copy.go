@@ -39,7 +39,7 @@ func (m *OS) CopyToClipboard(text string) tea.Cmd {
 	}
 	m.CancelPendingCopy()
 	m.ShowNotification(fmt.Sprintf("Copied %d chars", len(text)), "success", config.NotificationDuration)
-	return tea.SetClipboard(text)
+	return m.SetHostClipboard(text)
 }
 
 // DeferCopyToClipboard holds text back until delay has passed with no further
@@ -99,7 +99,7 @@ func (m *OS) HandlePendingCopy(seq uint64) tea.Cmd {
 	if text == "" {
 		return nil
 	}
-	return tea.SetClipboard(text)
+	return m.SetHostClipboard(text)
 }
 
 // PendingCopyText reports the text a deferred write is holding, for tests and

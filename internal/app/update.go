@@ -1035,7 +1035,7 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 	case ClipboardSetMsg:
 		// Propagate clipboard from guest app to host terminal
 		return m, tea.Batch(
-			tea.SetClipboard(msg.Text),
+			m.SetHostClipboard(msg.Text),
 			ListenForClipboardSet(m.PendingClipboardSet),
 		)
 

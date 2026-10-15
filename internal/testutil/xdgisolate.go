@@ -55,6 +55,15 @@ func isolateXDG() (dir string, check func() error) {
 			panic(fmt.Sprintf("testutil: set %s: %v", name, err))
 		}
 	}
+	// No display either. The app writes the clipboard through the display's own
+	// helper (xclip, wl-copy) when it can find one, and a test that copies
+	// would overwrite the developer's real clipboard and see a different
+	// command than on a headless CI runner.
+	for _, name := range []string{"DISPLAY", "WAYLAND_DISPLAY"} {
+		if err := os.Unsetenv(name); err != nil {
+			panic(fmt.Sprintf("testutil: unset %s: %v", name, err))
+		}
+	}
 	// HOME moves too, so a path built from os.UserHomeDir rather than from xdg
 	// lands in the tree as well. internal/server derives an SSH host key that
 	// way.
