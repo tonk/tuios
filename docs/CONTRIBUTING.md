@@ -220,6 +220,37 @@ TUIOS uses automated releases via GitHub Actions:
 
 You don't need to worry about this as a contributor - the maintainer handles releases.
 
+### Versioning
+
+TUIOS follows [Semantic Versioning](https://semver.org). Tags are
+`vMAJOR.MINOR.PATCH` (e.g. `v0.9.0`).
+
+**Public API.** A change is breaking if it alters any of:
+
+- TOML config keys and their meaning
+- Keybinding action names
+- CLI flags and subcommands
+- Tape script syntax
+- The session/daemon protocol between a client and a daemon
+- Defaults that change what an existing setup exposes or does (for example,
+  refusing a bind address that used to be accepted)
+
+**Before 1.0.0** (the current state) the minor number carries breaking changes
+and the patch number carries everything else:
+
+| Change | Bump | Commit hint |
+|--------|------|-------------|
+| Breaking change to the public API | minor | `feat!:` / `fix!:` or a `BREAKING CHANGE:` footer |
+| New feature, backwards compatible | patch | `feat:` |
+| Bug fix, performance, docs, internal | patch | `fix:`, `refactor:`, `docs:` ... |
+
+**From 1.0.0** breaking changes bump major, new features bump minor, and fixes
+bump patch. 1.0.0 is the point where config, keybindings, CLI flags and the
+daemon protocol are promised to stay stable.
+
+Mark breaking commits with `!` or a `BREAKING CHANGE:` footer, and describe the
+migration in the commit body, so the release notes can call it out.
+
 ---
 
 ## Getting Help
