@@ -8,7 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // Rate limits for guest-driven notifications. A guest that spams OSC 9 or BEL
@@ -112,13 +111,14 @@ func (m *OS) setupNotificationPassthrough(window *terminal.Window) {
 
 		// Forward to the host terminal so kitty/ghostty/wezterm raises a real
 		// desktop notification (OSC 9). Prefer the body, fall back to the title.
-		if m.KittyPassthrough != nil {
-			hostText := body
-			if hostText == "" {
-				hostText = title
-			}
-			m.KittyPassthrough.WriteToHost([]byte(ansi.Notify(hostText)))
+		// Same sanitize + multiplexer wrap path as agent alerts: raw ansi.Notify
+		// lets ESC in guest text break out of the OSC, and under tmux an unwrapped
+		// OSC 9 is dropped.
+		hostText := body
+		if hostText == "" {
+			hostText = title
 		}
+		m.writeHostSequence(hostNotifySequence(hostText, detectOuterMultiplexer()))
 	}
 
 	window.BellFunc = func() {

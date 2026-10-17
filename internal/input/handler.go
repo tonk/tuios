@@ -84,13 +84,31 @@ func HandleInput(msg tea.Msg, o *app.OS) (tea.Model, tea.Cmd) {
 		return o, nil
 	}
 
-	// Sync state to daemon after any input that might have changed state
-	// This ensures state persists across reconnects without explicit save
-	if o.IsDaemonSession {
+	// Sync layout/focus state to the daemon after input that may have changed it.
+	// Terminal-mode key passthrough does not change session structure; those
+	// helpers (AddWindow, FocusWindow, tiling, …) sync themselves. Pushing a full
+	// SessionState on every keystroke was the dominant wire+CPU cost under daemon
+	// sessions (see BenchmarkWireKeystroke).
+	if o.IsDaemonSession && shouldSyncDaemonState(msg, o) {
 		o.SyncStateToDaemon()
 	}
 
 	return result, cmd
+}
+
+// shouldSyncDaemonState reports whether this input may have changed session
+// layout/focus state that the daemon must persist. Mouse motion is handled
+// above and never reaches here.
+func shouldSyncDaemonState(msg tea.Msg, o *app.OS) bool {
+	switch msg.(type) {
+	case tea.KeyPressMsg:
+		if o.Mode == app.TerminalMode && !o.PrefixActive && !o.WorkspacePrefixActive &&
+			!o.MinimizePrefixActive && !o.TilingPrefixActive && !o.DebugPrefixActive &&
+			!o.TapePrefixActive && !o.LayoutPrefixActive {
+			return false
+		}
+	}
+	return true
 }
 
 // shouldShowQuitDialog checks if there are any terminals with active foreground processes

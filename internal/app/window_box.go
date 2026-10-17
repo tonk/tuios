@@ -59,7 +59,7 @@ func boxSides(content string, contentW, contentH, width, height int, border lipg
 	}
 	widths := make([]int, len(lines))
 	for i, l := range lines {
-		w := ansi.StringWidth(l)
+		w := lineWidth(l)
 		if w > innerW || w > contentW {
 			return nil, 0, false
 		}

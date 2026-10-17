@@ -500,7 +500,11 @@ func (d *Daemon) acceptLoop() {
 				continue
 			}
 		}
-		go d.handleConnection(conn)
+		d.wg.Add(1)
+		go func(c net.Conn) {
+			defer d.wg.Done()
+			d.handleConnection(c)
+		}(conn)
 	}
 }
 

@@ -121,7 +121,8 @@ func ensureSessionCookie(w http.ResponseWriter, r *http.Request) string {
 		Name:     sidCookieName,
 		Value:    sid,
 		Path:     "/",
-		HttpOnly: false, // the injected JS never needs to read it; the browser attaches it automatically either way
+		HttpOnly: true, // JS never reads it; keep it out of any XSS surface
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
 	})
 	return sid

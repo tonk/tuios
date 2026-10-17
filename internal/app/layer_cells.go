@@ -213,9 +213,14 @@ func (m *OS) composeLayers(canvas *lipgloss.Canvas, layers []*lipgloss.Layer) {
 	screen := canvas.Bounds()
 	full := canvas != m.composedCanvas || screen != m.composedBounds
 	m.composedCanvas, m.composedBounds = canvas, screen
-	damage := m.damageRows[:0]
-	damage = append(damage, make([]bool, screen.Dy())...)
-	m.damageRows = damage
+	n := screen.Dy()
+	if cap(m.damageRows) >= n {
+		m.damageRows = m.damageRows[:n]
+		clear(m.damageRows)
+	} else {
+		m.damageRows = make([]bool, n)
+	}
+	damage := m.damageRows
 
 	m.composeGen++
 	gen := m.composeGen

@@ -36,9 +36,14 @@ const UpdateCheckDisableEnv = "TUIOS_NO_UPDATE_CHECK"
 // updateCheckURL is the newest release of this fork.
 const updateCheckURL = "https://api.github.com/repos/tonk/tuios/releases/latest"
 
-// updateCheckInterval is how long a check's answer stands. Releases are rare,
-// and GitHub allows an unauthenticated address sixty requests an hour.
+// updateCheckInterval is how long a successful check's answer stands. Releases
+// are rare, and GitHub allows an unauthenticated address sixty requests an hour.
 const updateCheckInterval = 12 * time.Hour
+
+// updateCheckRetryInterval is how long a failed check waits before trying again.
+// updateCheckedAt is stamped when a check starts, so without a shorter failure
+// cooldown a flaky first request would suppress retries for the full success interval.
+const updateCheckRetryInterval = 15 * time.Minute
 
 // updateCheckFirst is how long after startup the first check waits, so it
 // does not compete with restoring a session for the first frames.
@@ -137,11 +142,13 @@ func (m *OS) maybeStartUpdateCheck(now time.Time) tea.Cmd {
 
 // handleUpdateCheck records a check's answer. A failed check keeps what the
 // last good one found: a network that is down for a moment has not taken a
-// release away.
+// release away. It also rewinds updateCheckedAt so the next due poll can retry
+// after updateCheckRetryInterval instead of waiting the full success interval.
 func (m *OS) handleUpdateCheck(msg UpdateCheckMsg) {
 	m.updateCheckRunning = false
 	if msg.Err != nil {
 		m.LogInfo("[UPDATE] check failed: %v", msg.Err)
+		m.updateCheckedAt = time.Now().Add(updateCheckRetryInterval - updateCheckInterval)
 		return
 	}
 	latest, url := "", ""

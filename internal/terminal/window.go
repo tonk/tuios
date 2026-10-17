@@ -673,12 +673,9 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 		_ = err
 	}
 
-	_, cancel := context.WithCancel(context.Background())
-
 	// Update window with PTY and command info
 	window.Pty = ptyInstance
 	window.Cmd = cmd
-	window.cancelFunc = cancel
 
 	// Store shell's process group ID for later detection of foreground processes
 	if cmd.Process != nil {
@@ -692,7 +689,8 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 	// to read instead of the live fields the update loop mutates.
 	window.PublishGeometry()
 
-	// Start I/O handling
+	// Start I/O handling (owns cancelFunc; do not create a separate cancel here —
+	// the process-exit monitor must cancel the same context the I/O goroutines use).
 	window.handleIOOperations()
 
 	// Enable terminal features
@@ -713,8 +711,8 @@ func NewWindow(id, title string, x, y, width, height, z int, exitChan chan strin
 		// Mark process as exited
 		window.SetProcessExited(true)
 
-		// Clean up
-		cancel()
+		// Cancel the I/O context handleIOOperations installed.
+		window.cancelIO()
 
 		// Give a small delay to ensure final output is captured
 		time.Sleep(config.ProcessWaitDelay)
@@ -786,12 +784,9 @@ func NewAdoptedWindow(id, title string, x, y, width, height, z int, exitChan cha
 		_ = err
 	}
 
-	_, cancel := context.WithCancel(context.Background())
-
 	window.Pty = adopted
 	window.Cmd = nil
 	window.AdoptedPID = pid
-	window.cancelFunc = cancel
 
 	// Store the pid's process group for CWD()/HasForegroundProcess(), the
 	// same as NewWindow does from cmd.Process.Pid.
@@ -812,7 +807,7 @@ func NewAdoptedWindow(id, title string, x, y, width, height, z int, exitChan cha
 
 		waitForAdoptedExit(pid)
 		window.SetProcessExited(true)
-		cancel()
+		window.cancelIO()
 		time.Sleep(config.ProcessWaitDelay)
 		select {
 		case exitChan <- id:

@@ -175,7 +175,13 @@ func SetURLOpener(fn func(target string) error) (restore func()) {
 
 // OpenURL opens target in the default browser and says so. copied adds that
 // the URL is on the clipboard too, so the gesture shows a single toast.
+// Only http(s) URLs are opened; callers such as OpenUpdatePage must not be able
+// to hand a non-http scheme (or a compromised release JSON field) to the desktop opener.
 func (m *OS) OpenURL(target string, copied bool) {
+	if !isOpenableURL(target) {
+		m.ShowNotification("Could not open URL: only http(s) links are allowed", "warning", config.NotificationDuration)
+		return
+	}
 	if err := startURLOpener(target); err != nil {
 		m.ShowNotification(fmt.Sprintf("Could not open URL: %v", err), "warning", config.NotificationDuration)
 		return

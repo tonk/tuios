@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/adrg/xdg"
 
@@ -130,14 +131,20 @@ func loadWebSessionConfig(owner string) (*config.UserConfig, func(*config.UserCo
 	return cfg, save, nil
 }
 
+// applyWebAppearanceOnce guards process-wide appearance application. Appearance
+// settings are package globals shared by every session's render loop, so
+// applying each PAM user's config on connect made the last connector win for
+// everyone. Apply once from the first user (or server default) that needs it;
+// per-session theme changes still go through SetThemeMsg on that session's program.
+var applyWebAppearanceOnce sync.Once
+
 // applyUserAppearance makes cfg's appearance the one the render loop reads,
-// under the CLI flags the server was started with. The appearance settings are
-// process-wide globals, so this is what lets a user's own settings take effect
-// for the session being created; it also means the last session to connect
-// decides what the globals hold until the next one does.
+// under the CLI flags the server was started with, at most once per process.
 func applyUserAppearance(cfg *config.UserConfig) {
-	config.ApplyAppearanceConfig(cfg)
-	config.ApplyOverrides(webOverrides, cfg)
+	applyWebAppearanceOnce.Do(func() {
+		config.ApplyAppearanceConfig(cfg)
+		config.ApplyOverrides(webOverrides, cfg)
+	})
 }
 
 // webSessionConfigOrDefault is loadWebSessionConfig for a connection that

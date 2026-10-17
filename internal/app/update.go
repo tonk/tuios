@@ -1039,6 +1039,10 @@ func (m *OS) Update(msg tea.Msg) (model tea.Model, cmd tea.Cmd) {
 			ListenForClipboardSet(m.PendingClipboardSet),
 		)
 
+	case ClipboardHostErrMsg:
+		m.ShowNotification(fmt.Sprintf("Clipboard helper failed: %v", msg.Err), "warning", config.NotificationDuration)
+		return m, nil
+
 	case NotificationMsg:
 		// Guest desktop notification or bell delivered off the PTY goroutine;
 		// apply it here on the Bubble Tea goroutine where notification state is

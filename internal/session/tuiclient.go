@@ -318,17 +318,24 @@ func (c *TUIClient) SwitchSession(targetName string, width, height int) (*Sessio
 
 	debugLog("[SWITCH] Detach sent, waiting for confirmation...")
 
-	// Wait for detach confirmation
+	// Wait for detach confirmation. Always drop the pending slot: a timeout or
+	// client-close path used to leave MsgDetached registered, so a late reply
+	// wrote into an abandoned channel and the map entry stuck until the next switch.
 	select {
 	case <-detachResp:
 		debugLog("[SWITCH] Detach confirmed")
 	case <-time.After(5 * time.Second):
+		c.pendingResponsesMu.Lock()
+		delete(c.pendingResponses, MsgDetached)
+		c.pendingResponsesMu.Unlock()
 		return nil, fmt.Errorf("detach timeout")
 	case <-c.done:
+		c.pendingResponsesMu.Lock()
+		delete(c.pendingResponses, MsgDetached)
+		c.pendingResponsesMu.Unlock()
 		return nil, fmt.Errorf("client closed")
 	}
 
-	// Clean up pending response registration
 	c.pendingResponsesMu.Lock()
 	delete(c.pendingResponses, MsgDetached)
 	c.pendingResponsesMu.Unlock()
@@ -669,6 +676,11 @@ func (c *TUIClient) SendIntent(commandType string, args ...string) error {
 
 // UpdateState sends a state update to the daemon.
 func (c *TUIClient) UpdateState(state *SessionState) error {
+	// A zero-value TUIClient (common in UI unit tests) has no codec and is not
+	// connected; treat that as a no-op rather than panicking in NewMessageWithCodec.
+	if c == nil || c.codec == nil {
+		return nil
+	}
 	msg, err := NewMessageWithCodec(MsgUpdateState, state, c.codec)
 	if err != nil {
 		return err

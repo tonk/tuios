@@ -276,8 +276,8 @@ tuios ssh --read-only
 ### Authentication
 
 - **Local clients:** Unix socket permissions (same user)
-- **SSH clients:** SSH authentication
-- **Web clients:** Currently no authentication (TODO for production use)
+- **SSH clients:** No built-in password/public-key auth (`NoClientAuth`). The server only binds loopback by default and refuses a non-loopback `--host` so an open session cannot be exposed on the network without an authenticating front door.
+- **Web clients:** Optional PAM (`--pam-auth`). Without it there is no authentication — bind loopback or put the server behind a reverse proxy for production.
 
 ### Audit Trail
 

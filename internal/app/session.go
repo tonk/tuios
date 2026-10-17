@@ -832,9 +832,7 @@ func (m *OS) createWindowFromSync(ws *session.WindowState) *terminal.Window {
 		// Register exit handler (always needed regardless of workspace)
 		windowID := window.ID
 		m.DaemonClient.OnPTYClosed(ptyID, func() {
-			if m.WindowExitChan != nil {
-				m.WindowExitChan <- windowID
-			}
+			signalWindowExit(m.WindowExitChan, windowID)
 		})
 
 		window.EnableCallbacks()
@@ -845,6 +843,20 @@ func (m *OS) createWindowFromSync(ws *session.WindowState) *terminal.Window {
 	m.FireHook(hooks.AfterNewWindow, window.ID, window.Title())
 
 	return window
+}
+
+// signalWindowExit delivers a pane-exit ID without blocking the caller. The
+// OnPTYClosed handler runs on the TUIClient read loop; a blocking send into a
+// full WindowExitChan (buffer 10) would stall every PTY output and protocol
+// frame for that client. Local PTY monitors already use select/default.
+func signalWindowExit(ch chan string, windowID string) {
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- windowID:
+	default:
+	}
 }
 
 // closeWindowFromSync tears down a window the daemon has removed from the window
@@ -1277,9 +1289,7 @@ func (m *OS) SetupPTYOutputHandlers() error {
 			// Register handler for when PTY process exits
 			windowID := window.ID
 			m.DaemonClient.OnPTYClosed(ptyID, func() {
-				if m.WindowExitChan != nil {
-					m.WindowExitChan <- windowID
-				}
+				signalWindowExit(m.WindowExitChan, windowID)
 			})
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // registers /debug/pprof handlers on http.DefaultServeMux
 	"os"
@@ -35,6 +36,12 @@ import (
 func startPprofServer() {
 	if pprofAddr == "" {
 		return
+	}
+	if host, _, err := net.SplitHostPort(pprofAddr); err == nil && host != "" &&
+		host != "localhost" && host != "127.0.0.1" && host != "::1" {
+		if ip := net.ParseIP(host); ip == nil || !ip.IsLoopback() {
+			log.Printf("Warning: pprof on %q is reachable without auth; prefer localhost:port", pprofAddr)
+		}
 	}
 	runtime.SetBlockProfileRate(10000) // one sample per ~10us blocked
 	runtime.SetMutexProfileFraction(100)

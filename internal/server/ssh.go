@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,12 +18,12 @@ import (
 	"charm.land/wish/v2"
 	"charm.land/wish/v2/bubbletea"
 	"charm.land/wish/v2/logging"
+	"github.com/charmbracelet/ssh"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/input"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/ssh"
 )
 
 // SSHServerConfig holds configuration for the SSH server.
@@ -85,7 +86,15 @@ func StartSSHServer(ctx context.Context, cfg *SSHServerConfig) error {
 		}
 	}
 
-	// Create SSH server with middleware
+	// Create SSH server with middleware. No password/public-key handlers are
+	// registered, so charmbracelet/ssh enables NoClientAuth: anyone who can
+	// reach the port gets a session. That is intentional for localhost demos
+	// and classrooms behind their own front door; binding a non-loopback
+	// address without an external auth layer is a footgun, so refuse it.
+	if !isLoopbackHost(cfg.Host) {
+		return fmt.Errorf("SSH server refuses non-loopback bind %q without authentication; use --host localhost (or 127.0.0.1 / ::1), or put the server behind an authenticating proxy", cfg.Host)
+	}
+
 	server, err := wish.NewServer(
 		wish.WithAddress(net.JoinHostPort(cfg.Host, cfg.Port)),
 		wish.WithHostKeyPath(hostKeyPath),
@@ -111,7 +120,7 @@ func StartSSHServer(ctx context.Context, cfg *SSHServerConfig) error {
 		if cfg.Ephemeral {
 			mode = "ephemeral"
 		}
-		log.Printf("Starting SSH server on %s (mode: %s)", server.Addr, mode)
+		log.Printf("Starting SSH server on %s (mode: %s, NoClientAuth)", server.Addr, mode)
 		if err := server.ListenAndServe(); err != nil {
 			log.Printf("SSH server error: %v", err)
 		}
@@ -129,6 +138,19 @@ func StartSSHServer(ctx context.Context, cfg *SSHServerConfig) error {
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelShutdown()
 	return server.Shutdown(shutdownCtx)
+}
+
+// isLoopbackHost reports whether host is a loopback bind target. Empty means
+// the platform default listen address, which is not loopback-only.
+func isLoopbackHost(host string) bool {
+	switch strings.ToLower(strings.TrimSpace(host)) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
 }
 
 // shortID returns the first 8 characters of an id for logging, or the whole id

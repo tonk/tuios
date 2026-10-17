@@ -6,6 +6,7 @@ import (
 
 	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/pool"
 )
 
 // Cell styling shared by every pane render path.
@@ -284,14 +285,15 @@ type cellScreen interface {
 // draws.
 func renderCellScreen(screen cellScreen, resolve colorResolver) string {
 	width, height := screen.Width(), screen.Height()
-	var b strings.Builder
+	b := pool.GetStringBuilder()
+	defer pool.PutStringBuilder(b)
 	b.Grow(width * height)
 	var line cellLineWriter
 	for y := range height {
 		if y > 0 {
 			b.WriteByte('\n')
 		}
-		line.begin(&b, resolve)
+		line.begin(b, resolve)
 		for x := range width {
 			line.cell(screen.CellAt(x, y))
 		}

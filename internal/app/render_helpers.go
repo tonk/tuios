@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/overlay"
 	"github.com/tonk/tuios/internal/pool"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/theme"
-	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // agentStateIndicator returns the one-cell glyph that marks a pane's agent state
@@ -181,14 +181,20 @@ func getWindowTitle(window *terminal.Window, position int, maxWidth int) string 
 	nameWidth := ansi.StringWidth(windowName)
 	if nameWidth > maxNameLen {
 		if maxNameLen > 3 {
-			// Truncate by runes to handle unicode properly
+			// Binary search the rune prefix that fits, instead of dropping one
+			// rune and re-measuring the whole string each time (O(n²) width passes).
 			runes := []rune(windowName)
-			truncated := string(runes)
-			for ansi.StringWidth(truncated) > maxNameLen-3 && len(runes) > 0 {
-				runes = runes[:len(runes)-1]
-				truncated = string(runes)
+			limit := maxNameLen - 3
+			lo, hi := 0, len(runes)
+			for lo < hi {
+				mid := (lo + hi + 1) / 2
+				if ansi.StringWidth(string(runes[:mid])) <= limit {
+					lo = mid
+				} else {
+					hi = mid - 1
+				}
 			}
-			windowName = truncated + "..."
+			windowName = string(runes[:lo]) + "..."
 		} else {
 			return indicator
 		}
@@ -587,6 +593,14 @@ func clipWindowContent(content string, x, y, viewportWidth, viewportHeight int) 
 	// under-measurement also let the horizontal clip below be skipped for
 	// content that really did overrun the viewport.
 	windowWidth := framesWidth(lines)
+
+	// Fully on-screen: keep the original bytes. Splitting was required to know
+	// the height/width; joining the same lines again was pure allocation.
+	// Zero-width frames (all blank lines) still fall through so the existing
+	// x+windowWidth <= 0 discard keeps treating them as empty.
+	if windowWidth > 0 && x >= 0 && y >= 0 && y+windowHeight <= viewportHeight && x+windowWidth <= viewportWidth {
+		return content, x, y
+	}
 
 	if x+windowWidth <= 0 {
 		return "", max(x, 0), max(y, 0)

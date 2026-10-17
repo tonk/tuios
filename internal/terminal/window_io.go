@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/pool"
 	"github.com/tonk/tuios/internal/vt"
 )
@@ -431,6 +432,15 @@ func (w *Window) SetStreamOwnsSize(v bool) { w.streamOwnsSize.Store(v) }
 // StreamOwnsSize reports whether the daemon output stream sizes this emulator.
 func (w *Window) StreamOwnsSize() bool { return w.streamOwnsSize.Load() }
 
+// cancelIO cancels the I/O context installed by handleIOOperations. It is safe
+// to call more than once and from both Close and the process-exit monitor.
+func (w *Window) cancelIO() {
+	if w == nil || w.cancelFunc == nil {
+		return
+	}
+	w.cancelFunc()
+}
+
 func (w *Window) handleIOOperations() {
 	ctx, cancel := context.WithCancel(context.Background())
 	w.cancelFunc = cancel
@@ -704,11 +714,9 @@ func (w *Window) Close() {
 		close(w.outputDone)
 	}
 
-	// Cancel all goroutines first
-	if w.cancelFunc != nil {
-		w.cancelFunc()
-		w.cancelFunc = nil
-	}
+	// Cancel all goroutines first. Leave cancelFunc set: context.CancelFunc is
+	// idempotent, and the process-exit monitor may still call cancelIO.
+	w.cancelIO()
 
 	// Close PTY and Terminal to unblock I/O goroutines
 	// Must close both because:
@@ -725,7 +733,10 @@ func (w *Window) Close() {
 	}
 	w.ioMu.Unlock()
 
-	// Wait briefly for I/O goroutines (they should exit fast after PTY/Terminal close)
+	// Wait for I/O goroutines. Cancel + close above should unblock them quickly;
+	// if they are still stuck after ProcessShutdownTimeout, return anyway but keep
+	// waiting in the background so ioWg.Wait is not abandoned mid-call with no
+	// progress path (the previous 10ms helper leaked whenever Wait never returned).
 	done := make(chan struct{})
 	go func() {
 		w.ioWg.Wait()
@@ -733,7 +744,8 @@ func (w *Window) Close() {
 	}()
 	select {
 	case <-done:
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(config.ProcessShutdownTimeout):
+		log.Printf("window %s: I/O goroutines did not exit within %v", w.ID, config.ProcessShutdownTimeout)
 	}
 
 	// Kill the process

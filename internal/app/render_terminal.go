@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/pool"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/theme"
-	uv "github.com/charmbracelet/ultraviolet"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // Highlight styles used by the terminal render loop, built fresh each call
@@ -477,6 +477,32 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 			prevCell.Link == cell.Link
 	}
 
+	// Highlight escapes once per frame: rebuilding lipgloss styles per cell was
+	// measurable in copy/visual mode on large selections.
+	var copyCursorPref, copyCursorSuf string
+	var visualPref, visualSuf string
+	var currentMatchPref, currentMatchSuf string
+	var searchMatchPref, searchMatchSuf string
+	if showCopyCursor {
+		copyCursorPref, copyCursorSuf = styleToANSI(copyModeCursorStyle())
+	}
+	if inVisualMode {
+		visualPref, visualSuf = styleToANSI(visualSelectionStyle())
+	}
+	if inCopyMode && !inVisualMode {
+		currentMatchPref, currentMatchSuf = styleToANSI(currentMatchStyle())
+		searchMatchPref, searchMatchSuf = styleToANSI(searchMatchStyle())
+	}
+	writeHighlight := func(pref, suf, char string) {
+		if pref == "" {
+			builder.WriteString(char)
+			return
+		}
+		builder.WriteString(pref)
+		builder.WriteString(char)
+		builder.WriteString(suf)
+	}
+
 	for y := range maxY {
 		if y > 0 {
 			builder.WriteRune('\n')
@@ -486,37 +512,37 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 		batchHasStyle = false
 		prevCell = nil
 
+		// Hoist ScrollbackLine once per row: calling it per cell re-settled
+		// pending reflow work on every column.
+		var rowScrollback uv.Line
+		rowInScrollbackHistory := false
+		rowScreenY := y
+		if inScrollbackMode {
+			if y < window.ScrollbackOffset {
+				scrollbackIndex := scrollbackLen - window.ScrollbackOffset + y
+				if scrollbackIndex >= 0 && scrollbackIndex < scrollbackLen {
+					rowScrollback = window.ScrollbackLine(scrollbackIndex)
+					rowInScrollbackHistory = true
+				}
+			} else {
+				rowScreenY = y - window.ScrollbackOffset
+			}
+		}
+
 		lineEndX := maxX - 1
 		if inVisualMode && visualSelection != nil && visualSelection.HasRow(y) {
-			if inScrollbackMode {
-				if y < window.ScrollbackOffset {
-					scrollbackIndex := scrollbackLen - window.ScrollbackOffset + y
-					if scrollbackIndex >= 0 && scrollbackIndex < scrollbackLen {
-						lineCells := window.ScrollbackLine(scrollbackIndex)
-						if lineCells != nil {
-							for i := len(lineCells) - 1; i >= 0; i-- {
-								if lineCells[i].Width > 0 && lineCells[i].Content != "" && lineCells[i].Content != " " {
-									lineEndX = i
-									break
-								}
-							}
-						}
-					}
-				} else {
-					screenY := y - window.ScrollbackOffset
-					if screenY >= 0 && screenY < screen.Height() {
-						for i := maxX - 1; i >= 0; i-- {
-							cell := screen.CellAt(i, screenY)
-							if cell != nil && cell.Width > 0 && cell.Content != "" && cell.Content != " " {
-								lineEndX = i
-								break
-							}
+			if rowInScrollbackHistory {
+				if rowScrollback != nil {
+					for i := len(rowScrollback) - 1; i >= 0; i-- {
+						if rowScrollback[i].Width > 0 && rowScrollback[i].Content != "" && rowScrollback[i].Content != " " {
+							lineEndX = i
+							break
 						}
 					}
 				}
-			} else {
+			} else if rowScreenY >= 0 && rowScreenY < screen.Height() {
 				for i := maxX - 1; i >= 0; i-- {
-					cell := screen.CellAt(i, y)
+					cell := screen.CellAt(i, rowScreenY)
 					if cell != nil && cell.Width > 0 && cell.Content != "" && cell.Content != " " {
 						lineEndX = i
 						break
@@ -533,46 +559,23 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				var cursorCell *uv.Cell
 				charWidth := 1
 
-				if inScrollbackMode {
-					if y < window.ScrollbackOffset {
-						scrollbackIndex := scrollbackLen - window.ScrollbackOffset + y
-						if scrollbackIndex >= 0 && scrollbackIndex < scrollbackLen {
-							scrollbackLine := window.ScrollbackLine(scrollbackIndex)
-							if scrollbackLine != nil && x < len(scrollbackLine) {
-								cursorCell = &scrollbackLine[x]
-								if cursorCell.Content != "" {
-									char = cursorCell.Content
-								}
-								if cursorCell.Width > 0 {
-									charWidth = cursorCell.Width
-								}
-							}
-						}
-					} else {
-						screenY := y - window.ScrollbackOffset
-						if screenY >= 0 && screenY < screen.Height() {
-							cursorCell = screen.CellAt(x, screenY)
-							if cursorCell != nil && cursorCell.Content != "" {
-								char = cursorCell.Content
-							}
-							if cursorCell != nil && cursorCell.Width > 0 {
-								charWidth = cursorCell.Width
-							}
-						}
+				if rowInScrollbackHistory {
+					if rowScrollback != nil && x < len(rowScrollback) {
+						cursorCell = &rowScrollback[x]
 					}
-				} else {
-					cursorCell = screen.CellAt(x, y)
-					if cursorCell != nil && cursorCell.Content != "" {
-						char = cursorCell.Content
-					}
-					if cursorCell != nil && cursorCell.Width > 0 {
-						charWidth = cursorCell.Width
-					}
+				} else if rowScreenY >= 0 && rowScreenY < screen.Height() {
+					cursorCell = screen.CellAt(x, rowScreenY)
+				}
+				if cursorCell != nil && cursorCell.Content != "" {
+					char = cursorCell.Content
+				}
+				if cursorCell != nil && cursorCell.Width > 0 {
+					charWidth = cursorCell.Width
 				}
 
 				flushBatch()
 
-				builder.WriteString(renderStyledText(copyModeCursorStyle(), char))
+				writeHighlight(copyCursorPref, copyCursorSuf, char)
 
 				prevCell = nil
 				prevIsCursor = false
@@ -581,23 +584,12 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				continue
 			}
 
-			if inScrollbackMode {
-				if y < window.ScrollbackOffset {
-					scrollbackIndex := scrollbackLen - window.ScrollbackOffset + y
-					if scrollbackIndex >= 0 && scrollbackIndex < scrollbackLen {
-						scrollbackLine := window.ScrollbackLine(scrollbackIndex)
-						if scrollbackLine != nil && x < len(scrollbackLine) {
-							cell = &scrollbackLine[x]
-						}
-					}
-				} else {
-					screenY := y - window.ScrollbackOffset
-					if screenY >= 0 && screenY < screen.Height() {
-						cell = screen.CellAt(x, screenY)
-					}
+			if rowInScrollbackHistory {
+				if rowScrollback != nil && x < len(rowScrollback) {
+					cell = &rowScrollback[x]
 				}
-			} else {
-				cell = screen.CellAt(x, y)
+			} else if rowScreenY >= 0 && rowScreenY < screen.Height() {
+				cell = screen.CellAt(x, rowScreenY)
 			}
 
 			char := " "
@@ -608,7 +600,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 			if inVisualMode && visualSelection != nil && visualSelection.Get(y, x) && x <= lineEndX {
 				flushBatch()
 
-				builder.WriteString(renderStyledText(visualSelectionStyle(), char))
+				writeHighlight(visualPref, visualSuf, char)
 				prevCell = cell
 				prevGen = 0
 				prevIsCursor = false
@@ -624,7 +616,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				if currentMatchHighlight != nil && currentMatchHighlight.Get(y, x) {
 					flushBatch()
 
-					builder.WriteString(renderStyledText(currentMatchStyle(), char))
+					writeHighlight(currentMatchPref, currentMatchSuf, char)
 					prevCell = cell
 					prevGen = 0
 					prevIsCursor = false
@@ -639,7 +631,7 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 				if searchHighlights != nil && searchHighlights.Get(y, x) {
 					flushBatch()
 
-					builder.WriteString(renderStyledText(searchMatchStyle(), char))
+					writeHighlight(searchMatchPref, searchMatchSuf, char)
 					prevCell = cell
 					prevGen = 0
 					prevIsCursor = false

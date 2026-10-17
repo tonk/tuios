@@ -286,6 +286,11 @@ func (m *OS) FocusWindow(i int) *OS {
 		m.ScrollingOnFocusChange()
 	}
 
+	// Terminal-mode focus binds no longer rely on HandleInput's blanket daemon
+	// sync (that path skips pure terminal keystrokes), so focus changes must
+	// push state here.
+	m.SyncStateToDaemon()
+
 	return m
 }
 

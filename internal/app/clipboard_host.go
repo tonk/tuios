@@ -51,7 +51,8 @@ func pickHostClipTool(getenv func(string) string, lookPath func(string) (string,
 	}
 	for i := range candidates {
 		if _, err := lookPath(candidates[i].write[0]); err == nil {
-			return &candidates[i]
+			tool := candidates[i]
+			return &tool
 		}
 	}
 	return nil
@@ -93,7 +94,11 @@ func (m *OS) SetHostClipboard(text string) tea.Cmd {
 		return osc
 	}
 	return tea.Batch(osc, func() tea.Msg {
+		var failed error
 		for _, argv := range [][]string{tool.write, tool.primary} {
+			if len(argv) == 0 {
+				continue
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), hostClipTimeout)
 			// #nosec G204 - argv comes from the fixed tables above
 			cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
@@ -101,11 +106,24 @@ func (m *OS) SetHostClipboard(text string) tea.Cmd {
 			// Stdout and Stderr stay nil: the helper forks to hold the
 			// selection, and an inherited pipe would make Run wait for that
 			// child.
-			_ = cmd.Run()
+			err := cmd.Run()
 			cancel()
+			if err != nil && failed == nil {
+				failed = err
+			}
+		}
+		if failed != nil {
+			return ClipboardHostErrMsg{Err: failed}
 		}
 		return nil
 	})
+}
+
+// ClipboardHostErrMsg reports that the display clipboard helper failed after
+// OSC 52 was already sent. The Update loop turns it into a short warning toast
+// so VTE users who rely on the helper are not left with a silent miss.
+type ClipboardHostErrMsg struct {
+	Err error
 }
 
 // ReadHostClipboard asks for the clipboard's contents, delivered as a

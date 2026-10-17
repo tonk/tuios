@@ -28,6 +28,10 @@ type Screen struct {
 	wraps []LineWrap
 	// reflowScratch is kept between reflows so a resize does not allocate it.
 	reflowScratch reflowScratch
+	// eraseCell is the reusable blank cell blankCell returns when the pen has
+	// a background. Callers must copy or apply it before the next blankCell
+	// call; returning a fresh &local every time heap-escaped on every scroll.
+	eraseCell uv.Cell
 }
 
 // NewScreen creates a new screen.
@@ -814,9 +818,9 @@ func (s *Screen) blankCell() *uv.Cell {
 		return nil
 	}
 
-	c := uv.EmptyCell
-	c.Style.Bg = s.cur.Pen.Bg
-	return &c
+	s.eraseCell = uv.EmptyCell
+	s.eraseCell.Style.Bg = s.cur.Pen.Bg
+	return &s.eraseCell
 }
 
 // Scrollback returns the scrollback buffer for this screen.
