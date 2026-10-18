@@ -317,6 +317,18 @@ func (m *OS) ToggleLastFocusedWindow() {
 // always jumps to the window actually labelled N. Reports whether a window
 // was found at that position.
 func (m *OS) FocusWindowAtWorkspacePosition(n int) bool {
+	if config.KeepWindowNumbers {
+		for i, w := range m.Windows {
+			if w.Workspace != m.CurrentWorkspace || (m.AutoTiling && w.Minimized) {
+				continue
+			}
+			if m.stableWindowNumber(w) == n {
+				m.FocusWindow(i)
+				return true
+			}
+		}
+		return false
+	}
 	position := 0
 	for i, w := range m.Windows {
 		if w.Workspace != m.CurrentWorkspace {
@@ -491,6 +503,9 @@ func (m *OS) AddWindow(name string) *OS {
 
 	window.Workspace = m.CurrentWorkspace
 	window.CustomName = name
+	if config.KeepWindowNumbers {
+		m.stableWindowNumber(window)
+	}
 
 	// When MaximizeNewWindows creates a fullscreen window, mark it as snapped
 	// so the maximize button can toggle it back to half-screen width.

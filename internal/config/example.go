@@ -86,6 +86,7 @@ var exampleTables = []exampleTable{
 			{"dock_pill_underline", "true", "Underline the active workspace/window pill's label. The one mark that survives ASCII mode and monochrome; turn off if the pill's own fill already makes it obvious."},
 			{"session_colors", "true", "Give each session its own color on the rail and the session switcher."},
 			{"set_terminal_title", "true", `Set the host terminal's window title to "tuios" once at startup (OSC 2).`},
+			{"keep_window_numbers", "false", "Keep a window's number when another one closes instead of renumbering them sequentially. A new window takes the lowest free number."},
 			{"dock_window_list", "false", "List every window of the current workspace in the dock, not just minimized ones. A window wanting attention (agent needs input/errored/unseen-done, or new output/a bell/a notification while unfocused) blinks until focused."},
 			{"check_for_updates", "true", "Check GitHub for a newer tuios release every 12 hours and show it at the right of the dock; click it to open the release page. Off, tuios never contacts GitHub."},
 			{"show_resize_size", "true", "Pop the terminal's size in columns x rows in the middle of the screen while its window is resized."},

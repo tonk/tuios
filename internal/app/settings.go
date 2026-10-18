@@ -438,6 +438,13 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.ShowWindowNumber = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Keep window numbers", "Keep a window's number when another closes instead of renumbering; a new window takes the lowest free number",
+				func() bool { return config.KeepWindowNumbers },
+				func(m *OS, v bool) {
+					config.KeepWindowNumbers = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.KeepWindowNumbers = boolPtr(v) })
+					m.applyAppearanceLive(false)
+				}),
 			stringItem("Initial title format", "Template for a new window's title at creation, before anything inside it runs: {user}", "{user}", "(default)",
 				func(m *OS) string { return config.InitialTitleFormat },
 				func(m *OS, v string) {

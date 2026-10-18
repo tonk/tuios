@@ -733,10 +733,47 @@ func isControlSequence(seq string) bool {
 	return c == 0xc2 && len(seq) > 1 && seq[1] >= 0x80 && seq[1] <= 0x9f
 }
 
+// stableWindowNumber returns the number the window keeps for as long as it
+// lives (keep_window_numbers). A window without one - created by a path that
+// does not number windows, or just moved to another workspace - takes the
+// lowest number no other window of its workspace is using.
+func (m *OS) stableWindowNumber(window *terminal.Window) int {
+	if window.Number > 0 {
+		return window.Number
+	}
+	used := make(map[int]bool)
+	for _, w := range m.Windows {
+		if w != window && w.Workspace == window.Workspace && w.Number > 0 {
+			used[w.Number] = true
+		}
+	}
+	n := 1
+	for used[n] {
+		n++
+	}
+	window.Number = n
+	return n
+}
+
+// dockNumber is the number a dock pill shows for a window: its stable number
+// under keep_window_numbers, else the pill's own 1-based place in the strip.
+func (m *OS) dockNumber(window *terminal.Window, place int) int {
+	if config.KeepWindowNumbers {
+		return m.stableWindowNumber(window)
+	}
+	return place
+}
+
 // workspacePosition returns the window's 1-based place among the windows of its
 // workspace, the same number the leader-digit shortcuts address it by. Returns
 // 0 for a window that is not in the list, which the title format renders as-is.
 func (m *OS) workspacePosition(window *terminal.Window) int {
+	if config.KeepWindowNumbers {
+		if m.AutoTiling && window.Minimized {
+			return 0
+		}
+		return m.stableWindowNumber(window)
+	}
 	position := 0
 	for _, w := range m.Windows {
 		if w.Workspace != window.Workspace {

@@ -297,6 +297,7 @@ type Window struct {
 	PreMinimizeWidth  int         // Store size before minimizing
 	PreMinimizeHeight int         // Store size before minimizing
 	Workspace         int         // Workspace this window belongs to
+	Number            int         // Stable 1-based number within the workspace (0 = not yet assigned); used when keep_window_numbers is on
 	Zoomed            bool        // True when window is zoomed (fullscreen)
 	PreZoomX          int         // Store position before zooming
 	PreZoomY          int         // Store position before zooming

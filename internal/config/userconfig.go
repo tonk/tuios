@@ -225,6 +225,7 @@ type AppearanceConfig struct {
 	BorderUnfocusedColor string `toml:"border_unfocused_color"` // Hex color for unfocused pane border (e.g., "#585b70")
 	WindowTitleFormat    string `toml:"window_title_format"`    // Format string for window titles: {title}, {index}, {cwd}
 	ShowWindowNumber     *bool  `toml:"show_window_number"`     // Prefix a window's title with its 1-based index, e.g. "1: bash" (default: true). Ignored when window_title_format is set.
+	KeepWindowNumbers    *bool  `toml:"keep_window_numbers"`    // Keep a window's number when another one closes, instead of renumbering them sequentially; a new window takes the lowest free number (default: false)
 	LockTitles           bool   `toml:"lock_titles"`            // New windows start with their title locked, so the app inside can't OSC-rename it (default: false). See the toggle_title_lock keybinding.
 	InitialTitleFormat   string `toml:"initial_title_format"`   // Template for a new window's title at creation, before anything inside it runs: {user}. Empty means the usual "Terminal <id>" / shell-reported title.
 	ZoomMaxWidth         int    `toml:"zoom_max_width"`         // Max width in cells for zoom mode (0 = fullscreen, e.g. 120 centers at 120 cols)
@@ -1056,6 +1057,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.SetTerminalTitle != nil {
 		SetTerminalTitle = *cfg.Appearance.SetTerminalTitle
+	}
+	if cfg.Appearance.KeepWindowNumbers != nil {
+		KeepWindowNumbers = *cfg.Appearance.KeepWindowNumbers
 	}
 	if cfg.Appearance.DockWindowList != nil {
 		DockWindowList = *cfg.Appearance.DockWindowList

@@ -646,6 +646,13 @@ var DockPillUnderline = true
 // title. Off leaves the host terminal's title untouched.
 var SetTerminalTitle = true
 
+// KeepWindowNumbers makes a window keep the number it was given when another
+// window closes, instead of every window after it shifting down so the numbers
+// stay sequential. A new window takes the lowest number its workspace is not
+// using, so a gap left by a close is filled before the sequence grows. Off, the
+// number is simply the window's position in its workspace.
+var KeepWindowNumbers = false
+
 // DockWindowList lists every window of the current workspace in the dock, not
 // only minimized ones, styled like the workspace strip. A window wanting
 // attention (see dockWindowNeedsAttention) blinks until it is focused. Off

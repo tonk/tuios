@@ -878,7 +878,7 @@ func (m *OS) getDockItems() []DockItem {
 
 	for _, windowIndex := range dockWindows {
 		window := m.Windows[windowIndex]
-		labelText := dockItemLabel(itemNumber, window.CustomName)
+		labelText := dockItemLabel(m.dockNumber(window, itemNumber), window.CustomName)
 
 		// Calculate width: 2 for circles (left + right) + actual rendered label width
 		// Use lipgloss.Width to get proper display width (handles Unicode, emojis, etc.)

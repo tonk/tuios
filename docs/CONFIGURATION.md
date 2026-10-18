@@ -460,6 +460,24 @@ Prefixes a window's displayed title with its 1-based index (e.g. `1: bash`), the
 
 **Note:** Also settable from the in-app settings page (Appearance, "Show window number").
 
+### keep_window_numbers
+
+By default a window's number is its position in the workspace, so closing a
+window in the middle renumbers every window after it. With this on, a window
+keeps its number until it closes, and the numbers of the others stay put. A new
+window takes the lowest number its workspace is not using, so a gap is filled
+before the sequence grows. The title, the sidebar, the dock, `{index}` and the
+`select_window_N` shortcuts all use the same number. A window moved to another
+workspace is numbered afresh there.
+
+**Valid values:**
+- `false` - Numbers follow window position and stay sequential (default)
+- `true` - Windows keep their numbers when another window closes
+
+**Default:** `false`
+
+**Also settable from:** the in-app settings page (Appearance, "Keep window numbers").
+
 ### window_title_format
 
 A template that overrides how a window's title is built, when you want more control than `show_window_number` gives you.

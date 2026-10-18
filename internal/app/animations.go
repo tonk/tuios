@@ -246,5 +246,5 @@ func (m *OS) calculateDockPosition(windowIndex int) (int, int) {
 // dockItemLabelWidth is the cell width of the pill the dock will draw for a
 // window, measured off the label the dock itself builds.
 func (m *OS) dockItemLabelWidth(idx, winIdx int) int {
-	return lipgloss.Width(dockItemLabel(idx+1, m.Windows[winIdx].CustomName))
+	return lipgloss.Width(dockItemLabel(m.dockNumber(m.Windows[winIdx], idx+1), m.Windows[winIdx].CustomName))
 }

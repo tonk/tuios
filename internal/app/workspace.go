@@ -238,6 +238,7 @@ func (m *OS) MoveWindowToWorkspace(windowIndex int, workspace int) {
 
 	// Move window to new workspace FIRST
 	window.Workspace = workspace
+	window.Number = 0 // numbered afresh in its new workspace
 	window.MarkPositionDirty()
 
 	// If we moved the focused window, find next window to focus in current workspace
@@ -282,6 +283,7 @@ func (m *OS) MoveWindowToWorkspaceAndFollow(windowIndex int, workspace int) {
 
 	// Move window to new workspace FIRST
 	window.Workspace = workspace
+	window.Number = 0 // numbered afresh in its new workspace
 	window.MarkPositionDirty()
 
 	// Retile old workspace AFTER moving (while still on it)
