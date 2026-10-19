@@ -193,3 +193,91 @@ func previewThemeColors(themeName string) error {
 
 	return nil
 }
+
+// configFileArg returns the file named on the command line, or the active
+// config file when none is.
+func configFileArg(args []string) (string, error) {
+	if len(args) > 0 {
+		return args[0], nil
+	}
+	path, err := config.GetConfigPath()
+	if err != nil {
+		return "", fmt.Errorf("could not determine config path: %w", err)
+	}
+	return path, nil
+}
+
+// checkConfigFile prints every problem config.CheckConfig finds, one per line
+// in the compiler-style "file:line: severity: message" form editors can jump
+// to, and fails when there is any.
+func checkConfigFile(args []string) error {
+	path, err := configFileArg(args)
+	if err != nil {
+		return err
+	}
+	// #nosec G304 - reading the config file the user pointed at is the point
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	issues := config.CheckConfig(data)
+	if len(issues) == 0 {
+		fmt.Printf("%s: no problems found\n", path)
+		return nil
+	}
+
+	errorCount := 0
+	for _, issue := range issues {
+		location := path
+		if issue.Line > 0 {
+			location = fmt.Sprintf("%s:%d", path, issue.Line)
+		}
+		if issue.Severity == config.IssueError {
+			errorCount++
+		}
+		fmt.Printf("%s: %s: %s: %s\n", location, issue.Severity, issue.Kind, issue.Message)
+	}
+	return fmt.Errorf("found %d problem(s), %d of which stop tuios from loading the file", len(issues), errorCount)
+}
+
+// reformatConfigFile sorts and aligns the config file in place, keeping the
+// original as <file>.bak, or prints the result when toStdout is set.
+func reformatConfigFile(args []string, toStdout bool) error {
+	path, err := configFileArg(args)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+	// #nosec G304 - reading the config file the user pointed at is the point
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	formatted, err := config.ReformatConfig(data)
+	if err != nil {
+		return err
+	}
+	if toStdout {
+		_, err := os.Stdout.Write(formatted)
+		return err
+	}
+	if string(formatted) == string(data) {
+		fmt.Printf("%s is already formatted\n", path)
+		return nil
+	}
+
+	backup := path + ".bak"
+	if err := os.WriteFile(backup, data, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("failed to write backup: %w", err)
+	}
+	if err := os.WriteFile(path, formatted, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	fmt.Printf("Reformatted %s\n  Previous version kept as %s\n", path, backup)
+	return nil
+}

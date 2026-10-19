@@ -1432,6 +1432,8 @@ Manage TUIOS configuration file.
 - `tuios config edit` - Edit configuration in $EDITOR
 - `tuios config reset` - Reset configuration to defaults
 - `tuios config example` - Print a fully commented reference configuration
+- `tuios config check` - Check the configuration for invalid, obsolete and duplicate settings
+- `tuios config reformat` - Sort the settings in each section and align them on `=`
 
 #### `tuios config path`
 
@@ -1482,6 +1484,58 @@ copy from, not a config file TUIOS reads.
 tuios config example | less
 tuios config example --write
 # Output: Wrote annotated reference config to: ~/.config/tuios/config.toml.example
+```
+
+#### `tuios config check [file]`
+
+Check the configuration file and report every problem with its line number, in
+the `file:line: severity: kind: message` form editors can jump to. Checks the
+active config file unless a file is given, and exits non-zero when anything is
+found.
+
+- **syntax** - the file is not valid TOML
+- **invalid** - an unknown section, setting, keybinding action or hook event, a
+  value of the wrong type, or anything TUIOS warns about at startup (an invalid
+  key name, a value outside its allowed set)
+- **obsolete** - a setting that still loads but has been replaced, such as
+  `hide_clock` or the flat `sidebar_*` keys, or an action that no longer exists
+- **duplicate** - a setting or section defined twice (TUIOS refuses to load such
+  a file), a key listed twice for one action, or one key bound to several
+  actions
+
+An `error` stops TUIOS from loading the file; a `warning` is loaded past, with
+the setting ignored or falling back to its default.
+
+**Example:**
+```bash
+tuios config check
+# ~/.config/tuios/config.toml:7: warning: obsolete: appearance.hide_clock: deprecated, use show_clock instead
+# ~/.config/tuios/config.toml:18: error: duplicate: section [appearance] is already defined on line 3
+```
+
+#### `tuios config reformat [file]`
+
+Rewrite the configuration file with the settings of every section sorted
+alphabetically (numbers by value, so `select_window_2` comes before
+`select_window_10`) and their `=` signs aligned. Sections keep their order.
+
+Comments are kept: a comment directly above a setting moves with it, one
+directly above a section header stays with the header, and other comment blocks
+stay at the top or bottom of their section. Blank lines between settings are
+dropped.
+
+Before anything is written the result is decoded and compared with the
+original, and the reformat is refused if any setting would change. The previous
+file is kept as `<file>.bak`. A file that doesn't parse, for instance because a
+setting is defined twice, is left alone; `tuios config check` says why.
+
+**Flags:**
+- `--stdout` - Print the reformatted file instead of rewriting it
+
+**Example:**
+```bash
+tuios config reformat --stdout | diff ~/.config/tuios/config.toml -
+tuios config reformat
 ```
 
 ---

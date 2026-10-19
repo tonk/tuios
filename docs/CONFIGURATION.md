@@ -71,6 +71,19 @@ installed version. Nothing in it is read by TUIOS - it's a reference to copy
 from, not a config file. Add `--write` to save it next to your real config as
 `config.toml.example` instead of printing it.
 
+### Check and Tidy the File
+
+```bash
+tuios config check
+tuios config reformat
+```
+
+`check` reports every invalid, obsolete or duplicate setting with its line
+number, and exits non-zero when it finds any. `reformat` sorts the settings in
+each section, aligns them on `=` and keeps your comments, saving the previous
+file as `config.toml.bak`. See the [CLI reference](CLI_REFERENCE.md#tuios-config)
+for the details.
+
 ## Configuration File Location
 
 **Default path:** `~/.config/tuios/config.toml` (Linux)

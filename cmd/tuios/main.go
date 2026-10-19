@@ -270,7 +270,54 @@ it is read by tuios unless you copy lines into your real config file.`,
 	}
 	configExampleCmd.Flags().BoolVar(&configExampleWrite, "write", false, "Write to <config path>.example instead of printing to stdout")
 
-	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd, configExampleCmd)
+	configCheckCmd := &cobra.Command{
+		Use:   "check [file]",
+		Short: "Check the configuration for invalid, obsolete and duplicate settings",
+		Long: `Check the TOML configuration file for problems and report each one with its
+line number:
+
+  - syntax errors
+  - invalid settings: unknown sections, keys, keybinding actions or hook
+    events, values of the wrong type, and anything tuios itself would warn
+    about at startup (bad keys, out-of-range values)
+  - obsolete settings that still load but have been replaced
+  - duplicates: a key or section defined twice (tuios refuses to load such a
+    file), a key listed twice for one action, or one key bound to several
+    actions
+
+Checks the active config file unless a file is given. Exits non-zero when
+anything is found.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return checkConfigFile(args)
+		},
+	}
+
+	var configReformatStdout bool
+	configReformatCmd := &cobra.Command{
+		Use:   "reformat [file]",
+		Short: "Sort the settings in each section and align them on '='",
+		Long: `Rewrite the configuration file with the keys of every section sorted
+alphabetically and their '=' signs aligned. Sections keep their order.
+
+Comments are kept: a comment directly above a key moves with that key, one
+directly above a section header stays with the header, and other comment
+blocks stay at the top or bottom of their section. Blank lines between keys
+are dropped.
+
+The result is checked to decode to exactly the same settings before anything
+is written, and the previous file is kept as <file>.bak. A file that doesn't
+parse is left alone; run 'tuios config check' to find out why.
+
+Reformats the active config file unless a file is given.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			return reformatConfigFile(args, configReformatStdout)
+		},
+	}
+	configReformatCmd.Flags().BoolVar(&configReformatStdout, "stdout", false, "Print the reformatted file instead of rewriting it")
+
+	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd, configExampleCmd, configCheckCmd, configReformatCmd)
 
 	themeCmd := &cobra.Command{
 		Use:   "theme",
