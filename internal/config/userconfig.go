@@ -333,7 +333,8 @@ type SidebarConfig struct {
 	// panes say which workspace they are on with a tag of their own, and
 	// switching stays on the dock and alt+1..9. Still parsed so an existing
 	// config file loads unchanged; validation warns once and nothing reads it.
-	Workspaces string `toml:"workspaces"`
+	// omitempty keeps a save from writing it back into a file it was removed from.
+	Workspaces string `toml:"workspaces,omitempty"`
 	Marquee    *bool  `toml:"marquee"`  // Scroll a hovered row's overflowing title (default: true)
 	Tooltips   *bool  `toml:"tooltips"` // Label the collapsed strip on hover (default: true)
 }

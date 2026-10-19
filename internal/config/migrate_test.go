@@ -169,6 +169,24 @@ sidebar_position = "right"
 	}
 }
 
+// TestSidebarSaveOmitsEmptyWorkspaces checks a save leaves the deprecated
+// workspaces key out unless the file being saved still sets it, so removing it
+// from the config file sticks.
+func TestSidebarSaveOmitsEmptyWorkspaces(t *testing.T) {
+	data, err := toml.Marshal(DefaultConfig())
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var round map[string]any
+	if err := toml.Unmarshal(data, &round); err != nil {
+		t.Fatalf("re-parse: %v", err)
+	}
+	sidebar := round["appearance"].(map[string]any)["sidebar"].(map[string]any)
+	if _, ok := sidebar["workspaces"]; ok {
+		t.Error("saved config writes the deprecated sidebar workspaces key")
+	}
+}
+
 // TestLegacyEscapeBindingMovesOffDetach covers the one binding whose meaning
 // changed when the prefix handlers started honouring the config. Older configs
 // list esc under prefix_detach, but the old hard-coded handler made esc leave
