@@ -233,6 +233,7 @@ type AppearanceConfig struct {
 	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, max: 120)
 	DockWorkspaceTabs    *bool  `toml:"dock_workspace_tabs"`    // Clickable workspace strip in the dock (default: true)
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
+	DockSeparator        *bool  `toml:"dock_separator"`        // Hairline between the panes and the dock bar (default: true)
 	DockPillCaps         *bool  `toml:"dock_pill_caps"`         // Powerline caps on the dock's pills (default: false, flat)
 	DockPillUnderline    *bool  `toml:"dock_pill_underline"`    // Underline the active workspace/window pill's label (default: true)
 	SessionColors        *bool  `toml:"session_colors"`         // Give each session its own colour on the rail and the switcher (default: true)
@@ -1045,6 +1046,9 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	}
 	if cfg.Appearance.DockWorkspaceTooltip != nil {
 		DockWorkspaceTooltip = *cfg.Appearance.DockWorkspaceTooltip
+	}
+	if cfg.Appearance.DockSeparator != nil {
+		ShowDockSeparator = *cfg.Appearance.DockSeparator
 	}
 	if cfg.Appearance.DockPillCaps != nil {
 		DockPillCaps = *cfg.Appearance.DockPillCaps

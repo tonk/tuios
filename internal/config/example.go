@@ -82,6 +82,7 @@ var exampleTables = []exampleTable{
 			{"max_fps", "60", "Maximum render FPS. Range 10-240."},
 			{"dock_workspace_tabs", "true", "Show a clickable workspace strip in the dock."},
 			{"dock_workspace_tooltip", "true", "Pop a truncated workspace name in full on hover."},
+			{"dock_separator", "true", "Draw the hairline between the panes and the dock bar. Off gives its row to the panes; a notification then shows without its countdown along the line."},
 			{"dock_pill_caps", "false", "Draw powerline caps on the dock's pills instead of flat ends."},
 			{"dock_pill_underline", "true", "Underline the active workspace/window pill's label. The one mark that survives ASCII mode and monochrome; turn off if the pill's own fill already makes it obvious."},
 			{"session_colors", "true", "Give each session its own color on the rail and the session switcher."},

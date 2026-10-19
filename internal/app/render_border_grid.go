@@ -229,9 +229,9 @@ func (m *OS) chromeRules(bounds layout.Rect) chromeRules {
 	if !config.BorderJoinsChromeRules() {
 		return r
 	}
-	switch config.DockbarPosition {
-	case "hidden":
-	case "top":
+	switch {
+	case config.DockbarPosition == "hidden", !config.ShowDockSeparator:
+	case config.DockbarPosition == "top":
 		r.top = bounds.Y - 1
 	default:
 		r.bottom = bounds.Y + bounds.H

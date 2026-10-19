@@ -574,6 +574,13 @@ func (m *OS) settingsCategories() []settingsCategory {
 					m.setAppearance(func(a *config.AppearanceConfig) { a.DockWorkspaceTooltip = boolPtr(v) })
 					m.applyAppearanceLive(false)
 				}),
+			boolItem("Separator", "Draw the hairline between the panes and the dock; off gives its row to the panes",
+				func() bool { return config.ShowDockSeparator },
+				func(m *OS, v bool) {
+					config.ShowDockSeparator = v
+					m.setAppearance(func(a *config.AppearanceConfig) { a.DockSeparator = boolPtr(v) })
+					m.applyAppearanceLive(true)
+				}),
 			boolItem("Pill caps", "Powerline caps on the dock's pills instead of flat cells",
 				func() bool { return config.DockPillCaps },
 				func(m *OS, v bool) {

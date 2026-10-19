@@ -470,16 +470,16 @@ func TestContextMenuDockBandExcludesTopWindowRow(t *testing.T) {
 	m := newNarrowOS(t, 120, 40)
 	// With the dock at the top the layout starts below it, so the window's first
 	// row is row DockHeight.
-	top := config.DockHeight
+	top := config.DockHeight()
 	m.Windows = []*terminal.Window{
 		{ID: "a", CustomName: "editor", X: 0, Y: top, Width: 60, Height: 20, Workspace: 1},
 	}
 	m.CurrentWorkspace, m.FocusedWindow = 1, 0
 
-	for y := range config.DockHeight {
+	for y := range config.DockHeight() {
 		if !m.inDockBand(y) {
 			t.Errorf("row %d is drawn on by a %d-row top dock but is not in the dock band",
-				y, config.DockHeight)
+				y, config.DockHeight())
 		}
 	}
 	if m.inDockBand(top) {

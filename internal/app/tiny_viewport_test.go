@@ -16,7 +16,7 @@ func TestUsableHeightNeverGoesNegative(t *testing.T) {
 	for _, pos := range []string{"bottom", "top", "hidden"} {
 		prev := config.DockbarPosition
 		config.DockbarPosition = pos
-		for h := range config.DockHeight + 2 {
+		for h := range config.DockHeight() + 2 {
 			m := newNarrowOS(t, 80, h)
 			if got := m.GetUsableHeight(); got < 0 {
 				t.Errorf("dock %s, host height %d: usable height %d", pos, h, got)
@@ -36,7 +36,7 @@ func TestUsableHeightNeverGoesNegative(t *testing.T) {
 // gave it, so the shrunk viewport leaves it starting off-screen.
 func TestFrameSurvivesAHostShorterThanTheDock(t *testing.T) {
 	for w := range 3 {
-		for h := range config.DockHeight + 2 {
+		for h := range config.DockHeight() + 2 {
 			m := newNarrowOS(t, w, h)
 			m.CurrentWorkspace = 1
 			m.Windows = []*terminal.Window{

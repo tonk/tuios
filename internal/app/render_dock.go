@@ -717,10 +717,15 @@ func (m *OS) renderDockString() (string, int) {
 			hairline.Render(strings.Repeat(sepChar, renderWidth-notifX0-ruleWidth))
 	}
 
-	dockbarYPos := m.GetRenderHeight() - config.DockHeight
-	dockbarParts := []string{separator, dockBar}
+	dockbarYPos := m.GetRenderHeight() - config.DockHeight()
 	if config.DockbarPosition == "top" {
 		dockbarYPos = 0
+	}
+	dockbarParts := []string{separator, dockBar}
+	if !config.ShowDockSeparator {
+		dockbarParts = dockbarParts[1:]
+	}
+	if config.DockbarPosition == "top" && len(dockbarParts) == 2 {
 		dockbarParts[0], dockbarParts[1] = dockbarParts[1], dockbarParts[0]
 	}
 

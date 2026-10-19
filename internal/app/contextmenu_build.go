@@ -122,9 +122,9 @@ func (m *OS) inDockBand(y int) bool {
 	case "hidden":
 		return false
 	case "top":
-		return y < config.DockHeight
+		return y < config.DockHeight()
 	default:
-		return y >= m.Height-config.DockHeight
+		return y >= m.Height-config.DockHeight()
 	}
 }
 

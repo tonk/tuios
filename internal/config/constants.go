@@ -143,9 +143,6 @@ var (
 // =============================================================================
 
 const (
-	// DockHeight is the height of the dock area at the bottom
-	DockHeight = 2
-
 	// SidebarDefaultWidth is the preferred sidebar width on a wide screen.
 	SidebarDefaultWidth = 28
 
@@ -624,6 +621,21 @@ var DockWorkspaceTabs = true
 // DockWorkspaceTooltip pops the whole name of a workspace whose pill had to cut
 // it short. Off, a long name stays truncated with no way to read the rest.
 var DockWorkspaceTooltip = true
+
+// ShowDockSeparator draws the hairline between the panes and the dock bar. Off
+// hands its row to the panes, which on a large presentation font is the
+// difference between 23 and 24 usable lines. A notification's countdown burns
+// down along that hairline, so with it off the message shows without one.
+var ShowDockSeparator = true
+
+// DockHeight is the number of rows the dock takes: the bar, plus the separator
+// hairline unless ShowDockSeparator is off.
+func DockHeight() int {
+	if ShowDockSeparator {
+		return 2
+	}
+	return 1
+}
 
 // DockPillCaps puts powerline half-circle caps back on the dock's mode pill,
 // workspace tabs and minimized-window pills. Off, each is a flat filled cell:

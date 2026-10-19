@@ -172,11 +172,11 @@ func (m *OS) toggleZoom() {
 		// Calculate zoom dimensions, respecting the dockbar's reserved space.
 		topMargin := 0
 		if config.DockbarPosition == "top" {
-			topMargin = config.DockHeight
+			topMargin = config.DockHeight()
 		}
 		bottomMargin := 0
 		if config.DockbarPosition == "bottom" {
-			bottomMargin = config.DockHeight
+			bottomMargin = config.DockHeight()
 		}
 		// Zoom fills the content region beside a reserved sidebar band: the
 		// sidebar layer composes above the windows, so a zoom into the full

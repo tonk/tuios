@@ -327,7 +327,7 @@ func (m *OS) MaximizeFloatingWindows() {
 // when positioned at "top").
 func (m *OS) GetTopMargin() int {
 	if config.DockbarPosition == "top" {
-		return config.DockHeight
+		return config.DockHeight()
 	}
 
 	return 0
@@ -377,7 +377,7 @@ func (m *OS) GetUsableHeight() int {
 	if config.DockbarPosition == "hidden" {
 		return m.GetRenderHeight()
 	}
-	return max(m.GetRenderHeight()-config.DockHeight, 0)
+	return max(m.GetRenderHeight()-config.DockHeight(), 0)
 }
 
 // GetRenderWidth returns the width to use for rendering.

@@ -202,7 +202,7 @@ func (m *OS) calculateDockPosition(windowIndex int) (int, int) {
 	}
 
 	// Dock is at the bottom of the screen
-	dockY := m.GetRenderHeight() - config.DockHeight + 1 // +1 for the separator line
+	dockY := m.GetRenderHeight() - 1 // the bar is the dock's last row
 
 	// Calculate dock layout matching renderDock() logic EXACTLY
 	leftWidth := 30
