@@ -2,6 +2,7 @@ package input
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -82,8 +83,8 @@ func (d *ActionDispatcher) registerPrefixHandlers() {
 
 	// Minimize prefix (leader, m, ...)
 	d.Register("minimize_prefix_focused", handleMinimizeFocused)
-	for i := 1; i <= 9; i++ {
-		d.Register("minimize_prefix_restore_"+string(rune('0'+i)), makeRestoreMinimizedByPositionHandler(i))
+	for i := 1; i <= config.NumberedSlots; i++ {
+		d.Register("minimize_prefix_restore_"+strconv.Itoa(i), makeRestoreMinimizedByPositionHandler(i))
 	}
 	d.Register("minimize_prefix_restore_all", handleRestoreAll)
 	d.Register("minimize_prefix_cancel", handlePrefixCancel)

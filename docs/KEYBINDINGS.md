@@ -88,9 +88,9 @@ The rail's remaining keys are listed by that help overlay, which reads them from
 | `Shift+M` | Restore all minimized windows |
 | `Tab` | Focus next window |
 | `Shift+Tab` | Focus previous window |
-| `1-9` (Window Mode) or `Alt+1` through `Alt+9` (works anywhere, also while typing) | Select window by number |
+| `1-9`, `0` (Window Mode) or `Alt+1` through `Alt+9`, `Alt+0` (works anywhere, also while typing) | Select window by number; `0` is window 10 |
 | `Alt+\`` (works anywhere, also while typing) | Toggle to the last focused window, and back again on a second press |
-| `Shift+1-9` or `!@#$%^&*(` | Restore minimized window by number |
+| `Shift+1-9`, `Shift+0` or `!@#$%^&*()` | Restore minimized window by number; `Shift+0` is the tenth |
 | `Alt+S` | Toggle sidebar (works without the prefix; also `Ctrl+B` `b`) |
 | `Alt+M` | Toggle mouse mode (works without the prefix; also `Ctrl+B` `Shift+M`) |
 
@@ -305,7 +305,7 @@ Press `Ctrl+B`, release, then press the command key (tmux-style).
 | Key Sequence | Action |
 |--------------|--------|
 | `Ctrl+B` `m` `m` | Minimize focused window |
-| `Ctrl+B` `m` `1-9` | Restore minimized window by number |
+| `Ctrl+B` `m` `1-9`, `0` | Restore minimized window by number; `0` is the tenth |
 | `Ctrl+B` `m` `Shift+M` | Restore all minimized windows |
 | `Ctrl+B` `m` `Esc` | Cancel |
 

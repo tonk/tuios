@@ -230,7 +230,7 @@ var keybindSectionDocs = []keybindSectionDoc{
 	{"mode_control", "Switching between window-management and terminal mode, help, and quit.", func(c *UserConfig) map[string][]string { return c.Keybindings.ModeControl }},
 	{"system", "System-level controls. Currently empty; debug commands live under debug_prefix.", func(c *UserConfig) map[string][]string { return c.Keybindings.System }},
 	{"navigation", "Arrow-key focus navigation between panes.", func(c *UserConfig) map[string][]string { return c.Keybindings.Navigation }},
-	{"restore_minimized", "Restoring a specific minimized window by number (Shift+1..9).", func(c *UserConfig) map[string][]string { return c.Keybindings.RestoreMinimized }},
+	{"restore_minimized", "Restoring a specific minimized window by number (Shift+1..9, Shift+0 for the tenth).", func(c *UserConfig) map[string][]string { return c.Keybindings.RestoreMinimized }},
 	{"prefix_mode", "Tmux-style commands reached with the leader key (leader_key above, then one of these).", func(c *UserConfig) map[string][]string { return c.Keybindings.PrefixMode }},
 	{"window_prefix", `Window sub-menu, reached with the leader key then "t".`, func(c *UserConfig) map[string][]string { return c.Keybindings.WindowPrefix }},
 	{"minimize_prefix", `Minimize sub-menu, reached with the leader key then "m".`, func(c *UserConfig) map[string][]string { return c.Keybindings.MinimizePrefix }},

@@ -1,6 +1,7 @@
 package input
 
 import (
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -72,10 +73,10 @@ func (d *ActionDispatcher) registerHandlers() {
 	d.Register("prev_window", handlePrevWindow)
 	d.Register("toggle_last_window", handleToggleLastWindow)
 
-	// Window selection (1-9)
-	for i := 1; i <= 9; i++ {
+	// Window selection (1-10; 10 sits on the 0 key)
+	for i := 1; i <= config.NumberedSlots; i++ {
 		idx := i - 1 // Convert to 0-based index
-		d.Register("select_window_"+string(rune('0'+i)), makeSelectWindowHandler(idx))
+		d.Register("select_window_"+strconv.Itoa(i), makeSelectWindowHandler(idx))
 	}
 
 	// Workspace switching (1-9)
@@ -178,9 +179,9 @@ func (d *ActionDispatcher) registerHandlers() {
 	d.Register("nav_left", handleLeftKey)
 	d.Register("nav_right", handleRightKey)
 
-	// Restore minimized by index (shift+1-9)
-	for i := range 9 {
-		d.Register("restore_minimized_"+string(rune('1'+i)), makeRestoreMinimizedHandler(i))
+	// Restore minimized by index (shift+1-9, shift+0 for the tenth)
+	for i := range config.NumberedSlots {
+		d.Register("restore_minimized_"+strconv.Itoa(i+1), makeRestoreMinimizedHandler(i))
 	}
 
 	// Prefix-chord and terminal-mode actions (see prefix_actions.go)

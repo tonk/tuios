@@ -6,13 +6,14 @@ import (
 	"github.com/tonk/tuios/internal/app"
 )
 
-// handleNumberKey runs the select_window_N action for the given 1-9 number.
+// handleNumberKey runs the select_window_N action for the given 1-10 number.
 // num is the digit the registered action itself names (select_window_N ->
 // N), not something re-derived from the key string: a bound key like
 // "alt+1" or "ctrl+1" carries modifiers before the digit, and a macOS Option
 // chord ("opt+1") normalizes to a composed unicode glyph with no digit
 // character in it at all, so parsing the pressed key's own text can't recover
-// which of the nine actions this is.
+// which of the ten actions this is (the tenth is on the 0 key, so the key's
+// digit would not say 10 even when there is one).
 //
 // Corner-snapping the bare digits 1-4 used to live here too, but that is
 // snap_corner_N's own binding (see internal/config Layout section) and

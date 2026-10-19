@@ -622,6 +622,11 @@ var DockWorkspaceTabs = true
 // it short. Off, a long name stays truncated with no way to read the rest.
 var DockWorkspaceTooltip = true
 
+// NumberedSlots is how many windows, minimized windows and sidebar sessions
+// have a number key of their own: 1 to 9 on the digits, and the tenth on 0,
+// the key after 9 on the keyboard. Workspaces stay at nine.
+const NumberedSlots = 10
+
 // ShowDockSeparator draws the hairline between the panes and the dock bar. Off
 // hands its row to the panes, which on a large presentation font is the
 // difference between 23 and 24 usable lines. A notification's countdown burns

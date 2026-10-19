@@ -9,6 +9,15 @@ import (
 // stands for. The rows are written for a reader, so they use ranges ("0-9"),
 // alternates ("|/\\", "d/Esc") and shift notation that the keymap spells out.
 func whichKeyRowKeys(key string) []string {
+	// A range with a key after it ("1-9, 0", the tenth slot on 0) is two rows'
+	// worth of keys in one.
+	if parts := strings.Split(key, ", "); len(parts) > 1 {
+		var keys []string
+		for _, p := range parts {
+			keys = append(keys, whichKeyRowKeys(p)...)
+		}
+		return keys
+	}
 	switch key {
 	case "0-9":
 		return []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}

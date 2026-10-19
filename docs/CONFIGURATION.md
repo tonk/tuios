@@ -170,7 +170,7 @@ Window creation, navigation, and control.
 - `next_window` - Focus next window
 - `prev_window` - Focus previous window
 - `toggle_last_window` - Jump to the window that had focus before this one, and back again on a second press (default: `alt+\`` / `opt+\``, at any time)
-- `select_window_1` through `select_window_9` - Select window by number (default: the bare digit in window mode, plus `alt+N`/`opt+N` at any time)
+- `select_window_1` through `select_window_10` - Select window by number (default: the bare digit in window mode, plus `alt+N`/`opt+N` at any time; window 10 is on `0`)
 
 ### workspaces
 Window movement between workspaces. Switching to a workspace itself is a
@@ -229,7 +229,7 @@ Text selection is copy mode's: select with the mouse, or enter copy mode and use
 Individual minimized window restoration by number.
 
 **Available actions:**
-- `restore_minimized_1` through `restore_minimized_9` - Restore specific minimized window by number (Shift+1 through Shift+9)
+- `restore_minimized_1` through `restore_minimized_10` - Restore specific minimized window by number (Shift+1 through Shift+9, and Shift+0 for the tenth)
 
 ### prefix_mode
 Tmux-style prefix commands (the leader key followed by another key). Every
@@ -308,6 +308,22 @@ Controls the position of the dockbar.
 **Default:** `"bottom"`
 
 **CLI override:** `--dockbar-position <position>`
+
+### dock_separator
+
+Draws the hairline row between the panes and the dock bar. Set it to `false`
+to drop the line and give its row to the panes, so the dock takes one row
+instead of two. That helps on a short terminal, such as one with a large
+presentation font. A dock notification's countdown runs along this line, so
+with it off the message shows without one. Also under Settings → Dock →
+Separator.
+
+```toml
+[appearance]
+dock_separator = false
+```
+
+**Default:** `true`
 
 ### hide_window_buttons
 

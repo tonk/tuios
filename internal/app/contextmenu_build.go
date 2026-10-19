@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strconv"
+
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/terminal"
 )
@@ -306,15 +308,15 @@ func (m *OS) openURLItems(win *terminal.Window) []ContextMenuItem {
 
 // dockItemMenu is the menu for one minimized window in the dock.
 //
-// Restoring the nth minimized window is only an action for the first nine of
-// them, so a tenth entry shows the row dimmed rather than pretending.
+// Restoring the nth minimized window is only an action for the first ten of
+// them, so an eleventh entry shows the row dimmed rather than pretending.
 func (m *OS) dockItemMenu(windowIndex int) (string, []ContextMenuItem) {
 	title := contextMenuWindowName(m, windowIndex, "Window")
 
 	pos := m.minimizedPosition(windowIndex)
 	action := ""
-	if pos >= 0 && pos < 9 {
-		action = "restore_minimized_" + string(rune('1'+pos))
+	if pos >= 0 && pos < config.NumberedSlots {
+		action = "restore_minimized_" + strconv.Itoa(pos+1)
 	}
 
 	return title, []ContextMenuItem{

@@ -455,6 +455,7 @@ func findConflicts(cfg *UserConfig, normalizer *KeyNormalizer) map[string][]stri
 	tilingModeActions := []string{
 		"select_window_1", "select_window_2", "select_window_3", "select_window_4",
 		"select_window_5", "select_window_6", "select_window_7", "select_window_8", "select_window_9",
+		"select_window_10",
 		"swap_left", "swap_right", "swap_up", "swap_down",
 	}
 

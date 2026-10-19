@@ -37,7 +37,7 @@ func GetPrefixKeybindingGroups(prefixType string, registry *KeybindRegistry, isD
 	case "minimize":
 		return []KeybindingGroup{{Bindings: []Keybinding{
 			{"m", "Minimize focused window"},
-			{"1-9", "Restore window"},
+			{"1-9, 0", "Restore window"},
 			{"Shift+M", "Restore all"},
 			{"Esc", "Cancel"},
 		}}}
@@ -167,14 +167,21 @@ func getLivePrefixKeybindingGroups(prefixType string, registry *KeybindRegistry,
 	digitRange := func(bindings []Keybinding, actionPrefix, desc string) []Keybinding {
 		first := key(actionPrefix + "_1")
 		last := key(actionPrefix + "_9")
+		var keys string
 		switch {
 		case first == "" && last == "":
 			return bindings
 		case last == "" || last == first:
-			return append(bindings, Keybinding{first, desc})
+			keys = first
 		default:
-			return append(bindings, Keybinding{first + "-" + last, desc})
+			keys = first + "-" + last
 		}
+		// The tenth slot is on 0, after 9 on the keyboard but not in a range
+		// that reads 1-0, so it trails the range instead.
+		if tenth := key(actionPrefix + "_10"); tenth != "" {
+			keys += ", " + tenth
+		}
+		return append(bindings, Keybinding{keys, desc})
 	}
 	group := func(title string, bindings []Keybinding) KeybindingGroup {
 		return KeybindingGroup{Title: title, Bindings: bindings}

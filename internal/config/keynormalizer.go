@@ -69,6 +69,7 @@ var macOptionNumberMap = map[string]string{
 	"opt+7": "¶", "option+7": "¶",
 	"opt+8": "•", "option+8": "•",
 	"opt+9": "ª", "option+9": "ª",
+	"opt+0": "º", "option+0": "º",
 }
 
 // macOS Option+Shift key mappings

@@ -308,8 +308,12 @@ func generateSidebarBindings(registry *config.KeybindRegistry) []HelpBinding {
 		row("activate", "Activate the row: attach, or focus the pane"),
 	)
 	if first, last := registry.GetSidebarKeys("jump_1"), registry.GetSidebarKeys("jump_9"); len(first) > 0 && len(last) > 0 {
+		keys := first[0] + "-" + last[0]
+		if tenth := registry.GetSidebarKeys("jump_10"); len(tenth) > 0 {
+			keys += ", " + tenth[0]
+		}
 		bindings = append(bindings, HelpBinding{
-			Keys:        []string{first[0] + "-" + last[0]},
+			Keys:        []string{keys},
 			Description: "Jump to a session by its position in the rail",
 			Category:    cat,
 		})

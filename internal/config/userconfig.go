@@ -233,7 +233,7 @@ type AppearanceConfig struct {
 	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, max: 120)
 	DockWorkspaceTabs    *bool  `toml:"dock_workspace_tabs"`    // Clickable workspace strip in the dock (default: true)
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
-	DockSeparator        *bool  `toml:"dock_separator"`        // Hairline between the panes and the dock bar (default: true)
+	DockSeparator        *bool  `toml:"dock_separator"`         // Hairline between the panes and the dock bar (default: true)
 	DockPillCaps         *bool  `toml:"dock_pill_caps"`         // Powerline caps on the dock's pills (default: false, flat)
 	DockPillUnderline    *bool  `toml:"dock_pill_underline"`    // Underline the active workspace/window pill's label (default: true)
 	SessionColors        *bool  `toml:"session_colors"`         // Give each session its own colour on the rail and the switcher (default: true)
@@ -443,15 +443,16 @@ func DefaultConfig() *UserConfig {
 				"nav_right": {"right"},
 			},
 			RestoreMinimized: map[string][]string{
-				"restore_minimized_1": {"shift+1", "!"},
-				"restore_minimized_2": {"shift+2", "@"},
-				"restore_minimized_3": {"shift+3", "#"},
-				"restore_minimized_4": {"shift+4", "$"},
-				"restore_minimized_5": {"shift+5", "%"},
-				"restore_minimized_6": {"shift+6", "^"},
-				"restore_minimized_7": {"shift+7", "&"},
-				"restore_minimized_8": {"shift+8", "*"},
-				"restore_minimized_9": {"shift+9", "("},
+				"restore_minimized_1":  {"shift+1", "!"},
+				"restore_minimized_2":  {"shift+2", "@"},
+				"restore_minimized_3":  {"shift+3", "#"},
+				"restore_minimized_4":  {"shift+4", "$"},
+				"restore_minimized_5":  {"shift+5", "%"},
+				"restore_minimized_6":  {"shift+6", "^"},
+				"restore_minimized_7":  {"shift+7", "&"},
+				"restore_minimized_8":  {"shift+8", "*"},
+				"restore_minimized_9":  {"shift+9", "("},
+				"restore_minimized_10": {"shift+0", ")"},
 			},
 			PrefixMode: map[string][]string{
 				"prefix_new_window":    {"c"},
@@ -524,6 +525,7 @@ func DefaultConfig() *UserConfig {
 				"minimize_prefix_restore_7":   {"7"},
 				"minimize_prefix_restore_8":   {"8"},
 				"minimize_prefix_restore_9":   {"9"},
+				"minimize_prefix_restore_10":  {"0"},
 				"minimize_prefix_restore_all": {"M"},
 				"minimize_prefix_cancel":      {"esc"},
 			},
@@ -603,6 +605,7 @@ func getDefaultSidebarKeybinds() map[string][]string {
 		"jump_7":        {"7"},
 		"jump_8":        {"8"},
 		"jump_9":        {"9"},
+		"jump_10":       {"0"},
 		"new_session":   {"n"},
 		"new_window":    {"t"},
 		"rename":        {"r"},
@@ -705,10 +708,12 @@ func getDefaultWindowManagementKeybinds() map[string][]string {
 		"next_session": {"alt+shift+n"},
 		"prev_session": {"alt+shift+p"},
 	}
-	for i := 1; i <= 9; i++ {
+	// The tenth window sits on 0, the key after 9.
+	for i := 1; i <= NumberedSlots; i++ {
+		digit := i % 10
 		base[fmt.Sprintf("select_window_%d", i)] = []string{
-			strconv.Itoa(i),
-			fmt.Sprintf(digitChord, i),
+			strconv.Itoa(digit),
+			fmt.Sprintf(digitChord, digit),
 		}
 	}
 	return base

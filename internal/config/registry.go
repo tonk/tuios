@@ -296,6 +296,7 @@ var ActionDescriptions = map[string]string{
 	"select_window_7":    "Select window 7",
 	"select_window_8":    "Select window 8",
 	"select_window_9":    "Select window 9",
+	"select_window_10":   "Select window 10",
 
 	// Workspaces
 	"switch_workspace_1":    "Switch to workspace 1",
