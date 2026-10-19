@@ -4,9 +4,9 @@ package input
 import (
 	"unicode/utf8"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/terminal"
 	vt "github.com/tonk/tuios/internal/vt"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // getAbsoluteY calculates the absolute Y position in the entire scrollback+screen

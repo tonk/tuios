@@ -8,8 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/tonk/tuios/internal/config"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // CaptureKeyEvent captures a keyboard event for the showkeys overlay.

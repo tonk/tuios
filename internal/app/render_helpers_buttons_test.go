@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/tonk/tuios/internal/config"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // The control pill's width and the column each glyph lands on are a contract

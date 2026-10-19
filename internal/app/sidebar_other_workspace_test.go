@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/sessiontree"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // The window IDs sidebarTestOS builds, which spreadTestOS then spreads over

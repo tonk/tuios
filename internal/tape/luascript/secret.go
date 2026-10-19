@@ -70,6 +70,7 @@ func resolvePassShow(bin, name string, args ...string) (string, error) {
 // Unlock credentials (optional, via environment):
 //   - TUIOS_KEEPASSXC_PASSWORD — database password, fed on stdin
 //   - TUIOS_KEEPASSXC_KEYFILE  — key-file path (-k)
+//
 // If only a keyfile is set, --no-password is passed (keyfile-only databases).
 func resolveKeepassxc(database, entry string) (string, error) {
 	if database == "" {

@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/sessiontree"
 	"github.com/tonk/tuios/internal/theme"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // nameColumn is where a row's own text starts, measured from the rail's first

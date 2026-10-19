@@ -4,10 +4,10 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/vt"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // guestWantsMotion reports whether a guest's own mouse mode would have had the

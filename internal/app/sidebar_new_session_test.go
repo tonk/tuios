@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/session"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/session"
 )
 
 // daemonRailOS is a rail with a daemon client attached but no live connection:

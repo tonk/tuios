@@ -3,9 +3,9 @@ package server
 import (
 	"strings"
 
+	"github.com/charmbracelet/ssh"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/session"
-	"github.com/charmbracelet/ssh"
 )
 
 // Terminals known to render the kitty graphics protocol. The client's terminal,

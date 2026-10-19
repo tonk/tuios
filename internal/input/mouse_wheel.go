@@ -2,9 +2,9 @@ package input
 
 import (
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // handleMouseWheel handles mouse wheel events

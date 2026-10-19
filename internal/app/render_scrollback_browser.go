@@ -7,9 +7,9 @@ import (
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/scrollback"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // renderScrollbackBrowser renders the scrollback browser as a full-screen overlay.

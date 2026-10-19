@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/tonk/tuios/internal/config"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // hostTerminalTitle is what the host terminal's window/tab shows when no

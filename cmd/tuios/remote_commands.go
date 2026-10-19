@@ -14,11 +14,11 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
+	"github.com/google/uuid"
+	"github.com/spf13/cobra"
 	"github.com/tonk/tuios/internal/harness"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/tape"
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
 )
 
 // runListVerbs prints the control protocol's verb catalog. It is the discovery

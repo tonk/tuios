@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/session"
-	"github.com/adrg/xdg"
 )
 
 // The sidebar keeps the view preferences worth surviving a restart: the user's

@@ -2,8 +2,8 @@
 package input
 
 import (
-	"github.com/tonk/tuios/internal/terminal"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Motion-related functions for copy mode (hjkl, page navigation, jumps, etc.)

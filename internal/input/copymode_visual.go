@@ -4,8 +4,8 @@ package input
 import (
 	"strings"
 
-	"github.com/tonk/tuios/internal/terminal"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // Visual selection-related functions for copy mode (v/V/y and text extraction)

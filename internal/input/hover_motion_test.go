@@ -6,12 +6,12 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/vt"
-	"github.com/charmbracelet/colorprofile"
 )
 
 // hoverOS builds a model with the rail on the left, its footer controls

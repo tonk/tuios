@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/hooks"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/tonk/tuios/internal/hooks"
 )
 
 // TestExampleConfigCoversAllFields walks UserConfig by reflection and fails

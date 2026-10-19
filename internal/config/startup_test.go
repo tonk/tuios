@@ -3,8 +3,8 @@ package config_test
 import (
 	"testing"
 
-	"github.com/tonk/tuios/internal/config"
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestStartupConfigDefaults confirms both [startup] options default to false so

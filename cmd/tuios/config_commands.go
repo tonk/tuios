@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/theme"
-	"github.com/pelletier/go-toml/v2"
 )
 
 func printConfigPath() error {

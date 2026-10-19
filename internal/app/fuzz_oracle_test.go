@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/fuzz"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // The oracle. A fuzzer is worth exactly as much as this file: without it the

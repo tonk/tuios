@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/tonk/tuios/internal/config"
 	"github.com/adrg/xdg"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // writeConfig points XDG at a throwaway tree holding src as the user's

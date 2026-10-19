@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/terminal"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/terminal"
 )
 
 // The maintainer runs a 207x55 host terminal. Every benchmark here uses that as

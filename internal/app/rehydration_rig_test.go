@@ -351,7 +351,7 @@ func (r *rig) awaitShell(ptyID string) {
 // checkMarker refuses a command that contains the marker its caller waits for.
 // The terminal echoes a command as it is typed, so a marker spelled out in the
 // command is on the screen before the command has run, and the wait returns
-// with the output still to come. Split it in the shell instead ('TAIL-''B'):
+// with the output still to come. Split it in the shell instead ("TAIL-""B"):
 // the output is the same and the echo no longer matches.
 func (r *rig) checkMarker(command, want string) {
 	r.t.Helper()

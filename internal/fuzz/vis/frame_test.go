@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/fuzz"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/fuzz"
 )
 
 // cell is one drawn character with the ground it was drawn on. The frame is

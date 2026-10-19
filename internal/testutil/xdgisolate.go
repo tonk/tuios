@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/sound"
 	"github.com/adrg/xdg"
+	"github.com/tonk/tuios/internal/sound"
 )
 
 // Test binaries must not touch the developer's own XDG directories. The xdg

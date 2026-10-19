@@ -359,7 +359,7 @@ func TestIsBlankRenderSeesPaintedSpaces(t *testing.T) {
 		{"\x1b[41m\x1b[0m   ", true},
 		{"\x1b[41m\x1b[m   ", true},
 		{"\x1b[38;2;7;7;7m   \x1b[m", true}, // 7 is a colour component, not reverse
-		{"\x1b[38;5;41m   \x1b[m", true},   // 41 is a palette index, not a background
+		{"\x1b[38;5;41m   \x1b[m", true},    // 41 is a palette index, not a background
 		{"\x1b[41m\n\n", true},              // a background with no cell to show it on
 	}
 	for _, tc := range tests {

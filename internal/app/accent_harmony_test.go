@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/tonk/tuios/internal/overlay"
 	"github.com/charmbracelet/colorprofile"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // TestAccentHarmonyChipZeroIsTheComplement pins the wheel's origin. Every other

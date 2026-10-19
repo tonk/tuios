@@ -3,8 +3,8 @@ package config_test
 import (
 	"testing"
 
-	"github.com/tonk/tuios/internal/config"
 	"github.com/pelletier/go-toml/v2"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // TestDefaultTapeAutorunIsAsk pins the safe default: detection is on but nothing

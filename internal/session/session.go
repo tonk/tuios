@@ -2166,15 +2166,15 @@ func styleToWire(s uv.Style, link uv.Link) StyleState {
 // styleFromWire is styleToWire read back.
 func styleFromWire(ss StyleState) (uv.Style, uv.Link) {
 	return uv.Style{
-			Fg:             colorFromWire(ss.FgColor),
-			Bg:             colorFromWire(ss.BgColor),
-			UnderlineColor: colorFromWire(ss.UlColor),
-			Underline:      ansi.Underline(ss.Underline),
-			Attrs:          ss.Attrs,
-		}, uv.Link{
-			URL:    ss.LinkURL,
-			Params: ss.LinkParams,
-		}
+		Fg:             colorFromWire(ss.FgColor),
+		Bg:             colorFromWire(ss.BgColor),
+		UnderlineColor: colorFromWire(ss.UlColor),
+		Underline:      ansi.Underline(ss.Underline),
+		Attrs:          ss.Attrs,
+	}, uv.Link{
+		URL:    ss.LinkURL,
+		Params: ss.LinkParams,
+	}
 }
 
 // colorToWire encodes a cell color so the client gets back the kind of color the

@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/tonk/tuios/internal/overlay"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // The end card. It is the frame a recording ends on and the frame somebody

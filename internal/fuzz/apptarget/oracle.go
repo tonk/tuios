@@ -5,11 +5,11 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/fuzz"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // The oracle, over the exported surface only. Every rule here is one the suite

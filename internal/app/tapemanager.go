@@ -11,11 +11,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/overlay"
 	"github.com/tonk/tuios/internal/tape"
 	"github.com/tonk/tuios/internal/theme"
-	"github.com/adrg/xdg"
 )
 
 // tapeManagerVisibleRows is the number of tape files shown at once in the list.

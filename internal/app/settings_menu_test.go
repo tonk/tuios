@@ -3,9 +3,9 @@ package app
 import (
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/theme"
-	"github.com/adrg/xdg"
 )
 
 // findSetting locates a setting row by category and label, returning its

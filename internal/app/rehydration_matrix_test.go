@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/vt"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // The matrix. Every route a client takes into a pane, crossed with every shape

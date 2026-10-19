@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/tonk/tuios/internal/overlay"
 	"github.com/charmbracelet/x/exp/charmtone"
+	"github.com/tonk/tuios/internal/overlay"
 )
 
 // ContrastFloor is the ratio a chrome label has to clear against the ground it

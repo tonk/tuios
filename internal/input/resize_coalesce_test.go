@@ -5,9 +5,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // releaseAt is the message bubbletea delivers when the drag ends.

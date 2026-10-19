@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/terminal"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 const (

@@ -10,13 +10,13 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/charmbracelet/fang"
+	tint "github.com/lrstanley/bubbletint/v2"
+	"github.com/spf13/cobra"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/theme"
 	"github.com/tonk/tuios/skills"
-	"github.com/charmbracelet/fang"
-	tint "github.com/lrstanley/bubbletint/v2"
-	"github.com/spf13/cobra"
 )
 
 // Version information (set by goreleaser)

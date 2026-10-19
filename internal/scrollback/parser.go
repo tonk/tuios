@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tonk/tuios/internal/vt"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // CommandBlock represents a single command and its output extracted from scrollback.

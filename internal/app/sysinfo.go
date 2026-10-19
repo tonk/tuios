@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonk/tuios/internal/config"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/tonk/tuios/internal/config"
 )
 
 // GetCPUGraph returns a formatted string with CPU usage graph and percentage.

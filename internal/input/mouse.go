@@ -2,9 +2,9 @@
 package input
 
 import (
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/terminal"
-	uv "github.com/charmbracelet/ultraviolet"
 )
 
 // isInTerminalContent checks if coordinates are within the terminal's content area.

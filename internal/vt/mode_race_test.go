@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/tonk/tuios/internal/vt"
 	uv "github.com/charmbracelet/ultraviolet"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // TestModeConcurrentAccess exercises the mode map from a writer goroutine

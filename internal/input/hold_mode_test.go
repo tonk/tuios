@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/terminal"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // holdOS is an OS in terminal mode with hold-to-window-mode bound to trigger and

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tonk/tuios/internal/fuzz"
 	"github.com/Gaurav-Gosain/tuitest"
+	"github.com/tonk/tuios/internal/fuzz"
 )
 
 // The other end of the fuzzer: the same action alphabet, replayed against a real

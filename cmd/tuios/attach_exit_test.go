@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tonk/tuios/internal/app"
 	"github.com/spf13/cobra"
+	"github.com/tonk/tuios/internal/app"
 )
 
 // `tuios attach` used to tear down its interface, print why it was stopping,

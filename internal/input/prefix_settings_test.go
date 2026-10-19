@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/adrg/xdg"
 	"github.com/tonk/tuios/internal/app"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/vt"
-	"github.com/adrg/xdg"
 )
 
 // legacyConfig loads src as the user's config.toml. The XDG search paths are

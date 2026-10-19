@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
 	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/overlay"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // The rail's one add affordance used to be "+ new" pinned to the bottom edge,

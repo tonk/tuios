@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tonk/tuios/internal/harness"
 	"github.com/google/uuid"
+	"github.com/tonk/tuios/internal/harness"
 )
 
 // routedVerbTimeout bounds how long a verb routed to an attached TUI waits for
