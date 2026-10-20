@@ -197,6 +197,19 @@ func getRawKeyBytesWithMode(msg tea.KeyPressMsg, applicationCursorKeys bool) []b
 			return []byte{0x1b, 'O', 'D'}
 		}
 		return []byte{0x1b, '[', 'D'}
+	case tea.KeyHome:
+		// xterm switches Home and End along with the arrows, and its
+		// terminfo (khome=\EOH, kend=\EOF) only lists the SS3 forms, so a
+		// terminfo-only vi does not recognise CSI H/F once it set DECCKM.
+		if applicationCursorKeys {
+			return []byte{0x1b, 'O', 'H'}
+		}
+		return []byte{0x1b, '[', 'H'}
+	case tea.KeyEnd:
+		if applicationCursorKeys {
+			return []byte{0x1b, 'O', 'F'}
+		}
+		return []byte{0x1b, '[', 'F'}
 	}
 
 	// Handle special keys (no modifiers) using lookup table

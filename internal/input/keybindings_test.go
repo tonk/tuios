@@ -62,6 +62,34 @@ func TestGetRawKeyBytesCtrlAlt(t *testing.T) {
 	}
 }
 
+// TestGetRawKeyBytesApplicationCursorKeys pins Home and End to the arrows'
+// DECCKM handling. A vi that only knows terminfo (vim-minimal on EL9) reads
+// khome=\EOH and kend=\EOF for xterm-256color, so CSI H/F did nothing in it.
+func TestGetRawKeyBytesApplicationCursorKeys(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     rune
+		appMode  bool
+		expected string
+	}{
+		{"up normal", tea.KeyUp, false, "\x1b[A"},
+		{"up application", tea.KeyUp, true, "\x1bOA"},
+		{"home normal", tea.KeyHome, false, "\x1b[H"},
+		{"home application", tea.KeyHome, true, "\x1bOH"},
+		{"end normal", tea.KeyEnd, false, "\x1b[F"},
+		{"end application", tea.KeyEnd, true, "\x1bOF"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getRawKeyBytesWithMode(tea.KeyPressMsg{Code: tt.code}, tt.appMode)
+			if string(result) != tt.expected {
+				t.Errorf("%s: got %q, want %q", tt.name, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGetCursorSequence(t *testing.T) {
 	tests := []struct {
 		name     string
