@@ -531,6 +531,9 @@ func (m *OS) renderTerminal(window *terminal.Window, isFocused bool, inTerminalM
 
 		lineEndX := maxX - 1
 		if inVisualMode && visualSelection != nil && visualSelection.HasRow(y) {
+			// A selected row with no content highlights nothing; starting
+			// from the right edge would paint a blank row across its width.
+			lineEndX = -1
 			if rowInScrollbackHistory {
 				if rowScrollback != nil {
 					for i := len(rowScrollback) - 1; i >= 0; i-- {
