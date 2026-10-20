@@ -178,19 +178,28 @@ func extractVisualText(cm *terminal.CopyMode, window *terminal.Window) string {
 		}
 
 		// Append line content
+		var line strings.Builder
 		if lineCells != nil {
 			for x := startX; x <= endX && x < len(lineCells); x++ {
 				if lineCells[x].Content != "" && lineCells[x].Content != " " {
-					text.WriteString(lineCells[x].Content)
+					line.WriteString(lineCells[x].Content)
 				} else if lineCells[x].Content == " " {
 					// Preserve internal spaces but not empty cells
-					text.WriteRune(' ')
+					line.WriteRune(' ')
 				}
 			}
 		}
 
-		if y < end.Y && !softWrapped {
-			text.WriteRune('\n')
+		if softWrapped {
+			// Spaces at the wrap point are part of the logical line.
+			text.WriteString(line.String())
+		} else {
+			// A hard line end drops its padding; a blank line copies as
+			// an empty line rather than the cell left at column 0.
+			text.WriteString(strings.TrimRight(line.String(), " "))
+			if y < end.Y {
+				text.WriteRune('\n')
+			}
 		}
 	}
 
@@ -217,7 +226,7 @@ func getLineContentBounds(_ *terminal.CopyMode, window *terminal.Window, absY in
 	}
 
 	// Find first non-empty, non-continuation cell
-	startX := 0
+	startX := -1
 	for i, cell := range cells {
 		if cell.Width > 0 && cell.Content != "" && cell.Content != " " {
 			startX = i
@@ -225,18 +234,20 @@ func getLineContentBounds(_ *terminal.CopyMode, window *terminal.Window, absY in
 		}
 	}
 
+	// If entire line is empty, just return 0, 0. Without this the end
+	// would fall back to the last column, and a blank line would copy as a
+	// full row of spaces.
+	if startX < 0 {
+		return 0, 0
+	}
+
 	// Find last non-empty, non-continuation cell
-	endX := len(cells) - 1
-	for i := len(cells) - 1; i >= 0; i-- {
+	endX := startX
+	for i := len(cells) - 1; i > startX; i-- {
 		if cells[i].Width > 0 && cells[i].Content != "" && cells[i].Content != " " {
 			endX = i
 			break
 		}
-	}
-
-	// If entire line is empty, just return 0, 0
-	if endX < startX {
-		return 0, 0
 	}
 
 	return startX, endX

@@ -142,6 +142,21 @@ func TestSelectionPreservesLeadingIndentation(t *testing.T) {
 	})
 }
 
+// TestSelectionCopiesBlankLinesAsEmpty pins a bug where a blank line inside a
+// multi-line selection copied as a full row of spaces: getLineContentBounds
+// found no content and fell back to the last column as the line's end.
+func TestSelectionCopiesBlankLinesAsEmpty(t *testing.T) {
+	o, _ := selectPane(t, "first\r\n\r\nthird")
+
+	pressAt(o, 0, 0)
+	dragTo(o, 30, 2)
+	release(o, 30, 2)
+
+	if got, want := copySelection(t, o), "first\n\nthird"; got != want {
+		t.Errorf("copy produced %q, want %q", got, want)
+	}
+}
+
 // The copy action must stay quiet when there is nothing selected, so a stray
 // key or a menu reached some other way cannot clear the clipboard.
 func TestCopySelectionWithNothingSelectedCopiesNothing(t *testing.T) {
