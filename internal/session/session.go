@@ -802,7 +802,7 @@ func (s *Session) newPTY(a newPTYArgs) *PTY {
 	// Create VT emulator for persistent terminal state
 	// This maintains scrollback, screen content, cursor position across reconnects
 	terminal := vt.NewEmulator(a.width, a.height)
-	terminal.SetScrollbackMaxLines(10000) // Match default scrollback
+	terminal.SetScrollbackMaxLines(DaemonScrollbackLines)
 
 	if len(a.preWrite) > 0 {
 		_, _ = terminal.Write(a.preWrite)
@@ -1721,6 +1721,10 @@ func (p *PTY) Resize(width, height int) error {
 	return nil
 }
 
+// DaemonScrollbackLines is how much history the daemon's emulator keeps for
+// every pane, matching the client's default scrollback.
+const DaemonScrollbackLines = 10000
+
 // DefaultStateScrollback is how many scrollback lines a state request carries
 // when it does not ask for a number.
 const DefaultStateScrollback = 1000
@@ -1763,7 +1767,7 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 		Height:        height,
 		CursorX:       t.CursorPosition().X,
 		CursorY:       t.CursorPosition().Y,
-		ScrollbackLen: t.ScrollbackLen(),
+		ScrollbackLen: t.LaidOutScrollbackLen(),
 		IsAltScreen:   t.IsAltScreen(),        // Capture alt screen state for mouse event forwarding
 		Modes:         t.GetModes(),           // Capture terminal modes (mouse tracking, bracketed paste, etc.)
 		KittyKbdStack: t.KittyKeyboardStack(), // Capture kitty keyboard protocol flag stack
@@ -1816,7 +1820,13 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 	if maxScrollback == 0 {
 		maxScrollback = DefaultStateScrollback
 	}
-	scrollbackLen := t.ScrollbackLen()
+	// Read as it stands, without laying out the lines a resize left pending:
+	// doing that here, at the width this emulator has right now, drops what does
+	// not fit the scrollback limit at that width, so a snapshot taken while a
+	// pane is briefly narrow cost the daemon history its client kept. The
+	// pending rows go out at the width they were written at and are flagged in
+	// ScrollbackPending for the receiver to lay out.
+	scrollbackLen := t.UnsettledScrollbackLen()
 	first := 0
 	if maxScrollback < 0 {
 		first = scrollbackLen
@@ -1826,15 +1836,16 @@ func TerminalStateOf(t *vt.Emulator, width, height, maxScrollback int) *Terminal
 
 	var sbWraps []uint8
 	anyWrapped := false
+	state.ScrollbackPending = max(0, t.ScrollbackPending()-first)
 	for i := first; i < scrollbackLen; i++ {
-		line := t.ScrollbackLine(i)
+		line := t.UnsettledScrollbackLine(i)
 		if line != nil {
 			row := make([]CellState, len(line))
 			for x, cell := range line {
 				row[x] = CellStateOf(&cell)
 			}
 			state.Scrollback = append(state.Scrollback, row)
-			w := t.ScrollbackLineWrap(i)
+			w := t.UnsettledScrollbackLineWrap(i)
 			sbWraps = append(sbWraps, uint8(w))
 			anyWrapped = anyWrapped || w.Wrapped()
 		}
@@ -1958,11 +1969,16 @@ func ApplyTerminalState(t *vt.Emulator, state *TerminalState) {
 	// Each line keeps how it ended, so the rows the guest's output wrapped
 	// stay joined and a resize here reflows them the way the daemon's
 	// emulator reflows its own.
+	//
+	// Rows the sender had not laid out yet (ScrollbackPending) are marked
+	// pending here too, so this emulator lays them out at its own width when
+	// its history is first read, as the sender's would have.
 	sb := t.Scrollback()
 	if have := sb.Len(); have == 0 {
 		for i, row := range state.Scrollback {
 			sb.PushLineWrap(stateToLine(row), wrapFromWire(state.ScrollbackWrap, i))
 		}
+		t.MarkScrollbackPending(state.ScrollbackPending)
 	} else if missing := state.ScrollbackLen - have; missing > 0 {
 		first := 0
 		if missing < len(state.Scrollback) {
@@ -2087,11 +2103,15 @@ type TerminalState struct {
 	// has consumed exactly the first Seq bytes the pane ever produced. A client
 	// restoring this state subscribes from Seq, so it receives what came after
 	// the snapshot and not what the snapshot already shows.
-	Seq           int64       `json:"seq,omitempty"`
-	Width         int         `json:"width"`
-	Height        int         `json:"height"`
-	CursorX       int         `json:"cursor_x"`
-	CursorY       int         `json:"cursor_y"`
+	Seq     int64 `json:"seq,omitempty"`
+	Width   int   `json:"width"`
+	Height  int   `json:"height"`
+	CursorX int   `json:"cursor_x"`
+	CursorY int   `json:"cursor_y"`
+	// ScrollbackLen is how many lines the sender's history holds laid out at
+	// Width, the count to compare with the receiver's own. With pending rows
+	// (ScrollbackPending) it is not len(Scrollback) plus what was cut off: the
+	// pending rows count at the width they were written at.
 	ScrollbackLen int         `json:"scrollback_len"`
 	IsAltScreen   bool        `json:"is_alt_screen,omitempty"` // Alternate screen buffer active (for mouse event forwarding)
 	Pen           *StyleState `json:"pen,omitempty"`           // Graphic rendition in force: what the guest's next output is painted with
@@ -2116,7 +2136,14 @@ type TerminalState struct {
 	// when none of its rows is soft-wrapped.
 	ScreenWrap     []uint8 `json:"screen_wrap,omitempty"`
 	ScrollbackWrap []uint8 `json:"scrollback_wrap,omitempty"`
-	MainScreenWrap []uint8 `json:"main_screen_wrap,omitempty"`
+	// ScrollbackPending is how many of the oldest Scrollback rows a resize left
+	// unlaid on the sender: they are as wide as when they were written, not
+	// Width. The receiver marks them pending in its own emulator, which lays
+	// them out at its width when something reads its history. Laying them out
+	// on the sender instead, at whatever width it had at that moment, dropped
+	// the history that did not fit there (see docs/REHYDRATION.md).
+	ScrollbackPending int     `json:"scrollback_pending,omitempty"`
+	MainScreenWrap    []uint8 `json:"main_screen_wrap,omitempty"`
 	// MainScreen is the normal screen, carried only while the alternate one is
 	// active. It is the shell's screen underneath a full-screen program, which
 	// quitting that program puts back on display. The alternate screen needs no

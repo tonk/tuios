@@ -12,6 +12,7 @@ import (
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/terminal"
 	"github.com/tonk/tuios/internal/testutil"
+	"github.com/tonk/tuios/internal/vt"
 )
 
 // This is the rig the rehydration matrix runs on: a real daemon in this
@@ -399,6 +400,28 @@ func unwrappedText(st *session.TerminalState) string {
 	return b.String()
 }
 
+// laidOut returns st with its scrollback laid out at st.Width, which is what
+// an emulator seeded from it holds once its history is read. A snapshot hands
+// out the lines a resize left pending at the width they were written at (see
+// TerminalState.ScrollbackPending), so its raw rows are not comparable row for
+// row with a client's history until they are laid out the same way. It is
+// done in a scratch emulator at the daemon's scrollback limit, so reading the
+// oracle never lays out, and so never trims, the daemon's own history.
+func laidOut(st *session.TerminalState) *session.TerminalState {
+	if st == nil || st.ScrollbackPending == 0 {
+		return st
+	}
+	em := vt.NewEmulator(st.Width, st.Height)
+	defer func() { _ = em.Close() }()
+	em.SetScrollbackMaxLines(session.DaemonScrollbackLines)
+	session.ApplyTerminalState(em, st)
+	settled := session.TerminalStateOf(em, st.Width, st.Height, em.ScrollbackLen())
+	out := *st
+	out.Scrollback, out.ScrollbackWrap = settled.Scrollback, settled.ScrollbackWrap
+	out.ScrollbackLen, out.ScrollbackPending = settled.ScrollbackLen, 0
+	return &out
+}
+
 // converge waits for the two copies of a pane to agree, or gives up and lets
 // the comparison report how they differ.
 //
@@ -412,7 +435,7 @@ func (r *rig) converge(ptyID string) {
 	for time.Now().Before(deadline) {
 		st, err := r.ctl.GetTerminalState(ptyID, rigScrollbackOracle)
 		if err == nil && st != nil {
-			if clientText(r.winByPTY(ptyID)) == stateText(st) {
+			if clientText(r.winByPTY(ptyID)) == stateText(laidOut(st)) {
 				return
 			}
 		}
@@ -431,7 +454,7 @@ func (r *rig) settle() {
 	for time.Now().Before(deadline) {
 		var b strings.Builder
 		for _, w := range r.m.Windows {
-			b.WriteString(clientText(w))
+			b.WriteString(clientTextUnsettled(w))
 		}
 		if cur := b.String(); cur == prev {
 			stable++
@@ -513,6 +536,29 @@ func stateText(st *session.TerminalState) string {
 	return b.String()
 }
 
+// clientTextUnsettled is clientText for watching a pane change, not for
+// comparing it: it reads the history without laying out the lines a resize
+// left pending. settle runs while the client may still be working through a
+// run of resizes, and reading the history laid it out at whatever width the
+// emulator was passing through, which trimmed it to the scrollback limit at
+// that width. The test then cost the client the history it was about to
+// compare, and resized-while-producing failed whenever settle happened to
+// look while the pane was narrow.
+func clientTextUnsettled(w *terminal.Window) string {
+	if w.Terminal == nil {
+		return ""
+	}
+	w.RLockIO()
+	defer w.RUnlockIO()
+	var b strings.Builder
+	for i := range w.Terminal.UnsettledScrollbackLen() {
+		b.WriteString(strings.TrimRight(w.Terminal.UnsettledScrollbackLine(i).String(), " "))
+		b.WriteByte('\n')
+	}
+	b.WriteString(emulatorScreenText(w.Terminal))
+	return b.String()
+}
+
 // clientText renders a client window's scrollback and screen as plain text.
 func clientText(w *terminal.Window) string {
 	if w.Terminal == nil {
@@ -526,11 +572,17 @@ func clientText(w *terminal.Window) string {
 		b.WriteString(strings.TrimRight(line.String(), " "))
 		b.WriteByte('\n')
 	}
-	width, height := w.Terminal.Width(), w.Terminal.Height()
-	for y := range height {
+	b.WriteString(emulatorScreenText(w.Terminal))
+	return b.String()
+}
+
+// emulatorScreenText renders an emulator's screen as plain text, a line per row.
+func emulatorScreenText(term *vt.Emulator) string {
+	var b strings.Builder
+	for y := range term.Height() {
 		var row strings.Builder
-		for x := range width {
-			cell := w.Terminal.CellAt(x, y)
+		for x := range term.Width() {
+			cell := term.CellAt(x, y)
 			if cell == nil || cell.Content == "" {
 				row.WriteByte(' ')
 				continue

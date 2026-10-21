@@ -674,6 +674,26 @@ func (s *Screen) settleReflow(markers *SemanticMarkerList) {
 	sb.pending = 0
 }
 
+// laidOutScrollbackLen is how many lines the scrollback would hold once the
+// lines a resize left pending were laid out at the screen's width, the length
+// settleReflow would leave, worked out without laying them out. It uses a
+// reflower of its own rather than the screen's scratch, so readers that share
+// the IO lock can call it together.
+func (s *Screen) laidOutScrollbackLen() int {
+	sb := s.scrollback
+	if sb == nil {
+		return 0
+	}
+	n := sb.Len()
+	if sb.pending == 0 {
+		return n
+	}
+	rows, wraps := sb.appendRange(nil, nil, 0, sb.pending)
+	var r reflower
+	r.reset(rows, wraps, s.buf.Width(), -1, 0)
+	return min(sb.MaxLines(), r.total+n-sb.pending)
+}
+
 // reflowScratch is what a screen keeps between reflows (see reflower).
 type reflowScratch struct {
 	rows  []uv.Line
