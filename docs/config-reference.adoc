@@ -1616,6 +1616,7 @@ See xref:hooks.adoc#doc-hooks[Hooks] for examples and the exact moments each eve
 The `+[keybindings]+` table holds the leader key, and its sub-tables bind keys to actions, one sub-table per context: `+[keybindings.window_management]+`, `+[keybindings.prefix_mode]+`, `+[keybindings.terminal_mode]+`, `+[keybindings.sidebar]+` and so on.
 Each entry maps an action name to a list of keys, written as `+action = ["key", "key2"]+`.
 A key is a name such as `n`, `enter` or `f5`, optionally preceded by modifiers: `++ctrl+n++`, `++alt+shift+left++`, `++opt+1++` (on macOS, `opt` and `option` mean `alt`).
+The default bindings in the tables below are the Linux ones; on macOS the defaults that use the `alt` modifier are written with `opt` instead, which TUIOS treats the same.
 Any of the listed keys triggers the action.
 
 Sub-tables merge with the defaults per action: an action you list replaces the default keys of that one action, and every action you leave out keeps its default binding.

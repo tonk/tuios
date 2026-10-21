@@ -148,7 +148,14 @@ func generateConfigReference(t *testing.T) string {
 	t.Helper()
 	docs := loadRefDocs(t)
 	types := optionTypes()
+	// The keybinding defaults differ on macOS (opt+N instead of alt+N), and the
+	// document has to read the same wherever it is generated or this test fails
+	// on every platform but one. It describes the Linux defaults; the
+	// keybindings introduction says what macOS changes.
+	prevMacOS := isMacOS
+	isMacOS = func() bool { return false }
 	def := DefaultConfig()
+	isMacOS = prevMacOS
 
 	section := func(path string) refDocSection {
 		sec, ok := docs[path]

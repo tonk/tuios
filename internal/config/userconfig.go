@@ -820,8 +820,10 @@ func getDefaultLayoutKeybinds() map[string][]string {
 	return layout
 }
 
-// isMacOS detects if the current platform is macOS
-func isMacOS() bool {
+// isMacOS detects if the current platform is macOS. It is a variable so the
+// generated configuration reference can describe one platform's defaults
+// whatever platform it is generated on (see reference_doc_test.go).
+var isMacOS = func() bool {
 	// Check runtime.GOOS first (most reliable)
 	if runtime.GOOS == "darwin" {
 		return true
