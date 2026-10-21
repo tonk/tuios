@@ -163,7 +163,7 @@ func (w *Window) Resize(width, height int) {
 	// Resizing it here instead laid out everything the guest produced between
 	// this client asking and the daemon hearing at a width the daemon never
 	// used, and a line that wrapped differently stays in the scrollback.
-	// See docs/REHYDRATION.md.
+	// See docs/rehydration.adoc.
 	if !w.streamOwnsSize.Load() {
 		// ioMu serializes the emulator buffer reallocation against the render
 		// reader (RLockIO) and the PTY writers; Terminal has no lock of its own.

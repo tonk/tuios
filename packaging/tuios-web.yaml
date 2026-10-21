@@ -16,7 +16,7 @@ description: |
   systemd unit (/etc/systemd/system/tuios-web.service) and an annotated
   example config (/etc/tuios-web/config.toml.example) - it does not enable
   or start the service, or write a live config.toml, for you; see
-  docs/DEPLOYMENT.md.
+  docs/deployment.adoc.
 vendor: "tuios"
 homepage: "https://github.com/tonk/tuios"
 license: "MIT"
@@ -37,7 +37,7 @@ contents:
   # Always overwritten on upgrade (no "config|noreplace") since, unlike a
   # live config, it should track the version it shipped with, not survive
   # untouched across upgrades. Creates /etc/tuios-web/ as a side effect;
-  # see docs/DEPLOYMENT.md for chowning it to the service account.
+  # see docs/deployment.adoc for chowning it to the service account.
   - src: "${CONFIG_EXAMPLE_PATH}"
     dst: "/etc/tuios-web/config.toml.example"
     expand: true

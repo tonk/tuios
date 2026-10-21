@@ -41,8 +41,10 @@ type sidebarEdgeState struct {
 func (m *OS) ToggleSidebar() {
 	config.SidebarEnabled = !config.SidebarEnabled
 	if m.UserConfig != nil {
+		// The [appearance.sidebar] table is what a reload reads: writing the
+		// legacy flat key instead left the table's old value to win on restart.
 		v := config.SidebarEnabled
-		m.UserConfig.Appearance.SidebarEnabled = &v
+		m.UserConfig.Appearance.Sidebar.Enabled = &v
 	}
 	m.SidebarScrollS, m.SidebarScrollT, m.SidebarScrollA = 0, 0, 0
 	m.sidebarClearPeek()

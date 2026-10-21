@@ -849,8 +849,9 @@ Use --json to get machine-readable output for scripting.`,
 		Long: `Set a configuration option in a running TUIOS session at runtime.
 
 Supported configuration paths:
-  dockbar_position     - Dockbar position: top, bottom, left, right
-  border_style         - Border style: rounded, normal, thick, double, hidden, block, ascii
+  dockbar_position     - Dockbar position: bottom, top, hidden
+  border_style         - Border style: rounded, normal, thick, double, hidden, block, ascii,
+                         outer-half-block, inner-half-block
   animations           - Enable animations: true, false, toggle
   hide_window_buttons  - Hide window buttons: true, false`,
 		Example: `  # Change dockbar position

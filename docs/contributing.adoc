@@ -1,0 +1,322 @@
+[#doc-contributing]
+= Contributing to TUIOS
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+Thank you for considering contributing to TUIOS! This guide will help you get started.
+
+== Ways to Contribute
+
+* *Bug Reports*: Use the https://github.com/tonk/tuios/issues/new?template=bug_report.yml[bug report template]
+* *Feature Requests*: Use the https://github.com/tonk/tuios/issues/new?template=feature_request.yml[feature request template]
+* *Code Contributions*: Submit pull requests for bug fixes, features, or improvements
+* *Documentation*: Improve or expand documentation in `docs/` or README
+* *Testing*: Test on different platforms and report issues
+
+*Have questions?* Use https://github.com/tonk/tuios/discussions[GitHub Discussions].
+
+'''''
+
+== Development Setup
+
+=== Prerequisites
+
+* *Go 1.24{plus}* (required for building)
+* A terminal with true color support
+* Git
+
+=== Quick Start
+
+[source,bash]
+----
+# Clone the repository
+git clone https://github.com/tonk/tuios.git
+cd tuios
+
+# Build from source
+go build -o tuios ./cmd/tuios
+
+# Run
+./tuios
+
+# Run tests
+go test ./...
+----
+
+=== Alternative Development Environments
+
+*Using Nix:*
+
+[source,bash]
+----
+nix develop  # Enters development shell
+----
+
+*Using Docker:*
+
+[source,bash]
+----
+docker build -t tuios .
+docker run -it --rm tuios
+----
+
+'''''
+
+== Project Structure
+
+....
+tuios/
+├── cmd/tuios/          # Main entry point
+├── internal/
+│   ├── app/            # Window manager and core orchestration
+│   ├── config/         # Configuration and keybindings
+│   ├── input/          # Input handling and modal routing
+│   ├── layout/         # Window layout and tiling
+│   ├── pool/           # Memory pooling
+│   ├── server/         # SSH server implementation
+│   ├── system/         # System utilities
+│   ├── terminal/       # Terminal window management
+│   ├── theme/          # Theming and styles
+│   ├── ui/             # UI components
+│   └── vt/             # Terminal emulation (ANSI/VT100)
+├── docs/               # Documentation
+└── nix/                # Nix packaging
+....
+
+See link:docs/architecture.adoc[architecture.adoc] for detailed technical documentation.
+
+'''''
+
+== Making Changes
+
+=== Before You Start
+
+[arabic]
+. *Check existing issues* to see if someone is already working on it
+. *Open an issue* to discuss major changes before implementing
+. *Fork the repository* and create a new branch for your changes
+
+=== Code Guidelines
+
+* Follow standard Go conventions (https://go.dev/doc/effective_go[Effective Go])
+* Run `go fmt` before committing
+* Ensure tests pass: `go test ./...`
+* Keep commits focused and atomic
+* Write clear commit messages
+
+=== Pull Request Process
+
+[arabic]
+. *Create a branch* from `main`:
++
+[source,bash]
+----
+git checkout -b feat/your-feature-name
+----
+. *Make your changes* and commit:
++
+[source,bash]
+----
+git add .
+git commit -m "feat: add your feature description"
+----
+. *Test thoroughly* across platforms if possible (see <<testing,Testing>> below)
+. *Push and create a PR*:
++
+[source,bash]
+----
+git push origin feat/your-feature-name
+----
++
+Then open a pull request using the link:.github/PULL_REQUEST_TEMPLATE/pull_request_template.md[PR template]
+. *Fill out the PR template* with:
+* What the PR does
+* Motivation/context
+* Key changes
+* How to verify
+* Platform(s) tested
+* Installation method tested
+
+=== Commit Message Format
+
+Use conventional commit prefixes:
+
+* `feat:` - New feature
+* `fix:` - Bug fix
+* `docs:` - Documentation changes
+* `refactor:` - Code refactoring
+* `test:` - Adding or updating tests
+* `chore:` - Maintenance tasks
+
+Examples:
+
+....
+feat: add configurable dockbar position
+fix: panic when closing last window on Linux
+docs: update keybindings reference
+....
+
+'''''
+
+== Testing
+
+=== Cross-Platform Testing
+
+TUIOS supports multiple platforms. If possible, test your changes on:
+
+*Platforms:*
+
+* Linux (x86_64, arm64, armv6, armv7, i386)
+* macOS / Darwin (arm64, x86_64)
+* FreeBSD (x86_64, arm64, i386)
+* Windows (x86_64, i386)
+
+*Installation Methods:*
+
+* Build from source (`go build`)
+* Homebrew (macOS/Linux)
+* AUR (Arch Linux)
+* Nix
+* Docker
+* Bash install script
+
+*You don't need to test everything* - but mention what you tested in your PR.
+
+=== Running Tests
+
+[source,bash]
+----
+# Run all tests
+go test ./...
+
+# Run specific package tests
+go test ./internal/config/...
+----
+
+=== Manual Testing Checklist
+
+When testing UI/UX changes:
+
+* [ ] Create/close multiple windows
+* [ ] Switch between workspaces
+* [ ] Test tiling mode
+* [ ] Test copy mode navigation
+* [ ] Verify keybindings work as expected
+* [ ] Check terminal output rendering
+* [ ] Test mouse interactions
+
+'''''
+
+== Documentation
+
+When contributing, consider updating:
+
+* *README.md* - For user-facing features
+* *docs/keybindings.adoc* - For new keybindings
+* *docs/configuration.adoc* - For configuration options
+* *docs/cli-reference.adoc* - For CLI flags/commands
+* *docs/architecture.adoc* - For architectural changes
+* *docs/deployment.adoc* - For packaging/deployment changes (systemd units, nginx config, install scripts)
+
+'''''
+
+== Code Review Process
+
+[arabic]
+. Maintainer (@tonk) will review your PR
+. Address any requested changes
+. Once approved, your PR will be merged
+. Your contribution will be included in the next release
+
+'''''
+
+== Release Process
+
+TUIOS uses automated releases via GitHub Actions:
+
+* Releases are tagged (e.g., `v0.3.4`)
+* Binaries are built for all platforms
+* Docker images are published
+* Package managers are updated automatically
+
+You don't need to worry about this as a contributor - the maintainer handles releases.
+
+=== Versioning
+
+TUIOS follows https://semver.org[Semantic Versioning]. Tags are
+`vMAJOR.MINOR.PATCH` (e.g. `v0.9.0`).
+
+*Public API.* A change is breaking if it alters any of:
+
+* TOML config keys and their meaning
+* Keybinding action names
+* CLI flags and subcommands
+* Tape script syntax
+* The session/daemon protocol between a client and a daemon
+* Defaults that change what an existing setup exposes or does (for example,
+refusing a bind address that used to be accepted)
+
+*Before 1.0.0* (the current state) the minor number carries breaking changes
+and the patch number carries everything else:
+
+[cols=",,",options="header",]
+|===
+|Change |Bump |Commit hint
+|Breaking change to the public API |minor |`feat!:` / `fix!:` or a `BREAKING CHANGE:` footer
+|New feature, backwards compatible |patch |`feat:`
+|Bug fix, performance, docs, internal |patch |`fix:`, `refactor:`, `docs:` ...
+|===
+
+*From 1.0.0* breaking changes bump major, new features bump minor, and fixes
+bump patch. 1.0.0 is the point where config, keybindings, CLI flags and the
+daemon protocol are promised to stay stable.
+
+Mark breaking commits with `!` or a `BREAKING CHANGE:` footer, and describe the
+migration in the commit body, so the release notes can call it out.
+
+'''''
+
+== Getting Help
+
+* *Questions*: https://github.com/tonk/tuios/discussions[GitHub Discussions]
+* *Bugs*: https://github.com/tonk/tuios/issues/new?template=bug_report.yml[Bug Report Template]
+* *Features*: https://github.com/tonk/tuios/issues/new?template=feature_request.yml[Feature Request Template]
+* *Security*: See SECURITY.md
+
+'''''
+
+== Code of Conduct
+
+Be respectful, constructive, and collaborative. We're all here to make TUIOS better.
+
+'''''
+
+== Support the Project
+
+If you find TUIOS useful, consider:
+
+* Starring the repository
+* Sharing it with others
+* https://ko-fi.com/B0B81N8V1R[Supporting on Ko-fi]
+
+'''''
+
+*Thank you for contributing to TUIOS!*

@@ -15,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/tonk/tuios/internal/config"
 )
 
 // Daemon manages the persistent TUIOS server process.
@@ -205,6 +207,24 @@ type DaemonConfig struct {
 	ExitWhenEmpty bool
 }
 
+// ApplyUserConfig copies the [daemon] settings that apply to every daemon,
+// wherever it runs, from a loaded user config into cfg: the agent_* keys, and
+// log_level, which sets the process-wide debug level unless TUIOS_LOG_LEVEL or
+// --log-level already chose one. exit_when_empty is left to the caller: it
+// only makes sense for a standalone `tuios daemon`, not for the daemon tuios ssh
+// and tuios-web host inside their own process.
+func (cfg *DaemonConfig) ApplyUserConfig(userConfig *config.UserConfig) {
+	if userConfig == nil {
+		return
+	}
+	if GetDebugLevel() == DebugOff && userConfig.Daemon.LogLevel != "" {
+		SetDebugLevel(ParseDebugLevel(userConfig.Daemon.LogLevel))
+	}
+	cfg.AgentAutoDetect = userConfig.Daemon.AgentAutoDetect
+	cfg.AgentDetectInterval = time.Duration(userConfig.Daemon.AgentDetectSeconds) * time.Second
+	cfg.AgentBinaries = userConfig.Daemon.AgentBinaries
+}
+
 // NewDaemon creates a new daemon instance.
 func NewDaemon(cfg *DaemonConfig) *Daemon {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -380,7 +400,7 @@ func (d *Daemon) Start() error {
 	go d.agentMonitor()
 
 	// Classroom sessions are an opt-in, PAM-specific feature (see
-	// docs/CONFIGURATION.md's [classroom] section); a daemon serving none of
+	// docs/configuration.adoc's [classroom] section); a daemon serving none of
 	// them still starts and works normally even if this fails to bind.
 	if err := d.startClassroomHandoffListener(); err != nil {
 		log.Printf("classroom login handoff disabled: %v", err)

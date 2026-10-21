@@ -1,0 +1,688 @@
+The `[appearance]` table controls how TUIOS looks and how it reacts to you.
+It covers the window frame (border style and colours, title bar, window buttons, scrollbar), the dock and its pills, the clock badge, the cursor, animations, and the mouse: focus, dragging, clicking into a pane and copying a selection.
+It also holds a few behavioural switches that grew up beside the visual ones, such as the quit confirmation, the update check and which window gets focus after a close.
+
+Most of these options can also be changed live from the in-app settings page, which writes the new value back to your configuration file.
+Several have a command-line flag as well (for example `--border-style` or `--dockbar-position`); a flag given on the command line wins over the file.
+See the xref:configuration.adoc#doc-configuration[Configuration Guide] for where the file lives and how it is loaded.
+
+@@ alt_drag
+With this on, holding `Alt` and dragging with the left mouse button moves a pane, the gesture nearly every desktop window manager binds.
+It works from anywhere on the pane, including its content while you are typing in it, and the pane is grabbed on the press itself, without a drag threshold.
+A zoomed pane is not moved.
+
+`Ctrl` plus left-drag moves a pane as well and is not affected by this option; the two are aliases.
+`Alt` plus right-drag resizes a pane from the nearest corner whatever this is set to, because that is the ordinary right-drag resize with `Alt` merely keeping the context menu out of the way.
+
+Because the gesture is checked before mouse events are forwarded to the pane, it is taken away from an application that asked for the mouse (vim, less, htop), just as `Ctrl`-drag already is.
+Set it to `false` if such an application needs `Alt`-drag for itself; the pane then treats the gesture as an ordinary mouse event or text selection.
+
+@@ animations_enabled
+Controls the short transitions TUIOS plays when a window is minimized to or restored from the dock, when it snaps into a new position or tile, and when the niri-style scrolling layout slides.
+With `false` every transition is instant: the animation duration becomes zero, so the end state is drawn straight away.
+
+Turn it off on a slow connection (SSH, `tuios-web`), on a slow terminal, or simply if you prefer an instant interface.
+The `--no-animations` command-line flag does the same for one run, and tape playback switches animations off by itself.
+You can also toggle it at runtime with `Ctrl+B` `D` `a` (debug prefix), from the command palette, or on the in-app settings page (Behavior, "Animations").
+
+@@ border_focused_color
+Overrides the border colour of the focused pane with a hex colour of the form `+#rrggbb+`, for example `+"#89b4fa"+`.
+Leave it empty to use the colour derived from the active theme.
+
+Without an override the focused border changes colour with the mode: one colour in window management mode and another in terminal mode (bright cyan and bright green in the default palette), which is a quick way to see which mode you are in.
+A set `border_focused_color` replaces both, so the focused border keeps the same colour in either mode.
+Panes selected together for a broadcast action keep their own multi-focus colour.
+
+The value is handed to the colour library as-is and is not checked by the configuration validator, so stick to the six-digit hex form.
+The override is applied after the theme, so it survives a theme switch; clearing it brings the theme colour back immediately.
+Also settable from the in-app settings page (Appearance, "Focused border color").
+
+[source,toml]
+----
+[appearance]
+border_focused_color = "#89b4fa"
+border_unfocused_color = "#585b70"
+----
+
+@@ border_style
+Selects the characters used to draw the border around each pane.
+
+[cols="1,3"]
+|===
+|Value |Result
+
+|`rounded` |Thin lines with rounded corners (the default).
+|`normal` |Thin lines with square corners.
+|`thick` |Heavy lines.
+|`double` |Double lines.
+|`block` |Full block characters, giving a solid frame.
+|`outer-half-block` |Half blocks on the outer side of the cell, a slimmer solid frame.
+|`inner-half-block` |Half blocks on the inner side of the cell.
+|`ascii` |Only plain ASCII characters (hyphens, vertical bars and plus signs), for terminals or fonts without box-drawing characters.
+|`hidden` |The border cells are left blank; the frame still takes its space.
+|===
+
+An unknown value produces a validation warning and falls back to `rounded`.
+In ASCII mode (`--ascii-only`) the ASCII border is used whatever this is set to, and the scrollbar also stays within ASCII.
+Tiled panes under `shared_borders` have no border of their own; there the lines between panes are drawn separately.
+
+The current code does not hide the window buttons for `hidden` by itself: they are only hidden by `hide_window_buttons`, so set that as well for a bare look.
+The `--border-style` flag overrides this option for one run, and the style can be cycled on the in-app settings page (Appearance, "Border style").
+
+@@ border_unfocused_color
+Overrides the border colour of every pane that does not have focus with a hex colour of the form `+#rrggbb+`, for example `+"#585b70"+`.
+Leave it empty to use the colour derived from the active theme (its red tone in the default palette).
+
+A muted unfocused colour together with a bright `border_focused_color` makes the focused pane stand out clearly.
+As with the focused colour, the value is not checked by the validator, so use the six-digit hex form.
+Also settable from the in-app settings page (Appearance, "Unfocused border color").
+
+@@ check_for_updates
+With this on, TUIOS asks GitHub for the newest release and, when it is newer than the version you are running, shows it at the right-hand end of the dock with an up arrow (`^` in ASCII mode).
+Clicking it opens the release page in your browser, or tells you the address where no browser can be started.
+
+The first check runs a few seconds after start-up and then every 12 hours.
+A failed check (no network) is silent: it keeps what an earlier check found and tries again after about 15 minutes.
+The check is a single request to `+https://api.github.com/repos/tonk/tuios/releases/latest+`.
+
+Nothing is checked over the SSH server or in `tuios-web`, whose host is the server rather than your own machine, nor by a build that cannot tell its own version (a release or `make` build has it built in).
+Set this to `false` if TUIOS must never contact GitHub.
+The environment variable `TUIOS_NO_UPDATE_CHECK` (any non-empty value) turns the check off regardless of the configuration, which is handy in CI.
+Also settable from the in-app settings page (Advanced, "Check for updates").
+
+@@ click_to_type
+Decides what a left click on a pane's content does while you are in window management mode, where the keyboard drives the window manager.
+Clicks in terminal mode are not affected.
+
+[cols="1,3"]
+|===
+|Value |Result
+
+|`single` |A click focuses the pane and enters terminal mode, so clicking a pane is enough to start typing (the default).
+|`double` |A click focuses the pane; a double click enters terminal mode.
+|`off` |A click only focuses the pane and never changes mode.
+|===
+
+Clicks on the title bar or the border never enter terminal mode, so they stay drag handles; dragging, `Alt`-drag, the context menu, the dock and the overlays behave the same under every value.
+Under `double`, the clicks that change mode select nothing, and the next click starts a fresh selection.
+Under `off`, you enter terminal mode with the key bound to `enter_terminal_mode`.
+
+An application that asked for the mouse (vim, less, htop) only receives mouse events in terminal mode, so pick `double` if you click into such applications a lot.
+An unknown value produces a validation warning and falls back to `single`.
+Also settable from the in-app settings page (Behavior, "Click to type").
+
+@@ clock_bg_color
+Sets the background colour of the clock badge as a hex colour of the form `+#rrggbb+`, for example `+"#1e1e2e"+`.
+Empty uses the theme's panel colour.
+It is independent of `clock_fg_color`, so you can override just one of the two.
+
+A value that is not a six-digit hex literal produces a validation warning and is ignored.
+While a tape is being recorded or the leader key is pending, the badge uses its own warning colours instead, because those are signals rather than decoration.
+Has no visible effect unless the clock is shown (`show_clock`).
+Also settable from the in-app settings page (Dock, "Clock background color").
+
+@@ clock_fg_color
+Sets the text colour of the clock badge as a hex colour of the form `+#rrggbb+`, for example `+"#89b4fa"+`.
+Empty uses the theme's dimmed text colour.
+It is independent of `clock_bg_color`.
+
+A value that is not a six-digit hex literal produces a validation warning and is ignored.
+The recording and prefix states still override it with their own colours.
+Also settable from the in-app settings page (Dock, "Clock text color").
+
+[source,toml]
+----
+[appearance]
+show_clock = true
+clock_fg_color = "#1e1e2e"
+clock_bg_color = "#89b4fa"
+clock_pill = true
+----
+
+@@ clock_format
+The layout of the time in the clock badge, written as a Go reference-time layout.
+Instead of placeholders such as `HH` or `%H`, you write how the reference moment Monday 2 January 2006, 15:04:05 would look: `15` is the 24-hour hour, `03` the 12-hour hour, `04` the minutes, `05` the seconds, `PM` the AM/PM marker, `2006`, `01` and `02` the year, month and day, and `Mon` and `Jan` the short day and month names.
+
+Go has no token for the ISO-8601 week number, so TUIOS adds one: the literal text `+{week}+` is replaced with the zero-padded week (`01` to `53`).
+Other text is printed as-is, but digits that happen to match a layout token are replaced, so keep stray numbers out of it.
+
+* `+"15:04"+` gives `14:32` (the default).
+* `+"15:04:05"+` gives `14:32:07`.
+* `+"03:04 PM"+` gives `02:32 PM`.
+* `+"Mon 02 Jan 15:04"+` gives `Tue 25 Aug 14:32`.
+* `+"2006-01-02 15:04 W{week}"+` gives `2026-08-25 14:32 W35`.
+
+[source,toml]
+----
+[appearance]
+show_clock = true
+clock_format = "2006-01-02 15:04 W{week}"
+----
+
+The format is used while the clock is shown (`show_clock`), and also while a tape is recording or the leader key is pending.
+Also settable from the in-app settings page (Dock, "Clock format").
+
+@@ clock_pill
+Draws the clock badge with the same rounded half-circle caps the dock's pills use, instead of square ends.
+The caps take the badge's background colour, so they read as its rounded ends.
+
+In ASCII mode (`--ascii-only`) the caps become `[` and `]`.
+This option is separate from `dock_pill_caps`, so the clock and the dock can be styled independently.
+Also settable from the in-app settings page (Dock, "Clock pill").
+
+@@ clock_position
+Where the clock badge sits along its row.
+
+* `left`: one column in from the left edge (the default).
+* `center`: centred on the row.
+* `right`: one column in from the right edge.
+
+The row itself follows the dock: with the dock at the bottom (or hidden) the clock floats over the top row of the screen, and with `dockbar_position = "top"` it floats over the bottom row.
+The badge is drawn on top of whatever is in that row, so pick a position that does not cover something you need, such as a window title or buttons.
+An unknown value produces a validation warning and the badge stays at the left.
+Also settable from the in-app settings page (Dock, "Clock position").
+
+@@ confirm_quit
+Decides when quitting asks for confirmation.
+With the default `false`, the quit dialog only appears when a window still runs a foreground process other than its shell (an editor, a build, an SSH session), so you do not lose work by accident; with nothing running TUIOS quits straight away.
+With `true` the dialog is always shown.
+
+Turn it on if you tend to hit the quit key by mistake, or if you want the extra step in a daemon session, where quitting ends the session rather than detaching from it.
+Also settable from the in-app settings page (Behavior, "Confirm quit").
+
+@@ copy_on_select
+Controls whether releasing a mouse selection puts the text on the clipboard straight away, the way X11's primary selection and kitty's `copy_on_select` do.
+With it off, a selection stays highlighted and is copied only with `y` in copy mode.
+
+A click that never moved is not a selection and never touches the clipboard.
+A drag copies the moment the button comes up; a double or triple click waits about a third of a second first, because a double click may still turn into a triple click and only the finished gesture should reach the clipboard.
+The highlight itself is immediate either way.
+
+The clipboard is written with OSC 52, the same path copy mode's `y` uses, so it reaches whatever the host terminal supports, including over SSH.
+Terminals that ignore OSC 52 (VTE-based ones such as gnome-terminal and xfce4-terminal) would lose the copy, so on a machine with its own display TUIOS also writes through `wl-copy` on Wayland or `xclip`/`xsel` on X11, when one of them is installed.
+Over the SSH server and in `tuios-web` the display belongs to the server, so only OSC 52 is used there.
+Also settable from the in-app settings page (Advanced, "Copy on select").
+
+@@ cursor_blink
+Whether the cursor of the focused pane blinks.
+TUIOS draws a real host-terminal cursor and sets its shape and blink itself, so this setting, not your terminal emulator's own cursor configuration, decides the starting state.
+
+This is only the default for a pane: as soon as a program inside it sends its own cursor-style sequence (DECSCUSR, as vim and many shells do when switching modes), the program's last choice wins for that pane.
+A pane whose program never sets a style keeps this value for its whole life.
+Set it to `false` for a steady cursor if blinking distracts you.
+Also settable from the in-app settings page (Appearance, "Cursor blink").
+
+@@ dock_attention_blink
+Controls how an entry in the dock's window list asks for attention.
+With the default `true` the entry blinks, switching between its normal look and an inverse highlight every half second, until you focus that window.
+With `false` the entry shows the inverse highlight steadily instead, which is calmer but still easy to spot.
+
+This only matters when `<<cfg-appearance-dock-window-list,dock_window_list>>` is on; the minimized-only strip does not flag attention.
+Also settable from the in-app settings page (Dock, "Blink on attention").
+
+@@ dock_pill_caps
+Puts powerline-style half-circle caps on the pills of minimized windows in the dock, instead of drawing each as a flat filled cell.
+Off (the default), a row of minimized windows reads as one strip rather than a string of beads.
+
+In the current code this only affects the minimized-window strip.
+The mode chip at the left of the dock and the workspace tabs keep their rounded ends whatever this is set to, and so do the entries of `dock_window_list`, which use the workspace tab style.
+In ASCII mode the caps become `[` and `]`.
+The clock has its own switch, `clock_pill`.
+Also settable from the in-app settings page (Dock, "Pill caps").
+
+@@ dock_pill_underline
+Underlines the label of the active workspace tab in the dock, and of the focused window when `dock_window_list` is on, on top of the bold text and fill that already mark it.
+
+The underline is an attribute rather than a colour, so it is the one mark that survives ASCII mode and a monochrome terminal, where colour alone cannot be trusted; that is why it is on by default.
+Turn it off when your theme already makes the active pill's fill unmistakably different and the underline looks redundant.
+
+@@ dock_separator
+Draws the thin horizontal line between the panes and the dock bar.
+With `false` the line is dropped and its row is given to the panes, so the dock takes one row instead of two.
+That helps on a short terminal, for example one with a large presentation font.
+
+A dock notification shows its countdown along this line, so with the separator off notifications appear without one.
+The option has no effect when the dock is hidden (`dockbar_position = "hidden"`).
+Also settable from the in-app settings page (Dock, "Separator").
+
+[source,toml]
+----
+[appearance]
+dock_separator = false
+----
+
+@@ dock_window_list
+Lists every window of the current workspace in the dock, styled like the workspace tabs beside it, instead of only the windows you have minimized (the dock's original purpose, and still the default).
+Clicking an entry focuses that window; a minimized one is restored as well.
+
+A window that wants attention is flagged until you focus it, like the activity monitor of a classic terminal multiplexer.
+That covers an agent in the window needing input or having failed, an agent that finished while you were not looking, and the generic case of new output, a bell or a desktop notification arriving while another pane had focus.
+By default the entry blinks; `dock_attention_blink = false` highlights it steadily instead.
+
+Turn it on if you use the dock as a task bar or keep agents running in background panes.
+Also settable from the in-app settings page (Dock, "Window list").
+
+@@ dock_workspace_tabs
+Shows a clickable strip of workspace tabs in the dock: one tab for every workspace that holds a window, plus the current one, followed by a `+` tab that opens the next empty workspace.
+Clicking a tab switches to that workspace.
+The active tab is drawn highlighted and, with `dock_pill_underline`, underlined.
+
+The strip only appears when there is something to click, that is at least two tabs counting the `+` tab.
+Long workspace names are cut to twelve columns; see `dock_workspace_tooltip`.
+Turn it off if you switch workspaces only by keyboard (`Alt+1` to `Alt+9`) and want the room in the dock for other items.
+Also settable from the in-app settings page (Dock, "Workspace tabs").
+
+@@ dock_workspace_tooltip
+When a workspace tab in the dock had to cut its name short, hovering the tab pops the full name up after a short delay.
+Tabs whose name fits show no tooltip, since there is nothing more to reveal.
+
+This also requires tooltips in general to be on (`tooltips` in `[appearance.sidebar]`, on by default) and has no effect when `dock_workspace_tabs` is off.
+Turn it off if hover pop-ups get in your way.
+Also settable from the in-app settings page (Dock, "Workspace name on hover").
+
+@@ dockbar_position
+Where the dock bar is drawn.
+
+* `bottom`: along the bottom of the screen (the default).
+* `top`: along the top of the screen, with the separator line below it.
+* `hidden`: no dock at all; the panes get the whole screen.
+
+Hiding the dock also hides what lives in it: the mode chip, the workspace tabs, the minimized windows or window list, the system readouts and the update notice.
+Minimized windows then have to be restored by keyboard.
+The clock badge (see `show_clock`) floats over the row at the opposite edge: the top row when the dock is at the bottom or hidden, the bottom row when it is at the top.
+
+An unknown value produces a validation warning.
+The `--dockbar-position` flag overrides this option for one run; also settable from the in-app settings page (Dock, "Dock position").
+
+@@ focus_after_close
+Decides which window gets focus when the focused window is closed.
+
+* `first`: the first visible window of the current workspace, in window order (the default).
+* `previous`: the nearest visible window before the closed one in window order, so you stay close to where you were; when there is none, TUIOS falls back to `first`.
+
+Minimized windows are skipped in both cases.
+Pick `previous` if you work through a row of windows and want closing one to keep you next to it rather than jumping back to the start.
+An unknown value produces a validation warning.
+
+@@ focus_follows_mouse
+Makes the pane under the mouse pointer take focus as soon as the pointer moves over it, without a click.
+It is a divisive habit from X11 window managers, so it is off by default.
+
+Hovering only moves focus; it does not switch from window management mode to terminal mode (a click does that, see `click_to_type`).
+Nothing changes focus while you drag, resize or drag a scrollbar, while an overlay or context menu is open, while the pointer is over the dock or the sidebar, or while the sidebar has keyboard focus.
+
+Hover-focus works in terminal mode too: moving the pointer to another pane focuses it and keeps you in terminal mode, so you can type into it straight away.
+Toggle it at runtime with `Ctrl+B` `f`, from the command palette, or on the in-app settings page (Behavior, "Focus follows mouse"); `show_focus_follows_mouse_indicator` shows its state in the dock.
+
+@@ hide_clock
+Deprecated; use `<<cfg-appearance-show-clock,show_clock>>` instead.
+The clock is hidden by default nowadays, so this option is only needed to override an explicit `show_clock = true`.
+
+With `true` the clock badge stays hidden even when `show_clock` is on.
+It still appears while a tape is being recorded (with a red background) and while the leader key is pending (showing `PREFIX | time`), because those are status signals rather than a clock.
+Removing it again takes effect on the next config reload.
+The equally deprecated `--hide-clock` flag does the same for one run.
+
+@@ hide_scrollbar
+Hides the scrollbar thumb that shows your position in a pane's scrollback history.
+
+The thumb only appears while a pane is scrolled back into its history; at the live end of the output, in an application using the alternate screen (vim, less, htop) or in a very small pane there is no thumb anyway.
+It floats in the pane's last content column and can be dragged with the mouse.
+Its look is configured in `[appearance.scrollbar]`.
+
+Hide it if you find the thumb distracting or need that column for content.
+The `--hide-scrollbar` flag does the same for one run; also settable from the in-app settings page (Appearance, "Scrollbar").
+
+@@ hide_window_buttons
+Hides the minimize, maximize and close buttons that sit on a pane's frame.
+In tiling mode only minimize and close are shown, since a tiled pane cannot be maximized.
+
+With the buttons hidden, clicks on that part of the frame no longer minimize or close anything, and the title gets more room.
+You can still do all of it by keyboard.
+Set it together with `border_style = "hidden"` for a frame without visible chrome.
+
+The `--hide-window-buttons` flag also hides the buttons; either one is enough.
+Also settable from the in-app settings page (Appearance, "Window buttons").
+
+@@ initial_title_format
+A template for the title a new window gets at the moment it is created, before the shell inside it has run anything or set a title of its own.
+Unlike `+window_title_format+`, which only changes how a title is _displayed_, this sets the title text itself.
+
+The only placeholder is `+{user}+`, the Unix user name the window belongs to.
+Normally that is the user tuios runs as (taken from the system, or from `$USER`/`$LOGNAME` when it cannot be looked up).
+In a classroom or PAM-authenticated `tuios-web` session it is the user who logged in, not the service account the server runs under, so every trainee's panes carry their own name.
+Any other `+{...}+` placeholder is reported by the config validator and shown literally.
+
+Empty (the default) leaves the usual behaviour: a window is titled `Terminal <id>` (which is not displayed) until the shell reports a title.
+Without `+lock_titles+`, the template title only lasts until the program inside sets its own title with an OSC escape sequence.
+Combine it with `+lock_titles+`, or with `+window_title_format = "fixed"+`, to keep it.
+
+[source,toml]
+----
+[appearance]
+initial_title_format = "{user}'s shell"
+lock_titles = true
+----
+
+In a daemon session the daemon creates the windows, and a `tuios-web` client that loads a different config file applies its own template to the panes it shows, so the browser sees the title its own configuration asks for.
+
+@@ keep_window_numbers
+By default a window's number is simply its position among the windows of its workspace, so closing a window in the middle renumbers every window after it.
+With `true`, a window keeps the number it was given until it closes, and the other windows keep theirs.
+A new window takes the lowest number its workspace is not using, so a gap left by a closed window is filled before the sequence grows.
+
+The same number is used everywhere a window is numbered: the title prefix from `+show_window_number+`, the `+{index}+` placeholder of `+window_title_format+`, the sidebar, the dock, and the `+select_window_N+` shortcuts.
+Numbers are per workspace; a window moved to another workspace is numbered afresh there.
+Turn this on if you jump to windows by number and find it confusing that the numbers shift under you.
+
+@@ lock_titles
+When `true`, every new window starts with its title locked: OSC 0/OSC 2 title changes from the program running inside it are ignored, so the shell prompt, `vim` or `ssh` cannot rename the window.
+This is the same state the `+toggle_title_lock+` keybinding (`l` by default) puts a single window in, and you can still unlock an individual window with that key.
+
+A locked window keeps whatever title it had when it was created.
+Without `+initial_title_format+` that is the generic `Terminal <id>`, which is not displayed, so the title area shows only the window number; combine the two to give windows a title that is both specific and stable.
+A name you set yourself with rename is not affected by the lock.
+Setting `+window_title_format = "fixed"+` also makes new windows start locked, whatever this option says.
+
+@@ max_fps
+The maximum number of frames per second tuios renders while there is activity.
+Accepted values run from `10` to `240`: a higher value is clamped to `240`, a value between `1` and `9` is raised to `10`, and `0` or a negative number keeps the default of `60`.
+
+This is a cap, not a constant rate.
+After about half a second without output tuios drops to an idle rate of 10 frames per second, and it renders again immediately when a pane produces output, so a higher cap mainly makes dragging, resizing and fast-scrolling output smoother at the cost of more CPU.
+Lower it on a slow machine, over a slow SSH link, or to save battery; raise it on a high-refresh display.
+
+The in-app settings page offers `30`, `60`, `90`, `120`, `144` and "unlimited", which stores `240`.
+
+@@ maximize_new_windows
+When `true`, a new floating window fills the whole content area (everything except the dock and the sidebar) instead of opening at half the width and height of the screen, centred or at the mouse pointer.
+The window is marked as snapped, so its maximize button, or unsnapping it, restores it to the usual half-size geometry.
+
+The option has no effect while auto-tiling is on, because the tiling layout decides every window's size; see xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+It is useful if you work with one window at a time in floating mode and do not want to maximize every new window by hand.
+
+@@ mouse_enabled
+Whether tuios handles the mouse at all: hover, click to focus, dragging and resizing windows, wheel scrolling, selection and the dock and sidebar controls.
+
+* `true` - tuios asks the host terminal for full mouse reporting and handles the mouse itself (the default).
+* `false` - tuios asks the host terminal for no mouse reporting at all, so the terminal emulator's own mouse handling takes over, for example its native text selection. Programs inside the panes then receive no mouse events either.
+
+You can toggle this at runtime with `Ctrl{plus}B` `M` (`+prefix_toggle_mouse+`), `Alt{plus}M` (`+toggle_mouse+`, also in terminal mode), the command palette, or the settings page.
+With the mouse off, the keyboard is the only way back, since a click on the dock's mouse indicator no longer reaches tuios.
+Turning it off is handy when you want to copy text across several panes with your terminal's own selection, or when the host terminal's mouse handling misbehaves.
+
+@@ niri_reverse_scroll
+Reverses the direction in which the mouse wheel scrolls the viewport of the scrolling (niri-style) layout.
+In that layout `Alt` or `Shift` plus the wheel moves the strip of columns sideways: by default wheel down moves to the right and wheel up to the left; with `true` this is inverted.
+
+Only the `Alt`/`Shift` wheel gesture is affected.
+A horizontal wheel or touchpad swipe keeps its natural direction, and the option has no effect in the other layout modes.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+@@ open_url_on_double_click
+Whether double-clicking a web address in a pane opens it in your default browser.
+A double-click anywhere in the URL selects all of it (the `:` of `https://` would otherwise end the word), and the selection is still copied when `+copy_on_select+` is on.
+If a program attached a link to its text with OSC 8, as `ls --hyperlink` does, the link target is used rather than the visible text.
+
+Only `http://` and `https://` addresses are opened, never `file://` or any other scheme.
+A URL that wraps onto the next line is taken up to the wrap.
+The browser starts once the double-click is settled, so a triple-click on a URL selects the line without opening anything.
+
+The browser is started with `xdg-open` (Linux and BSD, which needs a graphical session), `open` (macOS) or the default URL handler (Windows), on the machine running tuios.
+That is why it never happens over the SSH server or in `tuios-web`, where the browser would start on the server; the URL is still selected there.
+With `false`, a double-click on a URL selects only the word under the pointer, as defined by `+word_characters+`.
+Programs that use the mouse themselves (vim, htop) receive the double-click instead.
+
+@@ preferred_shell
+The shell started in every new window.
+Empty (the default) means auto-detect: the `$SHELL` environment variable, then the first of `/bin/bash`, `/bin/zsh`, `/bin/fish` and `/bin/sh` that exists.
+On Windows auto-detection tries `powershell.exe`, `pwsh.exe` and `cmd.exe`.
+
+On Linux, macOS and BSD the value must be the path of an existing file, so use an absolute path such as `/usr/bin/zsh`; a bare name like `zsh` is not looked up in `$PATH`.
+On Windows `.exe` is appended when missing and the name is looked up in `PATH`.
+If the shell does not exist, tuios prints a warning and falls back to auto-detection instead of failing to open the window.
+
+The setting is read from the config file each time a window is created, so a change applies to the next new window without a restart.
+In a daemon session the daemon starts the shells, so the daemon's own config file is the one that counts.
+
+@@ quit_on_last_window_close
+What happens when the last window closes.
+
+* `false` - tuios stays running and shows its empty start screen, from which you can open a new window (the default).
+* `true` - tuios quits, like a terminal emulator closing its last tab.
+
+It only reacts to the window count going from one to zero, so starting tuios with no windows does not quit it.
+In a daemon session quitting this way ends the session itself, not just the client, exactly as a deliberate quit does; see xref:sessions.adoc#doc-sessions[Sessions].
+Turn it on if you use tuios as your terminal's "shell" and expect `exit` in the last pane to close everything.
+
+@@ scroll_lines
+How many lines one notch of the mouse wheel scrolls in a pane's scrollback, in copy mode, and in other scrollable lists such as the sidebar.
+Accepted values are `1` to `50`; a larger value is clamped to `50`, and `0` or a negative value keeps the default of `3`.
+
+A pane running a program that asked for mouse events (vim, less, htop) receives the wheel itself in terminal mode, and that program decides how far to scroll.
+Lower the value for finer control, raise it to move through long output faster.
+
+@@ scrollback_lines
+How many lines of history each window keeps after they scroll off the top of the screen.
+Accepted values are `100` to `10000000`, or `-1` for unlimited.
+A smaller positive value is raised to `100`, a larger one lowered to `10000000`, and `0` keeps the default of `10000`.
+
+The buffer grows as lines arrive, so the limit costs nothing until it is used, but with a very large or unlimited setting the memory use of a long-running, chatty pane grows without bound.
+The value is applied when a window is created, so a change affects new windows only.
+The `--scrollback-lines` command-line flag overrides it.
+
+In a daemon session the daemon keeps its own copy of each pane's screen and history for reattaching, independent of this setting.
+
+@@ session_colors
+Gives every session a colour of its own and shows it wherever more than one session is visible at once: the sidebar's sessions section, the sidebar's agents section (on rows whose pane lives in another session) and the session switcher.
+The panes of the session you are attached to are not coloured, because you only ever see one session's panes at a time.
+
+The colour is derived from the session's name, so it is the same in every attached client and after a daemon restart.
+Six hues from the active theme are available; the sidebar keeps sessions that are visible together apart, up to six, after which colours repeat.
+A session can be pinned to a colour of your choosing with the `set-session-accent` control verb.
+
+With `false`, these surfaces look exactly as they did before session colours existed.
+See xref:sessions.adoc#doc-sessions[Sessions].
+
+@@ set_terminal_title
+Sets the host terminal's own window or tab title (OSC 2) to follow whatever the focused pane has titled itself, which is what you would see if that program ran directly without tuios in between.
+When no window is focused, or the focused window has not set a title, the host title is `tuios`.
+
+The title follows focus changes and title changes live for as long as the client is attached, and is written only when it actually changes.
+It reaches the host through the per-client output path, so it works locally, in a daemon session, over `tuios ssh` and in `tuios-web` alike, with each attached client setting its own terminal's title.
+Characters that tuios filters from its own title bars (for example decorative glyphs outside the font) are filtered here too.
+
+Set it to `false` to leave the host terminal's title alone, for example when your terminal or shell manages the title in its own way.
+
+@@ shared_borders
+Lets adjacent tiled windows share a single divider instead of each drawing its own border box, which leaves more room for content and less visual clutter.
+
+* `false` - every window draws its own border (the default).
+* `true` - tiled panes drop their border boxes and a one-column separator is drawn between neighbours.
+
+It only applies while auto-tiling arranges the windows.
+Floating windows, and the scrolling (niri-style) layout, always keep their own borders.
+The `--shared-borders` command-line flag turns it on as well; it can also be toggled from the command palette or the settings page.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+@@ show_clock
+Shows a clock badge on the screen.
+The badge floats over the top row of the screen, or over the bottom row when `+dockbar_position+` is `top`; its look and place along the row come from `+clock_format+`, `+clock_position+`, `+clock_pill+`, `+clock_fg_color+` and `+clock_bg_color+`.
+
+The badge also appears, whatever this option says, while the leader key is pending (as `PREFIX | time`) and while a tape is being recorded.
+The deprecated `+hide_clock+` still wins when set: with `+hide_clock = true+` the clock stays hidden even if `+show_clock+` is `true`.
+The `--show-clock` command-line flag turns it on as well.
+
+@@ show_cpu
+Shows a small CPU-usage graph with the current percentage at the right-hand end of the dock, for example `CPU:▂▃▅ 42%`.
+The value is sampled about twice a second and covers the whole machine tuios runs on, which over the SSH server or in `tuios-web` is the server.
+In ASCII mode the graph is drawn with plain characters.
+
+When the dock is too narrow for all its readouts, the CPU graph is the first one dropped, and the readouts give way to notifications and copy-mode help while those are shown.
+The `--show-cpu` command-line flag turns it on as well.
+
+@@ show_focus_follows_mouse_indicator
+Shows a small focus-follows-mouse indicator glyph at the right-hand end of the dock (`+` in ASCII mode).
+It is drawn in the theme's success colour while `+focus_follows_mouse+` is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles focus-follows-mouse, exactly like `Ctrl{plus}B` `f`.
+
+Useful if you toggle focus-follows-mouse often and want to see its state at a glance.
+Its colours can be overridden per theme.
+
+@@ show_mouse_indicator
+Shows a small mouse-mode indicator glyph at the right-hand end of the dock (`M` in ASCII mode).
+It is drawn in the theme's success colour while `+mouse_enabled+` is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles mouse mode, like `Ctrl{plus}B` `M`.
+Since a click cannot reach tuios once the mouse is off, use the keyboard to turn it back on.
+
+Useful if you switch mouse handling off now and then to use your terminal's own selection.
+
+@@ show_ram
+Shows the memory usage of the machine tuios runs on as a percentage at the right-hand end of the dock, for example `RAM: 37.5%`.
+The value is refreshed every two seconds; over the SSH server or in `tuios-web` it is the server's memory.
+When the dock is too narrow, RAM is dropped after the CPU graph and before the mode indicators.
+The `--show-ram` command-line flag turns it on as well.
+
+@@ show_resize_size
+While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size.
+It disappears a little over a second after the last change.
+
+Only changes are shown, not the size tuios starts or attaches with.
+The size is in character cells; in ASCII mode the popup reads like `120 x 40`.
+Set it to `false` if you find the popup distracting.
+
+@@ show_tiling_indicator
+Shows a small tiling indicator glyph at the right-hand end of the dock (`#` in ASCII mode).
+It is drawn in the theme's success colour while auto-tiling is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles tiling, exactly like the tiling keybinding.
+
+Useful if you switch between floating and tiled layouts and want to see the current mode at a glance.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+@@ show_window_number
+Prefixes a window's displayed title with its number, for example `1: bash`; a window without a title shows just the number.
+The number is the one the `+select_window_N+` shortcuts use: the window's position in its workspace, or its kept number when `+keep_window_numbers+` is on.
+The same prefix is used in the sidebar.
+
+Set it to `false` to show only the title.
+It is ignored as soon as `+window_title_format+` is set; use the `+{index}+` placeholder there instead.
+
+@@ theme
+The colour theme, by ID.
+A theme supplies the 16 ANSI colours plus foreground, background and cursor, and tuios derives its own interface colours (borders, overlays, the dock) from it.
+
+* Empty (the default) disables theming: panes use your terminal's own colours.
+* A built-in theme ID, for example `dracula` or `nord`; `tuios --list-themes` prints every available ID and `tuios --preview-theme <id>` shows its colours.
+* A bundled tuios theme: `trainer` (light and high-contrast for a projected screen) or `trainee`.
+* A custom theme loaded from a `.json` or `.toml` file in `~/.config/tuios/themes/`, named by its `id`.
+
+[source,toml]
+----
+[appearance]
+theme = "dracula"
+----
+
+Only ANSI colours 0-15 are themed; truecolour output from programs passes through unchanged.
+Switching theme, also from the picker in the command palette or the settings page, recolours text that is already on screen.
+An unknown name logs a warning and leaves the colours as they were, rather than stopping tuios from starting.
+The `--theme` command-line flag takes precedence, and `tuios-web` uses `trainee` when neither the flag nor this option names a theme.
+`+border_focused_color+` and `+border_unfocused_color+` override the border colours a theme derives.
+See xref:themes.adoc#doc-themes[Themes].
+
+@@ whichkey_enabled
+Shows the which-key popup: a panel listing the keys available in the current prefix chord.
+It appears half a second after you press the leader key (`Ctrl{plus}B` by default) and lists the bindings of whichever chord is active, such as the top-level prefix or the workspace, minimize, window, debug, tape or layout submenu.
+It disappears as soon as you press the next key, so it costs nothing when you already know the chord, and it is not shown while the help overlay is open.
+
+Set it to `false` once you know your keybindings and find the popup distracting.
+Where it appears is set by `+whichkey_position+`.
+See xref:keybindings.adoc#doc-keybindings[Keybindings Reference].
+
+@@ whichkey_position
+Where the which-key popup appears on the screen.
+
+[cols="1,3"]
+|===
+|Value |Position
+
+|`bottom-right` |Bottom-right corner (the default)
+|`bottom-left` |Bottom-left corner
+|`top-right` |Top-right corner
+|`top-left` |Top-left corner
+|`center` |Centred on the screen
+|===
+
+The corners keep a small margin from the screen edge, and the popup is always kept on screen.
+Any other value is reported by the config validator and behaves like `bottom-right`.
+Choose a position that does not cover the part of your panes you usually look at, for example a top corner when the dock and prompts are at the bottom.
+
+@@ window_title_format
+A template that controls how a window's title is displayed, for more control than `+show_window_number+` offers.
+When it is set, `+show_window_number+` is ignored.
+
+[cols="1,3"]
+|===
+|Placeholder |Replaced by
+
+|`+{title}+` |The name you gave the window, or else the title the program inside it reported (the generic `Terminal <id>` counts as empty)
+|`+{index}+` |The window's number in its workspace, as used by the `+select_window_N+` shortcuts (see `+keep_window_numbers+`)
+|`+{cwd}+` |The shell's working directory, empty when it cannot be read
+|===
+
+Any other `+{...}+` placeholder is reported by the config validator and shown literally.
+The template is applied to the title bar and the sidebar alike, and is applied even when the title is empty, so a format with only `+{index}+` or `+{cwd}+` still shows something.
+
+[source,toml]
+----
+[appearance]
+window_title_format = "{index}: {title} ({cwd})"
+----
+
+Empty (the default) shows the title as-is, with the number prefix from `+show_window_number+`.
+
+The special value `fixed` keeps every window's title exactly as it was created: new windows start title-locked, as with `+lock_titles+`, and the title is shown with no number and no template.
+Combine it with `+initial_title_format+` to choose that title.
+
+@@ window_title_position
+Where a window's title is drawn on its border.
+
+[cols="1,3"]
+|===
+|Value |Effect
+
+|`bottom` |The title is drawn as a badge on the bottom border (the default)
+|`top` |The title is drawn on the top border, sharing it with the window buttons on the right
+|`hidden` |No title is drawn
+|===
+
+The title shown is the name you gave the window, or else the title its program reported, formatted by `+show_window_number+` or `+window_title_format+`.
+With `bottom`, the copy-mode scroll position indicator is only drawn on the bottom border when no title occupies it.
+With `hidden`, renaming a window still works, since the rename editor is a separate dialog.
+
+The `--window-title-position` command-line flag takes precedence over this option.
+Any other value is reported by the config validator and falls back to `bottom`.
+
+@@ word_characters
+The punctuation characters that count as part of a word when a double-click selects one.
+Letters and digits always count and do not need listing.
+
+The default is the following set, the same one kitty uses:
+
+[source,toml]
+----
+[appearance]
+word_characters = "@-./_~?&=%+#"
+----
+
+With it, a path, a query string, a version number or a flag such as `--no-vm` is selected as one word instead of breaking at every punctuation mark.
+A colon is deliberately absent, so `host:port` and `file:line` select as their parts; add `:` if you would rather have them whole.
+An empty string means only letters and digits form words, which is different from leaving the option out (that keeps the default).
+
+Triple-click selects the whole line and is not affected.
+A double-click on an `http(s)` URL selects the whole URL regardless of this setting while `+open_url_on_double_click+` is on.
+
+@@ zoom_max_width
+The maximum width, in cells, of a zoomed window (`toggle_zoom`, `z` by default).
+With `0` (the default) a zoomed window fills the full width of the content area.
+With a positive value, for example `120`, a zoomed window is at most that wide and is centred horizontally, leaving the space on either side empty; on a screen narrower than the value the window simply fills the width.
+
+The width includes the window's border.
+This makes long lines easier to read on a very wide screen, a kind of "zen mode".
+The `--zoom-max-width` command-line flag takes precedence over this option.

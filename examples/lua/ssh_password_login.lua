@@ -1,7 +1,7 @@
 -- SSH login with a password pulled from `pass` (https://www.passwordstore.org/).
 --
 -- The Lua sandbox tuios runs tape scripts in deliberately has no filesystem
--- or process access (no os, io, or require -- see docs/TAPE_LUA.md), so this
+-- or process access (no os, io, or require -- see docs/tape-lua.adoc), so this
 -- script can never call `pass` itself. Instead the password is resolved by
 -- the *shell being typed into*, via command substitution, the moment the ssh
 -- command runs -- the secret passes from pass(1) to sshpass to ssh entirely

@@ -40,7 +40,7 @@ tuios draws a per-window indicator for it:
 An agent that reports nothing still gets a conservative fallback: a pane that
 reported `working` but then produces no output for a while is demoted to `idle`
 by the daemon. That fallback never overrides an explicit report. See
-[Agent state](../../docs/AGENT_STATE.md).
+[Agent state](../../docs/agent-state.adoc).
 
 ## How it finds tuios
 

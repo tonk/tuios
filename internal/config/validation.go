@@ -297,7 +297,7 @@ func validateClassroomConfig(cfg *UserConfig, result *ValidationResult) {
 	c := &cfg.Classroom
 
 	if c.TraineePattern != "" {
-		if _, err := regexp.Compile(c.TraineePattern); err != nil {
+		if _, err := CompileTraineePattern(c.TraineePattern); err != nil {
 			result.Warnings = append(result.Warnings, ValidationError{
 				Field:   "classroom",
 				Key:     "trainee_pattern",
@@ -358,8 +358,7 @@ func validateAppearanceEnums(cfg *UserConfig, result *ValidationResult) {
 	checkEnum("scrollbar.style", cfg.Appearance.Scrollbar.Style, ScrollbarStyles)
 	checkEnum("whichkey_position", cfg.Appearance.WhichKeyPosition,
 		[]string{"bottom-right", "bottom-left", "top-right", "top-left", "center"})
-	checkEnum("window_title_position", cfg.Appearance.WindowTitlePosition,
-		[]string{"bottom", "top", "hidden"})
+	checkEnum("window_title_position", cfg.Appearance.WindowTitlePosition, WindowTitlePositions)
 	checkEnum("focus_after_close", cfg.Appearance.FocusAfterClose,
 		[]string{"first", "previous"})
 	checkEnum("clock_position", cfg.Appearance.ClockPosition,

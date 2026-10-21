@@ -76,7 +76,7 @@ type DebugConfig struct {
 }
 
 // ClassroomConfig holds trainer-console settings for tuios-web's PAM
-// classroom deployments (see docs/DEPLOYMENT.md): who is allowed to view and
+// classroom deployments (see docs/deployment.adoc): who is allowed to view and
 // control another trainee's live session, and which trainee sessions are
 // eligible targets. Off by default - a config file with no [classroom]
 // section, or one that never sets trainer_console, behaves exactly as
@@ -92,8 +92,9 @@ type ClassroomConfig struct {
 	// cross-attach, even with TrainerConsole set to true.
 	TrainerUsers []string `toml:"trainer_users"`
 	// TraineePattern is a Go RE2 regular expression (see regexp/syntax)
-	// matched against the username an authorized trainer requests via
-	// "attach", e.g. "^guru[0-9]{2}$". Left empty, no target ever matches:
+	// matched against the whole username an authorized trainer requests via
+	// "attach", e.g. "guru[0-9]{2}" (see CompileTraineePattern; explicit ^ and
+	// $ are allowed but not needed). Left empty, no target ever matches:
 	// there is no implicit "match everyone" default, since that would let
 	// anyone in TrainerUsers attach to any account on the box.
 	TraineePattern string `toml:"trainee_pattern"`
@@ -157,9 +158,7 @@ type TapeConfig struct {
 
 // DaemonConfig holds daemon-related settings
 type DaemonConfig struct {
-	LogLevel     string `toml:"log_level"`     // Debug log level: off, errors, basic, messages, verbose, trace (default: off)
-	DefaultCodec string `toml:"default_codec"` // Default protocol codec: gob, json (default: gob)
-	SocketPath   string `toml:"socket_path"`   // Custom socket path (default: $XDG_RUNTIME_DIR/tuios/daemon.sock)
+	LogLevel string `toml:"log_level"` // Debug log level: off, errors, basic, messages, verbose, trace (default: off)
 	// AgentAutoDetect toggles automatic detection of a pane's foreground AI-agent
 	// CLI (claude, codex, aider, ...), which sets the pane's agent-state glyph
 	// without set-agent-state. Nil means enabled (the default); set to false to
@@ -192,7 +191,6 @@ type AppearanceConfig struct {
 	CopyOnSelect                   *bool   `toml:"copy_on_select"`                     // Copy a mouse selection to the clipboard on release (default: true)
 	OpenURLOnDoubleClick           *bool   `toml:"open_url_on_double_click"`           // Open a double-clicked http(s) URL in the default browser (default: true)
 	FocusFollowsMouse              *bool   `toml:"focus_follows_mouse"`                // Focus the pane under the cursor as the mouse moves (default: false)
-	FocusFollowsMouseInTerminal    *bool   `toml:"focus_follows_mouse_in_terminal"`    // Also hover-focus while in terminal mode (default: false)
 	AltDrag                        *bool   `toml:"alt_drag"`                           // Alt + left-drag moves a pane (default: true)
 	ClickToType                    string  `toml:"click_to_type"`                      // What a click on a pane's content does in window-management mode: single, double, off (default: single)
 	WordCharacters                 *string `toml:"word_characters"`                    // Punctuation that counts as part of a word for double-click selection (default: "@-./_~?&=%+#")
@@ -230,7 +228,7 @@ type AppearanceConfig struct {
 	InitialTitleFormat   string `toml:"initial_title_format"`   // Template for a new window's title at creation, before anything inside it runs: {user}. Empty means the usual "Terminal <id>" / shell-reported title.
 	ZoomMaxWidth         int    `toml:"zoom_max_width"`         // Max width in cells for zoom mode (0 = fullscreen, e.g. 120 centers at 120 cols)
 	NiriReverseScroll    bool   `toml:"niri_reverse_scroll"`    // Reverse mouse scroll direction in niri scrolling mode (default: false)
-	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, max: 120)
+	MaxFPS               int    `toml:"max_fps"`                // Maximum render FPS (default: 60, range: 10-240)
 	DockWorkspaceTabs    *bool  `toml:"dock_workspace_tabs"`    // Clickable workspace strip in the dock (default: true)
 	DockWorkspaceTooltip *bool  `toml:"dock_workspace_tooltip"` // Pop a truncated workspace name in full on hover (default: true)
 	DockSeparator        *bool  `toml:"dock_separator"`         // Hairline between the panes and the dock bar (default: true)
@@ -400,9 +398,7 @@ func DefaultConfig() *UserConfig {
 			},
 		},
 		Daemon: DaemonConfig{
-			LogLevel:     "off",
-			DefaultCodec: "gob",
-			SocketPath:   "", // Empty means use default XDG path
+			LogLevel: "off",
 		},
 		Startup: StartupConfig{
 			OpenDefaultWindow:   false,
@@ -653,7 +649,7 @@ func getDefaultTerminalModeKeybinds() map[string][]string {
 		// and zsh, and taking them costs a user that. They are bound because
 		// directional focus on the arrows is what zellij and most tiling window
 		// managers do, and because each of the four is a separate action a user
-		// can set to [] to hand back. See docs/KEYBINDINGS.md.
+		// can set to [] to hand back. See docs/keybindings.adoc.
 		"terminal_focus_left":       {"alt+left"},
 		"terminal_focus_right":      {"alt+right"},
 		"terminal_focus_up":         {"alt+up"},
@@ -1149,7 +1145,7 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 		AlwaysConfirmQuit = *cfg.Appearance.ConfirmQuit
 	}
 
-	// SharedBorders defaults to true (nil means use default)
+	// SharedBorders defaults to false (nil means use default)
 	if cfg.Appearance.SharedBorders != nil {
 		SharedBorders = *cfg.Appearance.SharedBorders
 	}
@@ -1164,10 +1160,13 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 		WhichKeyPosition = cfg.Appearance.WhichKeyPosition
 	}
 
-	// WindowTitlePosition defaults to bottom
-	// Only apply from config if not already set via flag (run.go applies flags separately)
-	if cfg.Appearance.WindowTitlePosition != "" && WindowTitlePosition == "bottom" {
+	// WindowTitlePosition defaults to bottom. A typo lands on that default, as
+	// the validator warns, instead of an unknown position that draws no title.
+	// CLI flags still win: ApplyOverrides runs after this.
+	if slices.Contains(WindowTitlePositions, cfg.Appearance.WindowTitlePosition) {
 		WindowTitlePosition = cfg.Appearance.WindowTitlePosition
+	} else if cfg.Appearance.WindowTitlePosition != "" {
+		WindowTitlePosition = "bottom"
 	}
 
 	// FocusAfterClose defaults to "first"
@@ -1175,11 +1174,10 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 		FocusAfterClose = cfg.Appearance.FocusAfterClose
 	}
 
-	// HideClock defaults to false
-	// Only apply from config if not already set via flag (run.go applies flags separately)
-	if !HideClock {
-		HideClock = cfg.Appearance.HideClock
-	}
+	// HideClock (deprecated) is a plain bool like the toggles above, assigned
+	// unconditionally so removing it takes effect on a reload. The --hide-clock
+	// flag still wins: ApplyOverrides ORs it in after this.
+	HideClock = cfg.Appearance.HideClock
 
 	// WindowTitleFormat defaults to empty, meaning the title is shown as-is.
 	// An empty string in the config also clears a previously set format on
@@ -1205,12 +1203,6 @@ func ApplyAppearanceConfig(cfg *UserConfig) {
 	// settings page survives a reload just as turning it on does.
 	if cfg.Appearance.FocusFollowsMouse != nil {
 		FocusFollowsMouse = *cfg.Appearance.FocusFollowsMouse
-	}
-
-	// FocusFollowsMouseInTerminal gates hover-focus in terminal mode; a pointer so
-	// an explicit false in the settings page survives a reload.
-	if cfg.Appearance.FocusFollowsMouseInTerminal != nil {
-		FocusFollowsMouseInTerminal = *cfg.Appearance.FocusFollowsMouseInTerminal
 	}
 
 	// AltDrag defaults to true; a pointer so an explicit false in the config
@@ -1322,10 +1314,6 @@ func fillMissingDaemon(cfg, defaultCfg *UserConfig) {
 	if cfg.Daemon.LogLevel == "" {
 		cfg.Daemon.LogLevel = defaultCfg.Daemon.LogLevel
 	}
-	if cfg.Daemon.DefaultCodec == "" {
-		cfg.Daemon.DefaultCodec = defaultCfg.Daemon.DefaultCodec
-	}
-	// SocketPath defaults to empty (use XDG default), so we don't override it
 }
 
 // migrateLegacySidebar folds the flat appearance.sidebar_* keys into the

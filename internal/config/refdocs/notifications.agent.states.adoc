@@ -1,0 +1,34 @@
+The `+[notifications.agent.states]+` table selects which agent-state transitions raise an alert.
+Each key names a state; when a pane moves into a state that is set to `true`, the sinks of `+[notifications.agent]+` fire for it, subject to `enabled`, `suppress_focused`, `quiet_hours` and the settle time.
+
+The defaults are deliberately quiet: only the states that mean the agent has stopped and may need a human are on.
+Moving into `none` (no agent) never alerts.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for what each state means and where it comes from.
+
+@@ done
+Alerts when an agent reports that it has finished its task.
+The `done` state is only set by an explicit report, such as `tuios set-agent-state done` or a harness integration, never guessed, so it is a reliable signal.
+The dock shows it as a success message, and it uses the "agent stopped" cue.
+On by default; turn it off if you only want to hear about agents that are blocked.
+
+@@ errored
+Alerts when an agent stops because of an error.
+The dock shows it as an error message, which is sticky by default, and it uses the attention cue, the same one as `+needs_input+`.
+On by default.
+
+@@ idle
+Alerts when an agent goes quiet.
+Unlike `done`, the `idle` state is often guessed: the daemon demotes a pane from `working` to `idle` after a stretch without output.
+That makes it the flappy state, so it is off by default.
+Turn it on if your agents do not report `done` themselves and you still want to know when they stopped, and consider a larger `settle_seconds` with it.
+It uses the "agent stopped" cue.
+
+@@ needs_input
+Alerts when an agent is blocked waiting for you, for example on a permission prompt or a question.
+This is the most important alert, and it is on by default.
+The dock shows it as a warning, and it uses the attention cue.
+
+@@ working
+Alerts when an agent starts working.
+That is rarely news, and an agent can enter this state many times per task, so it is off by default.
+With sound enabled it uses the "agent stopped" cue, so it is mostly useful together with `command`, for logging or an external status display.

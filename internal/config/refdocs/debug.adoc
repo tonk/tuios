@@ -1,0 +1,10 @@
+The `+[debug]+` table holds settings for development and presentation aids.
+The debug tools themselves (logs, cache statistics, the showkeys overlay) are reached with the leader key followed by `D`; see `+[keybindings.debug_prefix]+`.
+
+@@ show_key_events
+Shows the showkeys overlay: a keycast in the bottom-right corner that displays your last few keypresses as styled pills, in both window-management and terminal mode.
+It is meant for screencasts, presentations and live demos, where the audience otherwise cannot see which keys you press.
+
+The same overlay is toggled with the `+--show-keys+` command-line flag, the leader key followed by `D` and `k`, the command palette, and the settings page.
+Every toggle from within tuios writes the new state back to this option, so it survives a restart.
+See xref:showkeys.adoc#doc-showkeys[Showkeys Overlay] for details.

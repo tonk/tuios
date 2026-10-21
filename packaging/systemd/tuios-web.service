@@ -1,10 +1,10 @@
 [Unit]
 Description=tuios-web - browser-accessible TUIOS session server
-Documentation=https://github.com/tonk/tuios/blob/main/docs/WEB.md
-Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/web.adoc
+Documentation=https://github.com/tonk/tuios/blob/main/docs/deployment.adoc
 After=network.target
 # Only relevant if ExecStart below is edited to add --pam-auth (see
-# docs/DEPLOYMENT.md, "PAM multi-tenant mode"). Uncomment both lines then:
+# docs/deployment.adoc, "PAM multi-tenant mode"). Uncomment both lines then:
 #Wants=tuios-pam-helper.service
 #After=tuios-pam-helper.service
 
@@ -18,10 +18,10 @@ Group=tuios-web
 # tuios-pam-helper daemon across a Unix socket - see pam-helper/README.md.
 #
 # Binds loopback only; a reverse proxy (see packaging/nginx/tuios-web.conf
-# and docs/DEPLOYMENT.md) is what actually terminates TLS and faces the
+# and docs/deployment.adoc) is what actually terminates TLS and faces the
 # public network. Edit this line to add --pam-auth (multi-tenant login,
 # needs tuios-pam-helper.service - see above) and/or --web-settings (the
-# in-browser theme/font picker); see docs/WEB.md for the full flag list.
+# in-browser theme/font picker); see docs/web.adoc for the full flag list.
 ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7681 --config /etc/tuios-web/config.toml
 Restart=on-failure
 RestartSec=2
@@ -51,7 +51,7 @@ WorkingDirectory=/var/lib/tuios-web
 # off to tuios-pam-helper) - broader sandboxing like ProtectSystem=strict or
 # ProtectHome=true would cripple that shell's access to the rest of the
 # filesystem, which is the opposite of what a "terminal in the browser"
-# tool is for. See docs/DEPLOYMENT.md, "Hardening notes" for the trade-off
+# tool is for. See docs/deployment.adoc, "Hardening notes" for the trade-off
 # and when the stricter options are actually safe to add (a --pam-auth-only
 # deployment, where every real shell runs as a trainee account instead).
 NoNewPrivileges=true

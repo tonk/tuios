@@ -1,0 +1,34 @@
+The `+[startup]+` table controls what a session looks like the moment it starts.
+With every option at its default of `false`, a session comes up empty and floating, in window-management mode, and you open the first window yourself.
+
+These options are one-shot: they are applied once, after the real terminal size is known, and only to a session that has no windows yet.
+Attaching to a session that already has windows restores that session's own layout and mode instead.
+All three are also available on the Startup page of the in-app settings, which saves them back to the config file; changes take effect on the next start.
+
+@@ open_default_window
+Opens one terminal window automatically when a session starts with none, so you land in a shell instead of an empty screen.
+The window is created exactly as if you had pressed `n`, so it honours tiling and `+maximize_new_windows+`.
+
+Leave it `false` if you prefer to start with an empty screen, or if a tape or a script populates the session for you.
+The web terminal (`tuios-web`) always turns this option on, together with <<cfg-startup-start-in-terminal-mode,start_in_terminal_mode>>.
+
+@@ start_in_terminal_mode
+Starts in terminal mode, so your keystrokes go straight to the shell instead of to the window manager.
+Terminal mode needs a window to type into, so in practice this option only acts together with <<cfg-startup-open-default-window,open_default_window>>: without a window, the session stays in window-management mode.
+
+In a daemon session the default window is created asynchronously; tuios waits for it to arrive and then switches to terminal mode.
+
+[source,toml]
+----
+[startup]
+open_default_window = true
+start_in_terminal_mode = true
+----
+
+@@ tiled
+Starts a new session with automatic tiling enabled instead of floating windows.
+Windows opened afterwards are tiled automatically in the current layout mode.
+Combine it with <<cfg-startup-open-default-window,open_default_window>> to start in a tiled session with one terminal already open.
+
+Besides the first session, this option also applies to a session you create from within tuios, for example from the session switcher.
+Switching to a session that already exists keeps whatever layout you left it in.

@@ -168,9 +168,11 @@ func FuzzLoadConfigPipeline(f *testing.F) {
 		"[appearance]\nwindow_title_position = \"\xff\"\n",
 		"[appearance]\ntitle_format = \"{{{{{{\"\n",
 		"[appearance]\nanimations_enabled = false\nconfirm_quit = true\n",
-		"[daemon]\nlog_level = \"trace\"\ndefault_codec = \"json\"\n",
-		"[daemon]\nlog_level = \"nonsense\"\ndefault_codec = \"nonsense\"\n",
-		"[daemon]\nsocket_path = \"/dev/null\"\n",
+		"[daemon]\nlog_level = \"trace\"\n",
+		"[daemon]\nlog_level = \"nonsense\"\n",
+		// Removed keys: an old config that still sets them must keep loading.
+		"[daemon]\ndefault_codec = \"json\"\nsocket_path = \"/dev/null\"\n",
+		"[appearance]\nfocus_follows_mouse_in_terminal = true\n",
 		"[keybindings]\nleader_key = \"\"\n",
 		"[keybindings]\nleader_key = \"ctrl+a\"\n",
 		"[keybindings]\nleader_key = \"\xff\"\n",
@@ -232,9 +234,6 @@ func FuzzLoadConfigPipeline(f *testing.F) {
 		}
 		if cfg.Appearance.DockbarPosition == "" {
 			t.Fatalf("dockbar_position survived fill as empty")
-		}
-		if cfg.Daemon.DefaultCodec == "" {
-			t.Fatalf("default_codec survived fill as empty")
 		}
 
 		// Every validation finding must be reportable to the user.

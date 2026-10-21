@@ -10,7 +10,7 @@ import (
 // TestDaemonCaptureKeepsFastOutput pins the daemon emulator as the authority it
 // is now declared to be.
 //
-// docs/REHYDRATION.md, "What is authoritative": the daemon emulator is
+// docs/rehydration.adoc, "What is authoritative": the daemon emulator is
 // authoritative for grid, cursor, modes and scrollback, and its feed blocks
 // rather than dropping a chunk when it falls behind. Every route into a pane
 // rehydrates from it, so anything it fails to see is content no client can be

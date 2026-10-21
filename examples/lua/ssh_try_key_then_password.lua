@@ -1,7 +1,7 @@
 -- SSH login when you don't know up front whether a key will work: try key
 -- auth first, and only fall back to a password if the server actually asks
 -- for one. This is the case the .tape DSL can't express (no if/else) and the
--- reason to reach for Lua at all -- see docs/TAPE_LUA.md.
+-- reason to reach for Lua at all -- see docs/tape-lua.adoc.
 --
 -- Edit HOST and the pass(1) entry name below, then run with:
 --   tuios tape run examples/lua/ssh_try_key_then_password.lua

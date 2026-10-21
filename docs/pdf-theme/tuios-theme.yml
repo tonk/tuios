@@ -1,0 +1,99 @@
+# asciidoctor-pdf theme for the TUIOS documentation, coloured after
+# assets/logo.svg (Tokyo Night). Fonts live in pdf-theme/fonts/.
+extends: default
+font:
+  catalog:
+    FreeSans:
+      normal: fonts/FreeSans.ttf
+      bold: fonts/FreeSansBold.ttf
+      italic: fonts/FreeSansOblique.ttf
+      bold_italic: fonts/FreeSansBoldOblique.ttf
+    SauceCodePro:
+      normal: fonts/SauceCodeProNerdFontMono-Regular.ttf
+      bold: fonts/SauceCodeProNerdFontMono-Bold.ttf
+      italic: fonts/SauceCodeProNerdFontMono-Italic.ttf
+      bold_italic: fonts/SauceCodeProNerdFontMono-BoldItalic.ttf
+page:
+  background_color: FFFFFF
+  margin: [0.75in, 0.85in, 0.85in, 0.85in]
+base:
+  font_family: FreeSans
+  font_color: 24294A
+  border_color: D5DAF0
+link:
+  font_color: 3D6FD9
+codespan:
+  font_family: SauceCodePro
+  font_color: 6A3FB8
+code:
+  font_family: SauceCodePro
+  background_color: F3F4FA
+  border_color: D5DAF0
+kbd:
+  font_family: SauceCodePro
+admonition:
+  icon:
+    note:
+      stroke_color: 7AA2F7
+    tip:
+      stroke_color: 9ECE6A
+    warning:
+      stroke_color: FF9E64
+    important:
+      stroke_color: E0AF68
+    caution:
+      stroke_color: BB9AF7
+heading:
+  font_family: FreeSans
+  font_color: 161A33
+  h1_font_color: 3D6FD9
+  h2_font_color: 24294A
+  h3_font_color: 3B4261
+table:
+  head:
+    background_color: EEF1FB
+title_page:
+  align: center
+  text_align: center
+  logo:
+    top: 12%
+    image: image:tuios-title-logo.png[pdfwidth=2.5in]
+  title:
+    top: 46%
+    font_size: 24
+    font_color: 161A33
+    font_style: bold
+    line_height: 1.1
+    text_align: center
+  subtitle:
+    top: 58%
+    font_size: 13
+    font_color: 3B4261
+    font_style: normal
+    line_height: 1.2
+    text_align: center
+  revision:
+    margin_top: 18
+    font_size: 11
+    font_color: 666666
+    font_style: normal
+    delimiter: ' · '
+  authors:
+    margin_top: 12
+    font_size: 11
+    font_color: 888888
+footer:
+  font_family: FreeSans
+  font_size: 8
+  font_color: 999999
+  border_color: D5DAF0
+  recto:
+    right:
+      content: '{page-number}'
+    center:
+      content: '{revnumber} · {revdate}'
+  verso:
+    left:
+      content: '{page-number}'
+    center:
+      content: '{revnumber} · {revdate}'

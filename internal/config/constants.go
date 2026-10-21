@@ -724,8 +724,6 @@ var (
 )
 
 // HideScrollbar controls whether the window scrollbar is hidden.
-// Automatically treated as true when BorderStyle == "hidden" since there is
-// no border to draw the thumb on in that mode.
 // Set via --hide-scrollbar flag or appearance.hide_scrollbar config
 var HideScrollbar = false
 
@@ -733,6 +731,9 @@ var HideScrollbar = false
 // Options: bottom, top, hidden
 // Set via --window-title-position flag or appearance.window_title_position config
 var WindowTitlePosition = "bottom"
+
+// WindowTitlePositions lists the accepted window_title_position values.
+var WindowTitlePositions = []string{"bottom", "top", "hidden"}
 
 // FocusAfterClose controls which window becomes focused when the focused
 // window closes.
@@ -779,8 +780,8 @@ func FormatWindowTitle(title string, index int, cwd string) string {
 
 // LockTitles makes a new window start with its title locked, the same state
 // SetTitleLocked(true) puts it in via the toggle_title_lock keybinding - the
-// app inside it can OSC-set a title once (or not, if InitialTitleFormat
-// already gave it one), but can never overwrite it afterward.
+// app inside it cannot OSC-set the title at all while the lock holds; the
+// title stays as created (InitialTitleFormat, or the default name).
 // Set via appearance.lock_titles config
 var LockTitles = false
 
@@ -971,12 +972,6 @@ var OpenURLOnDoubleClick = true
 // window-manager habit, so it defaults off and users opt in.
 // Set via appearance.focus_follows_mouse config.
 var FocusFollowsMouse = false
-
-// FocusFollowsMouseInTerminal extends focus-follows-mouse into terminal mode,
-// where it is off by default: while typing, the pointer sits over a pane for
-// reasons other than a focus request, so hover-focus there is a separate opt-in.
-// Set via appearance.focus_follows_mouse_in_terminal config.
-var FocusFollowsMouseInTerminal = false
 
 // AltDrag makes alt + left-drag move a pane, the gesture nearly every desktop
 // window manager binds. It is on by default because the hands that know it

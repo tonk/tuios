@@ -919,12 +919,7 @@ func runDaemon(foreground, disableAutoRestore bool) error {
 		// alone leaves those package vars at defaults and every classroom /
 		// headless NewWindow ignores the config file's appearance section.
 		config.ApplyAppearanceConfig(userConfig)
-		if session.GetDebugLevel() == session.DebugOff && userConfig.Daemon.LogLevel != "" {
-			session.SetDebugLevel(session.ParseDebugLevel(userConfig.Daemon.LogLevel))
-		}
-		daemonCfg.AgentAutoDetect = userConfig.Daemon.AgentAutoDetect
-		daemonCfg.AgentDetectInterval = time.Duration(userConfig.Daemon.AgentDetectSeconds) * time.Second
-		daemonCfg.AgentBinaries = userConfig.Daemon.AgentBinaries
+		daemonCfg.ApplyUserConfig(userConfig)
 		daemonCfg.ExitWhenEmpty = userConfig.Daemon.ExitWhenEmpty
 	}
 

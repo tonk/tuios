@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1017,17 +1018,16 @@ func (m *OS) SetDockbarPosition(position string) error {
 	}
 }
 
-// SetBorderStyle changes the window border style.
+// SetBorderStyle changes the window border style. It accepts the same styles
+// as the border_style config key and the --border-style flag.
 func (m *OS) SetBorderStyle(style string) error {
-	switch style {
-	case "rounded", "normal", "thick", "double", "hidden", "block", "ascii":
-		config.BorderStyle = style
-		m.ShowNotification(fmt.Sprintf("Border: %s", style), "info", config.NotificationDuration)
-		m.MarkAllDirty()
-		return nil
-	default:
-		return fmt.Errorf("invalid border style: %s (use: rounded, normal, thick, double, hidden, block, ascii)", style)
+	if !slices.Contains(config.BorderStyles, style) {
+		return fmt.Errorf("invalid border style: %s (use: %s)", style, strings.Join(config.BorderStyles, ", "))
 	}
+	config.BorderStyle = style
+	m.ShowNotification(fmt.Sprintf("Border: %s", style), "info", config.NotificationDuration)
+	m.MarkAllDirty()
+	return nil
 }
 
 // ShowNotificationCmd displays a notification in the UI.

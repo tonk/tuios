@@ -1,0 +1,48 @@
+The `+[notifications]+` table controls the messages TUIOS shows in the right-hand block of its dock: how long each severity stays up, whether errors wait to be dismissed, and whether programs running inside a pane may raise messages of their own.
+The durations are applied when the configuration is loaded; absent, zero or negative values keep the built-in defaults.
+
+What happens when an AI agent in a pane changes state lives in the separate <<cfg-notifications-agent,`+[notifications.agent]+`>> table.
+
+@@ duration
+The number of seconds an informational or success message stays visible in the dock, such as "Copied 42 chars" or "Window: tiled".
+
+The value is a floor, not a cap.
+Every message is shown for at least this long, and a message that TUIOS itself asks to keep up longer (a failed session switch, for example, asks for twice the default) keeps the longer time.
+Zero or a negative number is treated as unset and leaves the default of 6 seconds in place; it cannot be used to hide messages.
+
+A value of 1 to 3 seconds is applied as written, but produces a configuration warning: below about four seconds a message becomes a time limit on reading it, which fails WCAG 2.2.1.
+Raise the value if you often miss messages; lower it only if you have read the warning and still want a faster dock.
+
+This duration is also used for agent alerts of the `done`, `idle` and `working` states, and for notifications raised by programs in a pane (see `guest`).
+
+@@ error_duration
+The number of seconds an error message stays visible, but only when `error_sticky` is `false`.
+With the default `error_sticky = true` this value is ignored, because errors then stay until you dismiss them.
+
+Like `duration`, it is a floor: a message that asks for longer keeps the longer time.
+Zero or a negative number keeps the default of 15 seconds, and 1 to 3 seconds produces the same accessibility warning as `duration`.
+
+@@ error_sticky
+Makes error messages wait in the dock until you dismiss them with kbd:[Esc], instead of expiring on a timer.
+
+* `true` (default): errors are sticky. A failure never disappears before you had a chance to read it.
+* `false`: errors expire after `error_duration` seconds, like any other message.
+
+Set it to `false` if TUIOS runs where nobody is around to press kbd:[Esc], such as on a projector or in a recording.
+An agent alert for the `errored` state is shown as an error, so with the default it also stays until dismissed.
+
+@@ guest
+Allows programs running inside a pane to raise notifications through the OSC 9, OSC 777 and OSC 99 escape sequences, such as a shell's "Command completed" or a build tool announcing that it finished.
+
+* `true` (default): such a notification appears in the dock, where it is clickable and jumps to the pane that raised it. It is also forwarded to the terminal TUIOS runs in, so a terminal like kitty, Ghostty or WezTerm can turn it into a desktop notification. Each pane is limited to one notification per half second.
+* `false`: guest notifications are dropped completely, both in the dock and on the host terminal.
+
+Turn it off when a program in a pane is too chatty, or when you do not want pane contents to be able to put text in front of you.
+A plain terminal bell (BEL) from a pane is not affected by this option.
+
+@@ warning_duration
+The number of seconds a warning stays visible in the dock, such as "Attached read-only" or an agent that needs your input.
+
+Like `duration`, it is a floor: a warning that asks to stay up longer keeps the longer time, and every warning is shown even when the code that raised it asked for no duration at all.
+Zero or a negative number keeps the default of 8 seconds, and 1 to 3 seconds produces the same accessibility warning as `duration`.
+Warnings never become sticky; only errors do, through `error_sticky`.

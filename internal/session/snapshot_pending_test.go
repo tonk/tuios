@@ -14,7 +14,7 @@ import (
 // scrollback with the settling readers, which laid out the lines a resize left
 // pending at the narrow width and dropped what did not fit the line limit
 // there; a client watching the same pane kept them, and the two copies
-// disagreed about old history from then on (docs/REHYDRATION.md).
+// disagreed about old history from then on (docs/rehydration.adoc).
 //
 // The snapshot now carries the pending rows as they stand, and a fresh
 // emulator seeded from it lays them out at its own width when it is read, so

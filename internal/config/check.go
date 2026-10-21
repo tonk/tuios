@@ -41,14 +41,17 @@ type ConfigIssue struct {
 // obsoleteKeys maps a setting tuios still parses but no longer wants written to
 // what replaces it.
 var obsoleteKeys = map[string]string{
-	"appearance.hide_clock":           "deprecated, use show_clock instead",
-	"appearance.sidebar_enabled":      "moved to [appearance.sidebar] as enabled",
-	"appearance.sidebar_position":     "moved to [appearance.sidebar] as position",
-	"appearance.sidebar_width":        "moved to [appearance.sidebar] as width",
-	"appearance.sidebar_show_windows": "moved to [appearance.sidebar] as show_windows",
-	"appearance.sidebar_show_glyphs":  "moved to [appearance.sidebar] as show_glyphs",
-	"appearance.sidebar_show_counts":  "moved to [appearance.sidebar] as show_counts",
-	"appearance.sidebar.workspaces":   "no longer used: panes name their own workspace, and switching lives on the dock and alt+1..9",
+	"appearance.hide_clock":                      "deprecated, use show_clock instead",
+	"appearance.sidebar_enabled":                 "moved to [appearance.sidebar] as enabled",
+	"appearance.sidebar_position":                "moved to [appearance.sidebar] as position",
+	"appearance.sidebar_width":                   "moved to [appearance.sidebar] as width",
+	"appearance.sidebar_show_windows":            "moved to [appearance.sidebar] as show_windows",
+	"appearance.sidebar_show_glyphs":             "moved to [appearance.sidebar] as show_glyphs",
+	"appearance.sidebar_show_counts":             "moved to [appearance.sidebar] as show_counts",
+	"appearance.sidebar.workspaces":              "no longer used: panes name their own workspace, and switching lives on the dock and alt+1..9",
+	"appearance.focus_follows_mouse_in_terminal": "removed: focus_follows_mouse already works in terminal mode",
+	"daemon.default_codec":                       "removed: the client always talks gob to the daemon",
+	"daemon.socket_path":                         "removed: the socket is always under $XDG_RUNTIME_DIR/tuios/, or /tmp/tuios-<uid>/ without it",
 }
 
 // obsoleteActions maps a keybinding action tuios no longer has to why.

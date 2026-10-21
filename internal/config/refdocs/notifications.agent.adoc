@@ -1,0 +1,128 @@
+The `+[notifications.agent]+` table decides what happens when the agent state of a pane changes, for example when an AI coding agent stops to ask you a question or finishes its task.
+An alert can go to several sinks at once: an in-band desktop notification on your terminal, an audible cue or bell, a clickable message in the TUIOS dock, and a shell command of your own.
+Which state changes alert at all is selected in <<cfg-notifications-agent-states,`+[notifications.agent.states]+`>>; custom sounds are set in <<cfg-notifications-agent-sounds,`+[notifications.agent.sounds]+`>>.
+
+Alerts are raised by an attached client, not by the daemon.
+A detached session keeps tracking agent state but announces nothing, and in a session with several clients attached, each client alerts on its own.
+A pane that is already in a state when a client first sees it does not alert, so reattaching does not replay old alerts.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for how panes get their state in the first place.
+
+@@ command
+A shell command to run when an agent alert fires.
+It is a shorthand for registering the same command under the `after-agent-state` event in `+[hooks]+`, placed here so it sits beside the switches that gate it.
+If both are set, both run.
+
+The command runs in the background through `sh -c`, with the environment of the client plus `+TUIOS_AGENT_STATE+`, `+TUIOS_AGENT_PREV_STATE+`, `+TUIOS_AGENT_HARNESS+`, `+TUIOS_AGENT_MESSAGE+`, `+TUIOS_WINDOW_ID+`, `+TUIOS_WINDOW_NAME+` and the other variables every hook receives.
+Its output and exit status are discarded.
+It fires only for alerts that pass every other gate (`enabled`, the state table, `suppress_focused`, `quiet_hours` and the settle time), and it is silenced together with the other sinks.
+An empty string (the default) runs nothing.
+
+The typical use is to reach a device TUIOS cannot see, such as your phone:
+
+[source,toml]
+----
+[notifications.agent]
+command = 'curl -s -d "$TUIOS_WINDOW_NAME is $TUIOS_AGENT_STATE" ntfy.sh/my-topic'
+----
+
+The command is registered when the client starts, so a change needs a restart of the client.
+See xref:hooks.adoc#doc-hooks[Hooks] for the full contract.
+
+@@ dock
+Shows the alert as a message in the TUIOS dock, for example "build needs input".
+The message is clickable and jumps to the pane that raised it, also when that pane is on another workspace or in another session.
+
+The severity, and therefore how long the message stays up, follows the state: `+needs_input+` is a warning, `errored` is an error (sticky by default, see `+[notifications] error_sticky+`), `done` is a success message, and `idle` and `working` are informational.
+
+Set it to `false` if you only want the desktop notification or the sound and find the extra dock message redundant.
+
+@@ enabled
+The master switch for agent alerts.
+
+* `true` (default): alerts fire according to the rest of this table.
+* `false`: no agent alert is raised at all. Every sink is silent, including `command` and any `after-agent-state` hook in `+[hooks]+`.
+
+Agent state itself is still tracked and shown in the sidebar and on the panes; only the alerts are switched off.
+
+@@ notify
+Writes an in-band desktop notification (OSC 9) to the terminal the client is attached to.
+Terminals such as kitty, Ghostty, WezTerm and iTerm2 turn it into a desktop notification.
+
+Because the sequence travels in the same stream as the interface itself, it reaches the terminal in front of you, also when the session runs on another machine.
+Under an outer tmux or GNU screen, TUIOS wraps the sequence in the passthrough those multiplexers need; tmux additionally needs its `allow-passthrough` option enabled.
+
+Set it to `false` if your terminal does not support these notifications or shows them in a way you dislike.
+
+@@ quiet_hours
+A daily window of local time during which no agent alert is raised, written as `HH:MM-HH:MM`, for example `22:00-08:00`.
+Inside the window every sink is silent: the notification, the sound, the dock message and the command.
+
+The start is inclusive and the end is exclusive.
+A window whose end is earlier than its start wraps around midnight, so `22:00-08:00` covers the night.
+Hours run from `00` to `23` and minutes from `00` to `59`.
+An empty string (the default) means never quiet, and so does a window whose start and end are equal.
+
+A value that cannot be parsed produces a configuration warning and is ignored, so alerts are then never silenced by the clock.
+
+[source,toml]
+----
+[notifications.agent]
+quiet_hours = "22:00-07:30"
+----
+
+Quiet hours are checked when the state change arrives, before the settle time starts, using the clock of the machine the client runs on.
+
+@@ settle_seconds
+The number of seconds an alert is held back before it fires.
+If the pane leaves the alerting state within that time, the alert is dropped, so an agent that flips quickly between states produces one alert, or none, instead of a stream.
+
+When the time is up, TUIOS checks again before firing: the pane must still exist and still be in the same state, and with `suppress_focused` it must still not be focused.
+So a pane you looked at during the wait does not alert any more.
+
+* `0`: alert immediately, without any hold.
+* A positive number: hold the alert for that many seconds. The default is 2.
+* A negative number: not meaningful. It produces a configuration warning and the default is used.
+
+Raise it if a flappy agent still alerts too often; set it to `0` if you want every transition reported at once.
+
+@@ sound
+Makes agent alerts audible.
+How that is done is set by `sound_mode`.
+
+* `false` (default): alerts are silent.
+* `true`: an alert plays a cue, rings the terminal bell, or both.
+
+The audio cue is played through an audio player on the machine where the TUIOS interface runs.
+For a local `tuios` or `tuios attach` that is your own machine; under `tuios ssh` (the SSH server) and `tuios-web`, the interface runs inside the server process, so the cue would play on the server.
+Use `sound_mode = "bell"` there: the bell travels to your terminal like the rest of the interface.
+
+@@ sound_cooldown_seconds
+The shortest gap, in seconds, between two audible cues, counted across all panes together.
+When several agents finish at the same moment you hear one cue instead of one per pane; a cue that arrives within the cooldown is dropped, not delayed.
+
+* `0`: no cooldown. Only one cue plays at a time, so a cue arriving while another one plays can still be dropped.
+* A positive number: the gap in seconds. The default is 3.
+* A negative number: produces a configuration warning and the default is used.
+
+The cooldown applies to the audio cue only.
+The terminal bell of `sound_mode = "bell"` is not rate-limited by TUIOS; your terminal may do that itself.
+
+@@ sound_mode
+How an alert is made audible when `sound` is `true`.
+
+* `audio` (default): play one of the two built-in cues, or a custom file from `+[notifications.agent.sounds]+`, through a system audio player: `paplay`, `pw-play`, `aplay`, `ffplay` or `mpv` on Linux and BSD, `afplay` on macOS. When no player is found, or playback fails a few times in a row, sound switches itself off for the rest of the session without a message.
+* `bell`: write a BEL character to your terminal and let the terminal decide what that means (a beep, a visual flash, an urgency hint, or nothing).
+* `both`: do each, for setups where one of them might be missed.
+
+An empty value means the default.
+An unrecognised value produces a configuration warning and `audio` is used.
+Choose `bell` for remote sessions (`tuios ssh`, `tuios-web`) and machines without an audio device, or when your terminal or window manager reacts usefully to a bell.
+Setting the environment variable `+TUIOS_NO_SOUND+` silences the audio cue whatever this option says.
+
+@@ suppress_focused
+Drops alerts for the pane you are already looking at.
+
+* `true` (default): a pane that is focused when its state changes raises no alert, on the grounds that you can see it. A pane that becomes focused during the settle time is dropped as well.
+* `false`: every pane alerts, focused or not.
+
+Set it to `false` if you often have an agent on screen while your attention is elsewhere, for example in another application.

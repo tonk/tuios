@@ -55,6 +55,14 @@ func TestClassroomMatchesTrainee(t *testing.T) {
 		{"matching session", "^guru[0-9]{2}$", "guru07", true},
 		{"non-matching session", "^guru[0-9]{2}$", "root", false},
 		{"pattern anchors reject partial match", "^guru[0-9]{2}$", "guru075", false},
+		// Unanchored patterns must still match the whole name: a substring
+		// match would make "guru" accept any account containing it.
+		{"unanchored pattern matches whole name", "guru[0-9]{2}", "guru07", true},
+		{"unanchored pattern rejects prefix", "guru[0-9]{2}", "superguru07", false},
+		{"unanchored pattern rejects suffix", "guru[0-9]{2}", "guru07-admin", false},
+		{"bare word rejects longer name", "guru", "superguru7", false},
+		{"alternation applies to the whole name", "alice|bob", "malice", false},
+		{"alternation matches each alternative", "alice|bob", "bob", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

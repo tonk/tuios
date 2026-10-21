@@ -1,0 +1,301 @@
+[#doc-release-automation]
+= Release Automation Guide
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+This document explains the automated release process for TUIOS, including Homebrew tap and Nix package updates.
+
+== Overview
+
+When you create a new release tag, the following happens automatically:
+
+[arabic]
+. *GoReleaser* builds binaries for all platforms
+. *AUR package* is updated with the new version
+. *Homebrew formula* is published to your tap
+. *Nix package* is updated with the new version and vendorHash
+. *GitHub release* is created with all assets
+
+== Setup Requirements
+
+[[_1-create-homebrew-tap-repository]]
+=== Create Homebrew Tap Repository
+
+First, create a new GitHub repository for your Homebrew tap:
+
+[arabic]
+. Go to https://github.com/new
+. Name it `homebrew-tap` (required naming convention)
+. Make it *public* (Homebrew requires public taps)
+. Initialize with a README
+. Clone it locally (optional, GoReleaser will manage it)
+
+*Repository URL*: `https://github.com/tonk/homebrew-tap`
+
+[[_2-create-github-personal-access-token]]
+=== Create GitHub Personal Access Token
+
+You need a GitHub token with `repo` permissions for the Homebrew tap:
+
+[arabic]
+. Go to https://github.com/settings/tokens/new
+. Name: `TUIOS Homebrew Tap Token`
+. Expiration: Choose `No expiration` or set a long expiration
+. Select scopes:
+* `repo` (Full control of private repositories)
+* This includes `+public_repo+` for public repositories
+. Click *Generate token*
+. *Copy the token immediately* (you won't see it again)
+
+[[_3-add-github-secret]]
+=== Add GitHub Secret
+
+Add the token as a repository secret:
+
+[arabic]
+. Go to https://github.com/tonk/tuios/settings/secrets/actions
+. Click *New repository secret*
+. Name: `+HOMEBREW_TAP_GITHUB_TOKEN+`
+. Value: Paste the token you created
+. Click *Add secret*
+
+[[_4-verify-existing-secrets]]
+=== Verify Existing Secrets
+
+Make sure you also have these secrets configured:
+
+* `+AUR_SSH_KEY+` - For AUR package publishing (already configured)
+
+== How It Works
+
+=== Homebrew Release Flow
+
+When you tag a release:
+
+[source,bash]
+----
+git tag v0.0.24
+git push origin v0.0.24
+----
+
+The release workflow (`release.yml`) will:
+
+[arabic]
+. Run GoReleaser
+. GoReleaser builds all binaries
+. GoReleaser creates a Homebrew formula in `homebrew-tap/Formula/tuios.rb`
+. GoReleaser commits and pushes to `tonk/homebrew-tap`
+
+Users can then install with:
+
+[source,bash]
+----
+brew tap tonk/tap
+brew install tuios
+----
+
+=== Nix Package Update Flow
+
+After the release is published, the `update-nix.yml` workflow runs:
+
+[arabic]
+. Extracts the version from the release tag
+. Updates `tuios.nix` with the new version
+. Builds with a fake hash to get the real vendorHash
+. Updates `tuios.nix` with the correct hash
+. Verifies the build succeeds
+. Commits and pushes the changes to `main`
+
+This happens automatically, no manual intervention needed!
+
+== Testing
+
+=== Test Homebrew Formula Locally
+
+Before releasing, you can test the formula generation:
+
+[source,bash]
+----
+goreleaser release --snapshot --clean --skip=publish
+----
+
+This will:
+
+* Build all binaries
+* Generate the Homebrew formula
+* NOT publish anything
+
+Check `.goreleaser/dist/` for the generated files.
+
+=== Test Nix Build
+
+After the workflow updates `tuios.nix`, verify it works:
+
+[source,bash]
+----
+# Build the package
+nix build .#tuios
+
+# Run it
+./result/bin/tuios --version
+
+# Test in a shell
+nix shell .#tuios -c tuios --version
+----
+
+== Release Checklist
+
+Before creating a new release:
+
+[arabic]
+. Update version in code if needed
+. Update CHANGELOG.md
+. Ensure all tests pass
+. Commit all changes
+. Create and push tag:
+
+[source,bash]
+----
+git tag v0.0.24
+git push origin v0.0.24
+----
+
+[arabic, start=6]
+. Wait for release workflow to complete
+. Wait for nix update workflow to complete
+. Verify GitHub release is created
+. Verify Homebrew formula is in tap repo
+. Verify `tuios.nix` is updated on main branch
+. Test installation:
+`bash brew tap tonk/tap brew install tuios tuios --version `
+
+== Troubleshooting
+
+=== Homebrew Formula Fails to Publish
+
+*Problem*: GoReleaser can't push to homebrew-tap
+
+*Solutions*:
+
+[arabic]
+. Verify `+HOMEBREW_TAP_GITHUB_TOKEN+` secret is set correctly
+. Ensure the token has `repo` scope
+. Verify the tap repository exists and is public
+. Check the release workflow logs for specific errors
+
+=== Nix Hash Update Fails
+
+*Problem*: The update-nix workflow can't determine the correct hash
+
+*Solutions*:
+
+[arabic]
+. Check the workflow logs for build errors
+. Manually update the hash:
++
+[source,bash]
+----
+# Set fake hash in tuios.nix
+sed -i 's/vendorHash = "sha256-.*";/vendorHash = pkgs.lib.fakeHash;/' tuios.nix
+
+# Build to get real hash
+nix build .#tuios 2>&1 | grep "got:"
+
+# Update with real hash
+sed -i 's/vendorHash = pkgs.lib.fakeHash;/vendorHash = "sha256-XXXXX";/' tuios.nix
+----
+. Commit and push manually if needed
+
+=== Workflow Creates PR Instead of Direct Commit
+
+*Problem*: The nix update creates a PR instead of pushing directly
+
+*Cause*: This happens when direct push fails (permissions, conflicts, etc.)
+
+*Solution*:
+
+[arabic]
+. Review the automatically created PR
+. Merge it if everything looks correct
+. For future releases, investigate why direct push failed
+
+== Manual Release Process
+
+If automation fails, you can release manually:
+
+=== Homebrew
+
+[arabic]
+. Clone the tap repo:
++
+[source,bash]
+----
+git clone https://github.com/tonk/homebrew-tap
+cd homebrew-tap
+----
+. Create/update `Formula/tuios.rb`:
++
+[source,ruby]
+----
+class Tuios < Formula
+  desc "Terminal UI Operating System"
+  homepage "https://github.com/tonk/tuios"
+  url "https://github.com/tonk/tuios/archive/v0.0.24.tar.gz"
+  sha256 "CHECKSUM"
+  license "MIT"
+
+  depends_on "go" => :build
+
+  def install
+    system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/tuios"
+  end
+
+  test do
+    system "#{bin}/tuios", "--version"
+  end
+end
+----
+. Commit and push
+
+=== Nix
+
+[arabic]
+. Update `tuios.nix`:
++
+[source,nix]
+----
+version = "v0.0.24";
+vendorHash = "sha256-NEWHASH";
+----
+. Test the build:
++
+[source,bash]
+----
+nix build .#tuios
+----
+. Commit and push
+
+== Additional Resources
+
+* https://goreleaser.com/[GoReleaser Documentation]
+* https://docs.brew.sh/How-to-Create-and-Maintain-a-Tap[Homebrew Tap Documentation]
+* https://nixos.wiki/wiki/Flakes[Nix Flakes]
+* https://docs.github.com/en/actions[GitHub Actions]

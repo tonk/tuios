@@ -1,0 +1,77 @@
+The `+[daemon]+` table configures the background daemon that owns persistent sessions: the process that `tuios new` and `tuios attach` start automatically when none is running, and that you can also run yourself with `tuios daemon` or as a systemd service.
+See xref:sessions.adoc#doc-sessions[Sessions] for the session model.
+
+These keys are read once, when the daemon starts; a change takes effect after `tuios kill-server` and a new start.
+When no daemon is running, `tuios ssh` and `tuios-web` start one inside their own process.
+That built-in daemon reads this table from the same config file (for `tuios-web`, the one `--config` names), except `exit_when_empty`; a change there takes effect when you restart `tuios ssh` or `tuios-web`.
+
+@@ agent_autodetect
+Turns the automatic detection of AI-agent CLIs in panes on or off.
+With detection on, the daemon periodically looks at the foreground process of every pane.
+When it recognises a known agent (`claude`, `codex`, `aider`, `gemini` and others, plus any names in `agent_binaries`), it marks the pane as `working`, so the agent glyph appears without the agent reporting anything itself; when the agent leaves the foreground, the mark is cleared again.
+
+Detection is deliberately subordinate to explicit reports: it only ever sets `working` (on a pane without a state) or `none`, and it never overwrites a state set through `tuios set-agent-state` or a harness integration.
+
+* `true` (default): detection runs, every `agent_detect_seconds` seconds.
+* `false`: no detection. Panes only get an agent state when something reports one.
+
+When the key is absent, the environment variable `+TUIOS_AGENT_AUTODETECT+` (set to `0`, `false`, `no` or `off`) can switch detection off as well.
+The same poll also keeps the foreground-command label of sidebar rows up to date, so that label stops updating when detection is off.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for details.
+
+@@ agent_binaries
+Extra program names that the auto-detector treats as AI agents, in addition to the built-in list.
+The names are merged with the built-in ones, never replacing them, and matched case-insensitively against the base name of the foreground process, so a full path matches as well.
+For interpreters such as `node`, `python3` or `npx`, the detector also inspects the arguments, so a script called `my-agent.js` is matched by the name `my-agent`.
+
+[source,toml]
+----
+[daemon]
+agent_binaries = ["agent", "forge"]
+----
+
+Names that are common words (`agent`, `pi`, `forge`) are left out of the built-in list on purpose: a false match labels an unrelated pane as an agent.
+Add them here only if you actually use such a tool.
+Names from the comma-separated environment variable `+TUIOS_AGENT_BINARIES+` are added too, and harness manifests in `~/.config/tuios/harnesses` are consulted before this list.
+Has no effect when `agent_autodetect` is off.
+
+@@ agent_detect_seconds
+How often, in seconds, the auto-detector polls the foreground process of each pane.
+
+* `0` (the effective default): use the environment variable `+TUIOS_AGENT_DETECT_SECONDS+` if it is set (zero or negative there disables detection), otherwise poll every 2 seconds.
+* A positive number: poll at that interval.
+* A negative number: disable auto-detection, the same as `agent_autodetect = false`.
+
+A shorter interval makes the agent glyph appear and disappear sooner, at the cost of a little CPU per pane per poll.
+A longer interval suits a machine with very many panes.
+When an agent exits, the daemon notices the shell prompt coming back as output and clears the glyph at once, so the interval mainly affects how quickly a newly started agent is noticed.
+
+@@ exit_when_empty
+Shuts the daemon process down once its last session is killed, like tmux's `exit-empty` option.
+Only a standalone `tuios daemon` reads this key: the daemon that `tuios ssh` and `tuios-web` start inside their own process lives as long as that server does.
+
+* `false` (default): the daemon keeps running with zero sessions, so the next `tuios new` or `tuios attach` is instant. Stop it explicitly with `tuios kill-server`.
+* `true`: the daemon exits as soon as the last session is killed.
+
+Only killing a session counts, through the quit menu, the close-session keybinding or `tuios kill-session`.
+Detaching never counts, however many sessions are left, and a session that reaches zero windows is still a session.
+
+Leave it off for a daemon that is meant to stay up, such as one behind a systemd unit or a long-lived server that serves one session after another.
+Turn it on if you prefer no TUIOS process to linger once you are done.
+The setting can also be toggled on the settings page, but it only applies once the daemon restarts.
+
+@@ log_level
+How much the daemon writes to its debug log.
+
+* `off` (default): nothing.
+* `errors`: errors only.
+* `basic`: connection events and errors.
+* `messages`: every protocol message except pane input and output.
+* `verbose`: every message, including pane input and output.
+* `trace`: everything, plus hex dumps of the payloads.
+
+The numbers `0` to `5` are accepted as well; an unknown value means `off`.
+The log is written to the daemon's standard error (for the daemon built into `tuios ssh` or `tuios-web`, that program's standard error, so with systemd the journal) and kept in a ring buffer of the last 1000 entries, which `tuios logs` shows (`tuios logs -f` follows it).
+
+The environment variable `+TUIOS_LOG_LEVEL+` and the `--log-level` option of `tuios daemon` take precedence: this key is only used when neither has set a level.
+Raise it to diagnose connection or synchronisation problems, and set it back afterwards, because `verbose` and `trace` log everything typed into and printed by every pane.

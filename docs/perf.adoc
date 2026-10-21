@@ -1,0 +1,71 @@
+[#doc-perf]
+= Performance baselines
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+Idle cost is the number every milestone's Gate defends. "Low idle" (see the M2
+plan) is: one attached client, sidebar on, N idle shells, clock off =++>++ zero
+timer-driven renders, bounded per-tick work, no session-list polls without a
+visible consumer, idle CPU under ~0.5%.
+
+== How to measure
+
+* `go test ./internal/app/ -run '^$' -bench BenchmarkIdleTick -benchmem` — work,
+allocations, and ns per maintenance tick at idle. `work/tick` is the fraction
+of ticks that ran the full-window maintenance scans; at idle it must trend to
+zero.
+* `go test ./internal/app/ -run TestIdleTickSkipsScans` — asserts idle ticks
+take the skip path (no scan work), read from the `tickStats` counter.
+* `+TUIOS_E2E=1 go test ./e2e/tui/ -run TestIdleCostStaysLow+` — boots the real
+binary, opens three idle shells, idles 10s, and asserts the app writes
+~nothing to the wire (render count bounded). `+TUIOS_STATS_FILE+` makes the
+process dump its tick counters on clean exit.
+
+== Numbers
+
+`BenchmarkIdleTick` — 3 idle daemon windows, one tick per op:
+
+[cols=",,,,,",options="header",]
+|===
+|Milestone |ns/op |B/op |allocs/op |work/tick |render/tick
+|M2 baseline (48c9c51) |470 |568 |9 |1.00 |0
+|M2 idle diet |260 |296 |5 |0.00 |0
+|===
+
+`TestIdleCostStaysLow` — boot {plus} 3 windows {plus} 10s idle:
+
+[cols=",,,,",options="header",]
+|===
+|Milestone |idle wire bytes / 10s |ticks |work |render
+|M2 baseline (48c9c51) |0 |104 |104 |0
+|M2 idle diet |0 |104 |1 |0
+|===
+
+Frame-skip already held at baseline (zero idle renders). The diet's win is
+per-tick work: baseline ran the full-window scans on every one of the ~100 idle
+ticks; the diet skips them behind a cheap gate, so `work` stays flat while
+`ticks` climbs (104 idle ticks, 1 did scan work). The residual ~260 ns / 5
+allocs per tick is the bubbletea `tea.Tick` re-arm and the Update panic barrier,
+not sidebar or window work.
+
+`BenchmarkSidebarPanelLinesCached` — steady-state rail compose, nothing changed:
+288 ns/op, 0 allocs (an unchanged frame reuses the cache). A forced rebuild is
+82000 ns / 178 allocs, so a pane printing output no longer restyles the rail.

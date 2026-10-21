@@ -1,0 +1,25 @@
+The `+[notifications.agent.sounds]+` table replaces the two built-in alert cues with sound files of your own.
+It only matters when `+[notifications.agent]+` has `sound = true` and `sound_mode` is `audio` or `both`.
+
+There are two cues rather than one per state, because two sounds can be told apart by ear and five cannot.
+The attention cue is used for `+needs_input+` and `errored`; the "agent stopped" cue is used for `done`, `idle` and `working`.
+
+Each value is a path to a file on the machine the client runs on.
+The path is used as written: `~` and environment variables are not expanded, so use an absolute path.
+A path that is empty, does not exist or cannot be read falls back to the built-in cue, so a typo costs you the custom sound, not all sound.
+Use a WAV file: the ALSA and PipeWire players TUIOS prefers on Linux do not decode compressed formats such as MP3.
+
+@@ done
+Path to the cue played when an agent stopped, on a transition into `done`, `idle` or `working`.
+Empty (the default) uses the built-in cue, a short and quiet chime.
+
+[source,toml]
+----
+[notifications.agent.sounds]
+done = "/home/me/.config/tuios/sounds/done.wav"
+----
+
+@@ needs_input
+Path to the attention cue, played when an agent waits for you (`+needs_input+`) or has failed (`errored`).
+Empty (the default) uses the built-in cue, which is higher, longer and louder than the "agent stopped" cue.
+Pick something you will notice, since this cue means work is blocked on you.

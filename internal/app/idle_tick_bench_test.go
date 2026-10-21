@@ -31,7 +31,7 @@ func idleOS(t testing.TB, n int) *OS {
 // BenchmarkIdleTick measures the work and allocations of one maintenance tick
 // when nothing is animating and no process is exiting. This is the number every
 // future milestone's Gate defends: a regression here means the idle path grew a
-// cost. See docs/perf.md for recorded baselines.
+// cost. See docs/perf.adoc for recorded baselines.
 func BenchmarkIdleTick(b *testing.B) {
 	m := idleOS(b, 3)
 	// Prime the frame-skip state the idle path relies on.
