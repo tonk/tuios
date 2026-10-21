@@ -461,7 +461,7 @@ func frontDoorWebsocketHead(ownUser string) string {
         var pollAttempt = 0;
         function pollOpenTabTarget(attempt) {
             if (attempt !== pollAttempt || attachStarted) return;
-            fetch('/tuios-settings/picker-open-tab', {credentials: 'same-origin'})
+            fetch('tuios-settings/picker-open-tab', {credentials: 'same-origin'})
                 .then(function(r) { return r.ok ? r.json() : null; })
                 .then(function(data) {
                     if (attempt !== pollAttempt || attachStarted) return;
