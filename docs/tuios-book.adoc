@@ -1,7 +1,7 @@
 [#doc-tuios-book]
 = TUIOS — The Terminal UI Operating System
 Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
-:revnumber: v0.9.7
+:revnumber: v0.9.8
 :revdate: 2026-10-21
 :doctype: book
 :book:
