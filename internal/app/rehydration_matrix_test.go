@@ -14,7 +14,7 @@ import (
 
 // The matrix. Every route a client takes into a pane, crossed with every shape
 // a pane can be in when it takes it, asserting the one contract they all share:
-// the client ends up holding what the daemon holds. docs/REHYDRATION.md states
+// the client ends up holding what the daemon holds. docs/rehydration.adoc states
 // the contract and why the routes collapse into two implementations of it.
 //
 // The oracle is the daemon's own emulator, read over the wire the client reads
@@ -82,7 +82,7 @@ var rehydrationShapes = []paneShape{
 				// offset after the pane produced more output would put the user
 				// somewhere they never were, so recovering this means anchoring
 				// to a scrollback line rather than to a distance from the
-				// bottom. See docs/REHYDRATION.md.
+				// bottom. See docs/rehydration.adoc.
 				if w.InCopyMode() || w.ScrollbackOffset != 0 {
 					t.Errorf("a route that rebuilds windows came back at offset %d (copy mode %v), want the tail",
 						w.ScrollbackOffset, w.InCopyMode())

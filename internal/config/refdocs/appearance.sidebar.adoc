@@ -1,0 +1,80 @@
+The `+[appearance.sidebar]+` table controls the session sidebar, also called the rail: a vertical panel at the left or right edge that lists your sessions, the terminals of the current session, and the AI agents running in any session.
+It reserves its columns the way the dock reserves its row, so panes and tiling layouts fit around it.
+
+The sidebar is off by default.
+Toggle it live with the leader key followed by `b` (`+prefix_toggle_sidebar+`), the command palette ("Toggle Sidebar"), or the Sidebar category of the in-app settings page.
+Keys that act while the rail has keyboard focus are configured under `+[keybindings.sidebar]+`.
+The older flat keys `+sidebar_enabled+`, `+sidebar_position+`, `+sidebar_width+`, `+sidebar_show_windows+`, `+sidebar_show_glyphs+` and `+sidebar_show_counts+` in `+[appearance]+` are still read and folded into this table; where both are present, the table wins.
+
+@@ enabled
+Turns the sidebar on.
+With `false` the rail reserves no columns and none of the other options in this table have any visible effect.
+
+Even when enabled, the rail adapts to the screen width: below 40 columns it hides itself, between 40 and 59 columns it shrinks to a glyph-only strip, and between 60 and 89 columns it shows a narrow rail.
+See <<cfg-appearance-sidebar-width,width>>.
+
+[source,toml]
+----
+[appearance.sidebar]
+enabled = true
+position = "right"
+----
+
+@@ marquee
+When `true`, hovering the mouse over a row whose title does not fit scrolls the title so you can read all of it.
+With `false`, a long title stays truncated.
+Only the hovered row ever scrolls.
+
+@@ position
+Chooses the screen edge the rail sits on.
+
+* `left` - the rail occupies the left edge.
+* `right` - the rail occupies the right edge.
+* `hidden` - the rail reserves no columns at all, even when <<cfg-appearance-sidebar-enabled,enabled>> is `true`.
+
+An unknown value produces a config warning and the rail is placed on the left.
+
+@@ show_agents
+Shows the agents section at the bottom of the rail: every pane, in every session, whose agent state is known, such as a running Claude Code or Codex.
+Set it to `false` if you do not run AI agents or prefer to follow them through notifications only.
+The section is also left out automatically when the rail is too short to carry it.
+
+@@ show_counts
+Shows the number of windows on each session row, right-aligned.
+The count only appears on the full-width rail and only for sessions that have windows; the narrow and glyph-only variants have no room for it.
+
+@@ show_glyphs
+Shows the agent-state glyph on each row, which tells at a glance whether the agent in a pane is working, waiting for input, done or has failed.
+With `false` the rows carry no state glyph.
+
+@@ show_windows
+Shows the terminals section, which lists the panes of the current session (or of the session you are peeking at) below the sessions list.
+With `false` the rail lists sessions, and agents if <<cfg-appearance-sidebar-show-agents,show_agents>> is on, only.
+
+@@ tooltips
+Pops a one-row label naming whatever icon-only control the mouse pointer rests on.
+It covers the rows of the collapsed, glyph-only rail, the glyph controls on the expanded rail, and the dock's session controls and mode indicators.
+The expanded rail already says everything in words, so its rows never get a label.
+
+Despite living in this table, the switch applies to the dock's labels as well.
+The tooltip for truncated workspace names on the dock has its own switch, `+dock_workspace_tooltip+` in `+[appearance]+`.
+
+@@ width
+The preferred width of the rail, in columns, on a wide screen.
+A value of `0` or less means the default of 28 columns.
+
+The value is a preference, not a guarantee:
+
+* On a screen of 90 columns or more the rail uses this width.
+* Between 60 and 89 columns it is capped to the narrow rail of 16 columns.
+* Between 40 and 59 columns it becomes the 3-column glyph strip.
+* Below 40 columns it is hidden.
+
+The rail also never squeezes the panes below 30 columns; it steps down to a narrower variant first.
+Dragging the rail's edge with the mouse changes the width live, and the dragged width is stored in `$XDG_STATE_HOME/tuios/sidebar.json`, where it takes precedence over this setting on the next start.
+
+@@ workspaces
+Deprecated and no longer used.
+It named the workspace chip band the rail used to draw; panes now show which workspace they are on themselves, and switching workspaces lives on the dock and `++alt+1++`..`++alt+9++`.
+The key is still accepted so old config files keep loading, but a non-empty value produces a config warning and tuios never writes it back to the file.
+Remove it from your configuration.

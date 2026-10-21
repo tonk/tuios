@@ -31,7 +31,7 @@ const idleWireBudget = 2048
 // skip must hold, so tuios writes ~nothing to the wire. A future milestone that
 // reintroduces a timer-driven render trips this. Tick-work at idle is guarded
 // precisely in-process by BenchmarkIdleTick / TestIdleTickSkipsScans; this test
-// guards the render count on the real binary. See docs/perf.md.
+// guards the render count on the real binary. See docs/perf.adoc.
 func TestIdleCostStaysLow(t *testing.T) {
 	var wire byteCounter
 	statsPath := filepath.Join(t.TempDir(), "tickstats")

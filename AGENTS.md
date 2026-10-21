@@ -13,7 +13,7 @@ embedded in the binary so the printed copy always matches the build.
 
 TUIOS (Terminal UI Operating System) is a terminal-based window manager built in Go using the Charm stack (Bubble Tea v2, Lipgloss v2). It provides vim-like modal interface, workspace support, mouse interaction, and SSH server mode.
 
-**Note:** The web terminal functionality is provided by the separate `tuios-web` binary for security isolation. See `cmd/tuios-web/` and [docs/WEB.md](docs/WEB.md) for details.
+**Note:** The web terminal functionality is provided by the separate `tuios-web` binary for security isolation. See `cmd/tuios-web/` and [docs/web.adoc](docs/web.adoc) for details.
 
 ## Essential Commands
 
@@ -101,10 +101,13 @@ tuios/
 │   ├── pool/               # Memory pooling
 │   └── ui/                 # Animation system
 ├── docs/                   # Documentation
-│   ├── ARCHITECTURE.md     # Technical architecture diagrams
-│   ├── KEYBINDINGS.md      # Complete keybinding reference
-│   ├── CONFIGURATION.md    # Config options
-│   └── CLI_REFERENCE.md    # CLI flags and commands
+│   ├── index.adoc          # Index of all documentation
+│   ├── tuios-book.adoc     # All documents as one book (PDF)
+│   ├── architecture.adoc   # Technical architecture diagrams
+│   ├── keybindings.adoc    # Complete keybinding reference
+│   ├── configuration.adoc  # Config options
+│   ├── cli-reference.adoc  # CLI flags and commands
+│   └── pdf-theme/          # asciidoctor-pdf theme (make docs-pdf)
 ├── examples/               # Tape script examples
 └── nix/                    # Nix packaging
 ```
@@ -296,11 +299,23 @@ Releases are automated via GitHub Actions with GoReleaser:
 
 ## Additional Resources
 
-- **Architecture**: `docs/ARCHITECTURE.md` - Technical diagrams and component details
-- **Keybindings**: `docs/KEYBINDINGS.md` - Complete keyboard shortcut reference
-- **Configuration**: `docs/CONFIGURATION.md` - TOML config options
-- **Contributing**: `docs/CONTRIBUTING.md` - Contribution guidelines
-- **Tape Scripting**: `docs/TAPE_SCRIPTING.md` - Automation script syntax
-- **Web Terminal**: `docs/WEB.md` - Web terminal documentation (tuios-web binary)
-- **Multi-Client**: `docs/MULTI_CLIENT.md` - Multi-client session guide
-- **Sip Library**: `docs/SIP_LIBRARY.md` - Future library for serving Bubble Tea apps as web apps
+The documentation in `docs/` is written in AsciiDoc; `docs/index.adoc` lists
+every document. `docs/tuios-book.adoc` includes them all as chapters of one
+book, which `make docs-pdf` builds as `docs/tuios-book.pdf`. Each document's
+header sits inside `ifndef::book[]`, so add new documents the same way and
+include them in the book.
+
+`docs/config-reference.adoc` (an appendix of the book) is generated: the options,
+types and defaults come from `internal/config/example.go`, the explanations from
+`internal/config/refdocs/<table>.adoc`. A new config option needs an entry in
+both, after which `make docs-config-reference` regenerates the document;
+`go test ./internal/config` fails while it is missing or out of date.
+
+- **Architecture**: `docs/architecture.adoc` - Technical diagrams and component details
+- **Keybindings**: `docs/keybindings.adoc` - Complete keyboard shortcut reference
+- **Configuration**: `docs/configuration.adoc` - TOML config options
+- **Contributing**: `docs/contributing.adoc` - Contribution guidelines
+- **Tape Scripting**: `docs/tape-scripting.adoc` - Automation script syntax
+- **Web Terminal**: `docs/web.adoc` - Web terminal documentation (tuios-web binary)
+- **Multi-Client**: `docs/multi-client.adoc` - Multi-client session guide
+- **Sip Library**: `docs/sip-library.adoc` - Future library for serving Bubble Tea apps as web apps

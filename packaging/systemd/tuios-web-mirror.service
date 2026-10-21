@@ -1,12 +1,12 @@
 [Unit]
 Description=tuios-web-mirror - shared presenter/projector mirror session
-Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/deployment.adoc
 After=network.target tuios-web.service
 
 [Service]
 Type=simple
 
-# Optional companion to tuios-web.service (docs/DEPLOYMENT.md, "Presenter
+# Optional companion to tuios-web.service (docs/deployment.adoc, "Presenter
 # mirror session"): a second, ordinary (non-PAM) instance whose whole point
 # is --default-session below - every connection to it shares one session,
 # so a presenter's laptop and a projector machine both attaching here show
@@ -16,14 +16,14 @@ Type=simple
 # Run as whichever account should own the spawned shells - the tuios-web
 # service account (the default here) is fine, or a specific presenter's
 # own account if you want their dotfiles/tools available in the mirrored
-# session (see docs/DEPLOYMENT.md for what else needs to change if so:
+# session (see docs/deployment.adoc for what else needs to change if so:
 # HOME, WorkingDirectory, and read access to XDG_CONFIG_HOME below all
 # assume this account).
 User=tuios-web
 Group=tuios-web
 
 # Binds loopback only, same as tuios-web.service - this has no auth of its
-# own (see docs/DEPLOYMENT.md for why, and how to gate it at the reverse
+# own (see docs/deployment.adoc for why, and how to gate it at the reverse
 # proxy instead). A different --port than tuios-web.service's own is the
 # only thing that lets both run at once; edit both this and the matching
 # nginx location if you change it.
@@ -31,11 +31,11 @@ ExecStart=/usr/local/bin/tuios-web --host 127.0.0.1 --port 7682 --config /etc/tu
 Restart=on-failure
 RestartSec=2
 
-# A copy of config.toml (not the same file) with a distinct [daemon]
-# socket_path - see mirror-config.toml's own comment in docs/DEPLOYMENT.md
-# for why: this instance and tuios-web.service must never share a daemon
-# socket, even though PrivateTmp below already keeps their default
-# per-uid socket paths from colliding in practice when User= matches.
+# This instance and tuios-web.service must never share a daemon socket.
+# The socket lives under $XDG_RUNTIME_DIR (or /tmp/tuios-<uid>/ when unset;
+# config.toml cannot change it), and PrivateTmp below
+# gives this unit its own /tmp, so the two stay apart even when User=
+# matches. If you set XDG_RUNTIME_DIR here, use a directory of its own.
 Environment=HOME=/var/lib/tuios-web
 
 # Shares tuios-web.service's own XDG_CONFIG_HOME on purpose, so this

@@ -6,6 +6,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/tonk/tuios/internal/config"
 )
 
 // Global daemon instance for in-process daemon
@@ -16,9 +18,12 @@ var (
 )
 
 // EnsureDaemonRunning ensures the TUIOS daemon is running.
-// If not running, it starts the daemon in-process in a background goroutine.
+// If not running, it starts the daemon in-process in a background goroutine,
+// configured from userConfig's [daemon] table (see DaemonConfig.ApplyUserConfig);
+// a nil userConfig leaves every setting at its default. An already running
+// daemon keeps the settings it was started with.
 // Returns nil if daemon is ready, or an error if it fails to start.
-func EnsureDaemonRunning() error {
+func EnsureDaemonRunning(userConfig *config.UserConfig) error {
 	// Check if daemon is already running (either in-process or external)
 	if IsDaemonRunning() {
 		return nil
@@ -29,6 +34,7 @@ func EnsureDaemonRunning() error {
 		cfg := &DaemonConfig{
 			Version: "in-process",
 		}
+		cfg.ApplyUserConfig(userConfig)
 		inProcessDaemon = NewDaemon(cfg)
 
 		// Start() is non-blocking - it starts goroutines and returns

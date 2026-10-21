@@ -21,7 +21,7 @@
 # Unlike a service-specific redeploy script, this never stops or starts
 # anything: tuios itself has no service to stop (it's the interactive TUI),
 # and tuios-web's/tuios-pam-helper's systemd units (see
-# ../docs/DEPLOYMENT.md) are left for whoever runs this to restart on their
+# ../docs/deployment.adoc) are left for whoever runs this to restart on their
 # own schedule - `systemctl restart tuios-web` once you're ready, not
 # automatically as a side effect of updating a binary out from under a
 # running process.
@@ -39,7 +39,7 @@ set -euo pipefail
 # tonk/tuios, not the upstream Gaurav-Gosain/tuios the repo's own
 # install.sh/install-web.sh point at: this deploys what's actually running
 # in this environment - the fork with tuios-web, PAM multi-tenant auth, and
-# everything else in docs/DEPLOYMENT.md - which only ever gets released
+# everything else in docs/deployment.adoc - which only ever gets released
 # from here, not upstream.
 readonly REPO="tonk/tuios"
 readonly INSTALL_DIR="/usr/local/bin"

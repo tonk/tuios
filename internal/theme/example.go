@@ -15,7 +15,7 @@ const exampleThemeHeader = `# TUIOS annotated example theme.
 # derivation above picks.
 #
 # Every color below is commented out and shown at the default TUIOS falls
-# back to when a theme omits it (see docs/THEMES.md, "Defaults for Omitted
+# back to when a theme omits it (see docs/themes.adoc, "Defaults for Omitted
 # Colors"). Uncomment and edit only what you want to set; anything left
 # commented is filled in exactly the same way an omitted field always is.
 #
@@ -24,7 +24,7 @@ const exampleThemeHeader = `# TUIOS annotated example theme.
 # (the format you're reading - .json also still works, without comments),
 # and select it with theme = "<id>" in config.toml.
 #
-# Full prose docs: docs/THEMES.md
+# Full prose docs: docs/themes.adoc
 `
 
 // exampleColorField documents one scalar color key, the same shape
@@ -38,7 +38,7 @@ type exampleColorField struct {
 }
 
 // exampleBaseColors documents every tint.Tint scalar field, in the order
-// THEMES.md's own sample theme lists them, at the same fallback value
+// themes.adoc's own sample theme lists them, at the same fallback value
 // custom.go's fillDefaults would apply to an omitted field.
 var exampleBaseColors = []exampleColorField{
 	{"fg", `"#e5e5e5"`, "Default foreground for terminal text."},
@@ -137,7 +137,7 @@ func GenerateExampleTheme() string {
 	writeExampleColorSection(&b, "Base colors", exampleBaseColors)
 
 	b.WriteString("\n# ─────────────────────────────────────────────────────────────────────\n")
-	b.WriteString("# Per-element overrides (all optional; see docs/THEMES.md, \"Per-Element\n")
+	b.WriteString("# Per-element overrides (all optional; see docs/themes.adoc, \"Per-Element\n")
 	b.WriteString("# Overrides\" for the full explanation, especially dock_bg).\n")
 	b.WriteString("# ─────────────────────────────────────────────────────────────────────\n")
 	b.WriteString("# [ui]\n")

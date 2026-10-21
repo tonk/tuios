@@ -1,0 +1,3256 @@
+////
+Generated from internal/config by
+  go test ./internal/config -run TestConfigReferenceDoc -update
+Do not edit by hand: change internal/config/refdocs/*.adoc (explanations)
+or internal/config/example.go (options and defaults), then regenerate.
+////
+ifdef::book[]
+[appendix]
+endif::book[]
+[#doc-config-reference]
+= Configuration Reference
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 2
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+Every option of the TUIOS configuration file (`config.toml`), grouped by TOML table, with the tables and the options in each table in alphabetical order.
+For where the file lives and how to start one, see xref:configuration.adoc#doc-configuration[Configuration Guide].
+`tuios config example` prints the same options as a commented TOML file.
+
+Every option is optional: leave it out and TUIOS uses the default shown here.
+
+[#cfg-appearance]
+== [appearance]
+
+The `[appearance]` table controls how TUIOS looks and how it reacts to you.
+It covers the window frame (border style and colours, title bar, window buttons, scrollbar), the dock and its pills, the clock badge, the cursor, animations, and the mouse: focus, dragging, clicking into a pane and copying a selection.
+It also holds a few behavioural switches that grew up beside the visual ones, such as the quit confirmation, the update check and which window gets focus after a close.
+
+Most of these options can also be changed live from the in-app settings page, which writes the new value back to your configuration file.
+Several have a command-line flag as well (for example `--border-style` or `--dockbar-position`); a flag given on the command line wins over the file.
+See the xref:configuration.adoc#doc-configuration[Configuration Guide] for where the file lives and how it is loaded.
+
+[#cfg-appearance-alt-drag]
+=== alt_drag
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+With this on, holding `Alt` and dragging with the left mouse button moves a pane, the gesture nearly every desktop window manager binds.
+It works from anywhere on the pane, including its content while you are typing in it, and the pane is grabbed on the press itself, without a drag threshold.
+A zoomed pane is not moved.
+
+`Ctrl` plus left-drag moves a pane as well and is not affected by this option; the two are aliases.
+`Alt` plus right-drag resizes a pane from the nearest corner whatever this is set to, because that is the ordinary right-drag resize with `Alt` merely keeping the context menu out of the way.
+
+Because the gesture is checked before mouse events are forwarded to the pane, it is taken away from an application that asked for the mouse (vim, less, htop), just as `Ctrl`-drag already is.
+Set it to `false` if such an application needs `Alt`-drag for itself; the pane then treats the gesture as an ordinary mouse event or text selection.
+
+[#cfg-appearance-animations-enabled]
+=== animations_enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Controls the short transitions TUIOS plays when a window is minimized to or restored from the dock, when it snaps into a new position or tile, and when the niri-style scrolling layout slides.
+With `false` every transition is instant: the animation duration becomes zero, so the end state is drawn straight away.
+
+Turn it off on a slow connection (SSH, `tuios-web`), on a slow terminal, or simply if you prefer an instant interface.
+The `--no-animations` command-line flag does the same for one run, and tape playback switches animations off by itself.
+You can also toggle it at runtime with `Ctrl+B` `D` `a` (debug prefix), from the command palette, or on the in-app settings page (Behavior, "Animations").
+
+[#cfg-appearance-border-focused-color]
+=== border_focused_color
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Overrides the border colour of the focused pane with a hex colour of the form `+#rrggbb+`, for example `+"#89b4fa"+`.
+Leave it empty to use the colour derived from the active theme.
+
+Without an override the focused border changes colour with the mode: one colour in window management mode and another in terminal mode (bright cyan and bright green in the default palette), which is a quick way to see which mode you are in.
+A set `border_focused_color` replaces both, so the focused border keeps the same colour in either mode.
+Panes selected together for a broadcast action keep their own multi-focus colour.
+
+The value is handed to the colour library as-is and is not checked by the configuration validator, so stick to the six-digit hex form.
+The override is applied after the theme, so it survives a theme switch; clearing it brings the theme colour back immediately.
+Also settable from the in-app settings page (Appearance, "Focused border color").
+
+[source,toml]
+----
+[appearance]
+border_focused_color = "#89b4fa"
+border_unfocused_color = "#585b70"
+----
+
+[#cfg-appearance-border-style]
+=== border_style
+
+[horizontal]
+Type:: string
+Default:: `++"rounded"++`
+
+Selects the characters used to draw the border around each pane.
+
+[cols="1,3"]
+|===
+|Value |Result
+
+|`rounded` |Thin lines with rounded corners (the default).
+|`normal` |Thin lines with square corners.
+|`thick` |Heavy lines.
+|`double` |Double lines.
+|`block` |Full block characters, giving a solid frame.
+|`outer-half-block` |Half blocks on the outer side of the cell, a slimmer solid frame.
+|`inner-half-block` |Half blocks on the inner side of the cell.
+|`ascii` |Only plain ASCII characters (hyphens, vertical bars and plus signs), for terminals or fonts without box-drawing characters.
+|`hidden` |The border cells are left blank; the frame still takes its space.
+|===
+
+An unknown value produces a validation warning and falls back to `rounded`.
+In ASCII mode (`--ascii-only`) the ASCII border is used whatever this is set to, and the scrollbar also stays within ASCII.
+Tiled panes under `shared_borders` have no border of their own; there the lines between panes are drawn separately.
+
+The current code does not hide the window buttons for `hidden` by itself: they are only hidden by `hide_window_buttons`, so set that as well for a bare look.
+The `--border-style` flag overrides this option for one run, and the style can be cycled on the in-app settings page (Appearance, "Border style").
+
+[#cfg-appearance-border-unfocused-color]
+=== border_unfocused_color
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Overrides the border colour of every pane that does not have focus with a hex colour of the form `+#rrggbb+`, for example `+"#585b70"+`.
+Leave it empty to use the colour derived from the active theme (its red tone in the default palette).
+
+A muted unfocused colour together with a bright `border_focused_color` makes the focused pane stand out clearly.
+As with the focused colour, the value is not checked by the validator, so use the six-digit hex form.
+Also settable from the in-app settings page (Appearance, "Unfocused border color").
+
+[#cfg-appearance-check-for-updates]
+=== check_for_updates
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+With this on, TUIOS asks GitHub for the newest release and, when it is newer than the version you are running, shows it at the right-hand end of the dock with an up arrow (`^` in ASCII mode).
+Clicking it opens the release page in your browser, or tells you the address where no browser can be started.
+
+The first check runs a few seconds after start-up and then every 12 hours.
+A failed check (no network) is silent: it keeps what an earlier check found and tries again after about 15 minutes.
+The check is a single request to `+https://api.github.com/repos/tonk/tuios/releases/latest+`.
+
+Nothing is checked over the SSH server or in `tuios-web`, whose host is the server rather than your own machine, nor by a build that cannot tell its own version (a release or `make` build has it built in).
+Set this to `false` if TUIOS must never contact GitHub.
+The environment variable `TUIOS_NO_UPDATE_CHECK` (any non-empty value) turns the check off regardless of the configuration, which is handy in CI.
+Also settable from the in-app settings page (Advanced, "Check for updates").
+
+[#cfg-appearance-click-to-type]
+=== click_to_type
+
+[horizontal]
+Type:: string
+Default:: `++"single"++`
+
+Decides what a left click on a pane's content does while you are in window management mode, where the keyboard drives the window manager.
+Clicks in terminal mode are not affected.
+
+[cols="1,3"]
+|===
+|Value |Result
+
+|`single` |A click focuses the pane and enters terminal mode, so clicking a pane is enough to start typing (the default).
+|`double` |A click focuses the pane; a double click enters terminal mode.
+|`off` |A click only focuses the pane and never changes mode.
+|===
+
+Clicks on the title bar or the border never enter terminal mode, so they stay drag handles; dragging, `Alt`-drag, the context menu, the dock and the overlays behave the same under every value.
+Under `double`, the clicks that change mode select nothing, and the next click starts a fresh selection.
+Under `off`, you enter terminal mode with the key bound to `enter_terminal_mode`.
+
+An application that asked for the mouse (vim, less, htop) only receives mouse events in terminal mode, so pick `double` if you click into such applications a lot.
+An unknown value produces a validation warning and falls back to `single`.
+Also settable from the in-app settings page (Behavior, "Click to type").
+
+[#cfg-appearance-clock-bg-color]
+=== clock_bg_color
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Sets the background colour of the clock badge as a hex colour of the form `+#rrggbb+`, for example `+"#1e1e2e"+`.
+Empty uses the theme's panel colour.
+It is independent of `clock_fg_color`, so you can override just one of the two.
+
+A value that is not a six-digit hex literal produces a validation warning and is ignored.
+While a tape is being recorded or the leader key is pending, the badge uses its own warning colours instead, because those are signals rather than decoration.
+Has no visible effect unless the clock is shown (`show_clock`).
+Also settable from the in-app settings page (Dock, "Clock background color").
+
+[#cfg-appearance-clock-fg-color]
+=== clock_fg_color
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Sets the text colour of the clock badge as a hex colour of the form `+#rrggbb+`, for example `+"#89b4fa"+`.
+Empty uses the theme's dimmed text colour.
+It is independent of `clock_bg_color`.
+
+A value that is not a six-digit hex literal produces a validation warning and is ignored.
+The recording and prefix states still override it with their own colours.
+Also settable from the in-app settings page (Dock, "Clock text color").
+
+[source,toml]
+----
+[appearance]
+show_clock = true
+clock_fg_color = "#1e1e2e"
+clock_bg_color = "#89b4fa"
+clock_pill = true
+----
+
+[#cfg-appearance-clock-format]
+=== clock_format
+
+[horizontal]
+Type:: string
+Default:: `++"15:04"++`
+
+The layout of the time in the clock badge, written as a Go reference-time layout.
+Instead of placeholders such as `HH` or `%H`, you write how the reference moment Monday 2 January 2006, 15:04:05 would look: `15` is the 24-hour hour, `03` the 12-hour hour, `04` the minutes, `05` the seconds, `PM` the AM/PM marker, `2006`, `01` and `02` the year, month and day, and `Mon` and `Jan` the short day and month names.
+
+Go has no token for the ISO-8601 week number, so TUIOS adds one: the literal text `+{week}+` is replaced with the zero-padded week (`01` to `53`).
+Other text is printed as-is, but digits that happen to match a layout token are replaced, so keep stray numbers out of it.
+
+* `+"15:04"+` gives `14:32` (the default).
+* `+"15:04:05"+` gives `14:32:07`.
+* `+"03:04 PM"+` gives `02:32 PM`.
+* `+"Mon 02 Jan 15:04"+` gives `Tue 25 Aug 14:32`.
+* `+"2006-01-02 15:04 W{week}"+` gives `2026-08-25 14:32 W35`.
+
+[source,toml]
+----
+[appearance]
+show_clock = true
+clock_format = "2006-01-02 15:04 W{week}"
+----
+
+The format is used while the clock is shown (`show_clock`), and also while a tape is recording or the leader key is pending.
+Also settable from the in-app settings page (Dock, "Clock format").
+
+[#cfg-appearance-clock-pill]
+=== clock_pill
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Draws the clock badge with the same rounded half-circle caps the dock's pills use, instead of square ends.
+The caps take the badge's background colour, so they read as its rounded ends.
+
+In ASCII mode (`--ascii-only`) the caps become `[` and `]`.
+This option is separate from `dock_pill_caps`, so the clock and the dock can be styled independently.
+Also settable from the in-app settings page (Dock, "Clock pill").
+
+[#cfg-appearance-clock-position]
+=== clock_position
+
+[horizontal]
+Type:: string
+Default:: `++"left"++`
+
+Where the clock badge sits along its row.
+
+* `left`: one column in from the left edge (the default).
+* `center`: centred on the row.
+* `right`: one column in from the right edge.
+
+The row itself follows the dock: with the dock at the bottom (or hidden) the clock floats over the top row of the screen, and with `dockbar_position = "top"` it floats over the bottom row.
+The badge is drawn on top of whatever is in that row, so pick a position that does not cover something you need, such as a window title or buttons.
+An unknown value produces a validation warning and the badge stays at the left.
+Also settable from the in-app settings page (Dock, "Clock position").
+
+[#cfg-appearance-confirm-quit]
+=== confirm_quit
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Decides when quitting asks for confirmation.
+With the default `false`, the quit dialog only appears when a window still runs a foreground process other than its shell (an editor, a build, an SSH session), so you do not lose work by accident; with nothing running TUIOS quits straight away.
+With `true` the dialog is always shown.
+
+Turn it on if you tend to hit the quit key by mistake, or if you want the extra step in a daemon session, where quitting ends the session rather than detaching from it.
+Also settable from the in-app settings page (Behavior, "Confirm quit").
+
+[#cfg-appearance-copy-on-select]
+=== copy_on_select
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Controls whether releasing a mouse selection puts the text on the clipboard straight away, the way X11's primary selection and kitty's `copy_on_select` do.
+With it off, a selection stays highlighted and is copied only with `y` in copy mode.
+
+A click that never moved is not a selection and never touches the clipboard.
+A drag copies the moment the button comes up; a double or triple click waits about a third of a second first, because a double click may still turn into a triple click and only the finished gesture should reach the clipboard.
+The highlight itself is immediate either way.
+
+The clipboard is written with OSC 52, the same path copy mode's `y` uses, so it reaches whatever the host terminal supports, including over SSH.
+Terminals that ignore OSC 52 (VTE-based ones such as gnome-terminal and xfce4-terminal) would lose the copy, so on a machine with its own display TUIOS also writes through `wl-copy` on Wayland or `xclip`/`xsel` on X11, when one of them is installed.
+Over the SSH server and in `tuios-web` the display belongs to the server, so only OSC 52 is used there.
+Also settable from the in-app settings page (Advanced, "Copy on select").
+
+[#cfg-appearance-cursor-blink]
+=== cursor_blink
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Whether the cursor of the focused pane blinks.
+TUIOS draws a real host-terminal cursor and sets its shape and blink itself, so this setting, not your terminal emulator's own cursor configuration, decides the starting state.
+
+This is only the default for a pane: as soon as a program inside it sends its own cursor-style sequence (DECSCUSR, as vim and many shells do when switching modes), the program's last choice wins for that pane.
+A pane whose program never sets a style keeps this value for its whole life.
+Set it to `false` for a steady cursor if blinking distracts you.
+Also settable from the in-app settings page (Appearance, "Cursor blink").
+
+[#cfg-appearance-dock-attention-blink]
+=== dock_attention_blink
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Controls how an entry in the dock's window list asks for attention.
+With the default `true` the entry blinks, switching between its normal look and an inverse highlight every half second, until you focus that window.
+With `false` the entry shows the inverse highlight steadily instead, which is calmer but still easy to spot.
+
+This only matters when `<<cfg-appearance-dock-window-list,dock_window_list>>` is on; the minimized-only strip does not flag attention.
+Also settable from the in-app settings page (Dock, "Blink on attention").
+
+[#cfg-appearance-dock-pill-caps]
+=== dock_pill_caps
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Puts powerline-style half-circle caps on the pills of minimized windows in the dock, instead of drawing each as a flat filled cell.
+Off (the default), a row of minimized windows reads as one strip rather than a string of beads.
+
+In the current code this only affects the minimized-window strip.
+The mode chip at the left of the dock and the workspace tabs keep their rounded ends whatever this is set to, and so do the entries of `dock_window_list`, which use the workspace tab style.
+In ASCII mode the caps become `[` and `]`.
+The clock has its own switch, `clock_pill`.
+Also settable from the in-app settings page (Dock, "Pill caps").
+
+[#cfg-appearance-dock-pill-underline]
+=== dock_pill_underline
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Underlines the label of the active workspace tab in the dock, and of the focused window when `dock_window_list` is on, on top of the bold text and fill that already mark it.
+
+The underline is an attribute rather than a colour, so it is the one mark that survives ASCII mode and a monochrome terminal, where colour alone cannot be trusted; that is why it is on by default.
+Turn it off when your theme already makes the active pill's fill unmistakably different and the underline looks redundant.
+
+[#cfg-appearance-dock-separator]
+=== dock_separator
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Draws the thin horizontal line between the panes and the dock bar.
+With `false` the line is dropped and its row is given to the panes, so the dock takes one row instead of two.
+That helps on a short terminal, for example one with a large presentation font.
+
+A dock notification shows its countdown along this line, so with the separator off notifications appear without one.
+The option has no effect when the dock is hidden (`dockbar_position = "hidden"`).
+Also settable from the in-app settings page (Dock, "Separator").
+
+[source,toml]
+----
+[appearance]
+dock_separator = false
+----
+
+[#cfg-appearance-dock-window-list]
+=== dock_window_list
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Lists every window of the current workspace in the dock, styled like the workspace tabs beside it, instead of only the windows you have minimized (the dock's original purpose, and still the default).
+Clicking an entry focuses that window; a minimized one is restored as well.
+
+A window that wants attention is flagged until you focus it, like the activity monitor of a classic terminal multiplexer.
+That covers an agent in the window needing input or having failed, an agent that finished while you were not looking, and the generic case of new output, a bell or a desktop notification arriving while another pane had focus.
+By default the entry blinks; `dock_attention_blink = false` highlights it steadily instead.
+
+Turn it on if you use the dock as a task bar or keep agents running in background panes.
+Also settable from the in-app settings page (Dock, "Window list").
+
+[#cfg-appearance-dock-workspace-tabs]
+=== dock_workspace_tabs
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows a clickable strip of workspace tabs in the dock: one tab for every workspace that holds a window, plus the current one, followed by a `+` tab that opens the next empty workspace.
+Clicking a tab switches to that workspace.
+The active tab is drawn highlighted and, with `dock_pill_underline`, underlined.
+
+The strip only appears when there is something to click, that is at least two tabs counting the `+` tab.
+Long workspace names are cut to twelve columns; see `dock_workspace_tooltip`.
+Turn it off if you switch workspaces only by keyboard (`Alt+1` to `Alt+9`) and want the room in the dock for other items.
+Also settable from the in-app settings page (Dock, "Workspace tabs").
+
+[#cfg-appearance-dock-workspace-tooltip]
+=== dock_workspace_tooltip
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+When a workspace tab in the dock had to cut its name short, hovering the tab pops the full name up after a short delay.
+Tabs whose name fits show no tooltip, since there is nothing more to reveal.
+
+This also requires tooltips in general to be on (`tooltips` in `[appearance.sidebar]`, on by default) and has no effect when `dock_workspace_tabs` is off.
+Turn it off if hover pop-ups get in your way.
+Also settable from the in-app settings page (Dock, "Workspace name on hover").
+
+[#cfg-appearance-dockbar-position]
+=== dockbar_position
+
+[horizontal]
+Type:: string
+Default:: `++"bottom"++`
+
+Where the dock bar is drawn.
+
+* `bottom`: along the bottom of the screen (the default).
+* `top`: along the top of the screen, with the separator line below it.
+* `hidden`: no dock at all; the panes get the whole screen.
+
+Hiding the dock also hides what lives in it: the mode chip, the workspace tabs, the minimized windows or window list, the system readouts and the update notice.
+Minimized windows then have to be restored by keyboard.
+The clock badge (see `show_clock`) floats over the row at the opposite edge: the top row when the dock is at the bottom or hidden, the bottom row when it is at the top.
+
+An unknown value produces a validation warning.
+The `--dockbar-position` flag overrides this option for one run; also settable from the in-app settings page (Dock, "Dock position").
+
+[#cfg-appearance-focus-after-close]
+=== focus_after_close
+
+[horizontal]
+Type:: string
+Default:: `++"first"++`
+
+Decides which window gets focus when the focused window is closed.
+
+* `first`: the first visible window of the current workspace, in window order (the default).
+* `previous`: the nearest visible window before the closed one in window order, so you stay close to where you were; when there is none, TUIOS falls back to `first`.
+
+Minimized windows are skipped in both cases.
+Pick `previous` if you work through a row of windows and want closing one to keep you next to it rather than jumping back to the start.
+An unknown value produces a validation warning.
+
+[#cfg-appearance-focus-follows-mouse]
+=== focus_follows_mouse
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Makes the pane under the mouse pointer take focus as soon as the pointer moves over it, without a click.
+It is a divisive habit from X11 window managers, so it is off by default.
+
+Hovering only moves focus; it does not switch from window management mode to terminal mode (a click does that, see `click_to_type`).
+Nothing changes focus while you drag, resize or drag a scrollbar, while an overlay or context menu is open, while the pointer is over the dock or the sidebar, or while the sidebar has keyboard focus.
+
+Hover-focus works in terminal mode too: moving the pointer to another pane focuses it and keeps you in terminal mode, so you can type into it straight away.
+Toggle it at runtime with `Ctrl+B` `f`, from the command palette, or on the in-app settings page (Behavior, "Focus follows mouse"); `show_focus_follows_mouse_indicator` shows its state in the dock.
+
+[#cfg-appearance-hide-clock]
+=== hide_clock
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Deprecated; use `<<cfg-appearance-show-clock,show_clock>>` instead.
+The clock is hidden by default nowadays, so this option is only needed to override an explicit `show_clock = true`.
+
+With `true` the clock badge stays hidden even when `show_clock` is on.
+It still appears while a tape is being recorded (with a red background) and while the leader key is pending (showing `PREFIX | time`), because those are status signals rather than a clock.
+Removing it again takes effect on the next config reload.
+The equally deprecated `--hide-clock` flag does the same for one run.
+
+[#cfg-appearance-hide-scrollbar]
+=== hide_scrollbar
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Hides the scrollbar thumb that shows your position in a pane's scrollback history.
+
+The thumb only appears while a pane is scrolled back into its history; at the live end of the output, in an application using the alternate screen (vim, less, htop) or in a very small pane there is no thumb anyway.
+It floats in the pane's last content column and can be dragged with the mouse.
+Its look is configured in `[appearance.scrollbar]`.
+
+Hide it if you find the thumb distracting or need that column for content.
+The `--hide-scrollbar` flag does the same for one run; also settable from the in-app settings page (Appearance, "Scrollbar").
+
+[#cfg-appearance-hide-window-buttons]
+=== hide_window_buttons
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Hides the minimize, maximize and close buttons that sit on a pane's frame.
+In tiling mode only minimize and close are shown, since a tiled pane cannot be maximized.
+
+With the buttons hidden, clicks on that part of the frame no longer minimize or close anything, and the title gets more room.
+You can still do all of it by keyboard.
+Set it together with `border_style = "hidden"` for a frame without visible chrome.
+
+The `--hide-window-buttons` flag also hides the buttons; either one is enough.
+Also settable from the in-app settings page (Appearance, "Window buttons").
+
+[#cfg-appearance-initial-title-format]
+=== initial_title_format
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+A template for the title a new window gets at the moment it is created, before the shell inside it has run anything or set a title of its own.
+Unlike `+window_title_format+`, which only changes how a title is _displayed_, this sets the title text itself.
+
+The only placeholder is `+{user}+`, the Unix user name the window belongs to.
+Normally that is the user tuios runs as (taken from the system, or from `$USER`/`$LOGNAME` when it cannot be looked up).
+In a classroom or PAM-authenticated `tuios-web` session it is the user who logged in, not the service account the server runs under, so every trainee's panes carry their own name.
+Any other `+{...}+` placeholder is reported by the config validator and shown literally.
+
+Empty (the default) leaves the usual behaviour: a window is titled `Terminal <id>` (which is not displayed) until the shell reports a title.
+Without `+lock_titles+`, the template title only lasts until the program inside sets its own title with an OSC escape sequence.
+Combine it with `+lock_titles+`, or with `+window_title_format = "fixed"+`, to keep it.
+
+[source,toml]
+----
+[appearance]
+initial_title_format = "{user}'s shell"
+lock_titles = true
+----
+
+In a daemon session the daemon creates the windows, and a `tuios-web` client that loads a different config file applies its own template to the panes it shows, so the browser sees the title its own configuration asks for.
+
+[#cfg-appearance-keep-window-numbers]
+=== keep_window_numbers
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+By default a window's number is simply its position among the windows of its workspace, so closing a window in the middle renumbers every window after it.
+With `true`, a window keeps the number it was given until it closes, and the other windows keep theirs.
+A new window takes the lowest number its workspace is not using, so a gap left by a closed window is filled before the sequence grows.
+
+The same number is used everywhere a window is numbered: the title prefix from `+show_window_number+`, the `+{index}+` placeholder of `+window_title_format+`, the sidebar, the dock, and the `+select_window_N+` shortcuts.
+Numbers are per workspace; a window moved to another workspace is numbered afresh there.
+Turn this on if you jump to windows by number and find it confusing that the numbers shift under you.
+
+[#cfg-appearance-lock-titles]
+=== lock_titles
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+When `true`, every new window starts with its title locked: OSC 0/OSC 2 title changes from the program running inside it are ignored, so the shell prompt, `vim` or `ssh` cannot rename the window.
+This is the same state the `+toggle_title_lock+` keybinding (`l` by default) puts a single window in, and you can still unlock an individual window with that key.
+
+A locked window keeps whatever title it had when it was created.
+Without `+initial_title_format+` that is the generic `Terminal <id>`, which is not displayed, so the title area shows only the window number; combine the two to give windows a title that is both specific and stable.
+A name you set yourself with rename is not affected by the lock.
+Setting `+window_title_format = "fixed"+` also makes new windows start locked, whatever this option says.
+
+[#cfg-appearance-max-fps]
+=== max_fps
+
+[horizontal]
+Type:: integer
+Default:: `++60++`
+
+The maximum number of frames per second tuios renders while there is activity.
+Accepted values run from `10` to `240`: a higher value is clamped to `240`, a value between `1` and `9` is raised to `10`, and `0` or a negative number keeps the default of `60`.
+
+This is a cap, not a constant rate.
+After about half a second without output tuios drops to an idle rate of 10 frames per second, and it renders again immediately when a pane produces output, so a higher cap mainly makes dragging, resizing and fast-scrolling output smoother at the cost of more CPU.
+Lower it on a slow machine, over a slow SSH link, or to save battery; raise it on a high-refresh display.
+
+The in-app settings page offers `30`, `60`, `90`, `120`, `144` and "unlimited", which stores `240`.
+
+[#cfg-appearance-maximize-new-windows]
+=== maximize_new_windows
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+When `true`, a new floating window fills the whole content area (everything except the dock and the sidebar) instead of opening at half the width and height of the screen, centred or at the mouse pointer.
+The window is marked as snapped, so its maximize button, or unsnapping it, restores it to the usual half-size geometry.
+
+The option has no effect while auto-tiling is on, because the tiling layout decides every window's size; see xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+It is useful if you work with one window at a time in floating mode and do not want to maximize every new window by hand.
+
+[#cfg-appearance-mouse-enabled]
+=== mouse_enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Whether tuios handles the mouse at all: hover, click to focus, dragging and resizing windows, wheel scrolling, selection and the dock and sidebar controls.
+
+* `true` - tuios asks the host terminal for full mouse reporting and handles the mouse itself (the default).
+* `false` - tuios asks the host terminal for no mouse reporting at all, so the terminal emulator's own mouse handling takes over, for example its native text selection. Programs inside the panes then receive no mouse events either.
+
+You can toggle this at runtime with `Ctrl{plus}B` `M` (`+prefix_toggle_mouse+`), `Alt{plus}M` (`+toggle_mouse+`, also in terminal mode), the command palette, or the settings page.
+With the mouse off, the keyboard is the only way back, since a click on the dock's mouse indicator no longer reaches tuios.
+Turning it off is handy when you want to copy text across several panes with your terminal's own selection, or when the host terminal's mouse handling misbehaves.
+
+[#cfg-appearance-niri-reverse-scroll]
+=== niri_reverse_scroll
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Reverses the direction in which the mouse wheel scrolls the viewport of the scrolling (niri-style) layout.
+In that layout `Alt` or `Shift` plus the wheel moves the strip of columns sideways: by default wheel down moves to the right and wheel up to the left; with `true` this is inverted.
+
+Only the `Alt`/`Shift` wheel gesture is affected.
+A horizontal wheel or touchpad swipe keeps its natural direction, and the option has no effect in the other layout modes.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+[#cfg-appearance-open-url-on-double-click]
+=== open_url_on_double_click
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Whether double-clicking a web address in a pane opens it in your default browser.
+A double-click anywhere in the URL selects all of it (the `:` of `https://` would otherwise end the word), and the selection is still copied when `+copy_on_select+` is on.
+If a program attached a link to its text with OSC 8, as `ls --hyperlink` does, the link target is used rather than the visible text.
+
+Only `http://` and `https://` addresses are opened, never `file://` or any other scheme.
+A URL that wraps onto the next line is taken up to the wrap.
+The browser starts once the double-click is settled, so a triple-click on a URL selects the line without opening anything.
+
+The browser is started with `xdg-open` (Linux and BSD, which needs a graphical session), `open` (macOS) or the default URL handler (Windows), on the machine running tuios.
+That is why it never happens over the SSH server or in `tuios-web`, where the browser would start on the server; the URL is still selected there.
+With `false`, a double-click on a URL selects only the word under the pointer, as defined by `+word_characters+`.
+Programs that use the mouse themselves (vim, htop) receive the double-click instead.
+
+[#cfg-appearance-preferred-shell]
+=== preferred_shell
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+The shell started in every new window.
+Empty (the default) means auto-detect: the `$SHELL` environment variable, then the first of `/bin/bash`, `/bin/zsh`, `/bin/fish` and `/bin/sh` that exists.
+On Windows auto-detection tries `powershell.exe`, `pwsh.exe` and `cmd.exe`.
+
+On Linux, macOS and BSD the value must be the path of an existing file, so use an absolute path such as `/usr/bin/zsh`; a bare name like `zsh` is not looked up in `$PATH`.
+On Windows `.exe` is appended when missing and the name is looked up in `PATH`.
+If the shell does not exist, tuios prints a warning and falls back to auto-detection instead of failing to open the window.
+
+The setting is read from the config file each time a window is created, so a change applies to the next new window without a restart.
+In a daemon session the daemon starts the shells, so the daemon's own config file is the one that counts.
+
+[#cfg-appearance-quit-on-last-window-close]
+=== quit_on_last_window_close
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+What happens when the last window closes.
+
+* `false` - tuios stays running and shows its empty start screen, from which you can open a new window (the default).
+* `true` - tuios quits, like a terminal emulator closing its last tab.
+
+It only reacts to the window count going from one to zero, so starting tuios with no windows does not quit it.
+In a daemon session quitting this way ends the session itself, not just the client, exactly as a deliberate quit does; see xref:sessions.adoc#doc-sessions[Sessions].
+Turn it on if you use tuios as your terminal's "shell" and expect `exit` in the last pane to close everything.
+
+[#cfg-appearance-scroll-lines]
+=== scroll_lines
+
+[horizontal]
+Type:: integer
+Default:: `++3++`
+
+How many lines one notch of the mouse wheel scrolls in a pane's scrollback, in copy mode, and in other scrollable lists such as the sidebar.
+Accepted values are `1` to `50`; a larger value is clamped to `50`, and `0` or a negative value keeps the default of `3`.
+
+A pane running a program that asked for mouse events (vim, less, htop) receives the wheel itself in terminal mode, and that program decides how far to scroll.
+Lower the value for finer control, raise it to move through long output faster.
+
+[#cfg-appearance-scrollback-lines]
+=== scrollback_lines
+
+[horizontal]
+Type:: integer
+Default:: `++10000++`
+
+How many lines of history each window keeps after they scroll off the top of the screen.
+Accepted values are `100` to `10000000`, or `-1` for unlimited.
+A smaller positive value is raised to `100`, a larger one lowered to `10000000`, and `0` keeps the default of `10000`.
+
+The buffer grows as lines arrive, so the limit costs nothing until it is used, but with a very large or unlimited setting the memory use of a long-running, chatty pane grows without bound.
+The value is applied when a window is created, so a change affects new windows only.
+The `--scrollback-lines` command-line flag overrides it.
+
+In a daemon session the daemon keeps its own copy of each pane's screen and history for reattaching, independent of this setting.
+
+[#cfg-appearance-session-colors]
+=== session_colors
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Gives every session a colour of its own and shows it wherever more than one session is visible at once: the sidebar's sessions section, the sidebar's agents section (on rows whose pane lives in another session) and the session switcher.
+The panes of the session you are attached to are not coloured, because you only ever see one session's panes at a time.
+
+The colour is derived from the session's name, so it is the same in every attached client and after a daemon restart.
+Six hues from the active theme are available; the sidebar keeps sessions that are visible together apart, up to six, after which colours repeat.
+A session can be pinned to a colour of your choosing with the `set-session-accent` control verb.
+
+With `false`, these surfaces look exactly as they did before session colours existed.
+See xref:sessions.adoc#doc-sessions[Sessions].
+
+[#cfg-appearance-set-terminal-title]
+=== set_terminal_title
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Sets the host terminal's own window or tab title (OSC 2) to follow whatever the focused pane has titled itself, which is what you would see if that program ran directly without tuios in between.
+When no window is focused, or the focused window has not set a title, the host title is `tuios`.
+
+The title follows focus changes and title changes live for as long as the client is attached, and is written only when it actually changes.
+It reaches the host through the per-client output path, so it works locally, in a daemon session, over `tuios ssh` and in `tuios-web` alike, with each attached client setting its own terminal's title.
+Characters that tuios filters from its own title bars (for example decorative glyphs outside the font) are filtered here too.
+
+Set it to `false` to leave the host terminal's title alone, for example when your terminal or shell manages the title in its own way.
+
+[#cfg-appearance-shared-borders]
+=== shared_borders
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Lets adjacent tiled windows share a single divider instead of each drawing its own border box, which leaves more room for content and less visual clutter.
+
+* `false` - every window draws its own border (the default).
+* `true` - tiled panes drop their border boxes and a one-column separator is drawn between neighbours.
+
+It only applies while auto-tiling arranges the windows.
+Floating windows, and the scrolling (niri-style) layout, always keep their own borders.
+The `--shared-borders` command-line flag turns it on as well; it can also be toggled from the command palette or the settings page.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+[#cfg-appearance-show-clock]
+=== show_clock
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows a clock badge on the screen.
+The badge floats over the top row of the screen, or over the bottom row when `+dockbar_position+` is `top`; its look and place along the row come from `+clock_format+`, `+clock_position+`, `+clock_pill+`, `+clock_fg_color+` and `+clock_bg_color+`.
+
+The badge also appears, whatever this option says, while the leader key is pending (as `PREFIX | time`) and while a tape is being recorded.
+The deprecated `+hide_clock+` still wins when set: with `+hide_clock = true+` the clock stays hidden even if `+show_clock+` is `true`.
+The `--show-clock` command-line flag turns it on as well.
+
+[#cfg-appearance-show-cpu]
+=== show_cpu
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows a small CPU-usage graph with the current percentage at the right-hand end of the dock, for example `CPU:▂▃▅ 42%`.
+The value is sampled about twice a second and covers the whole machine tuios runs on, which over the SSH server or in `tuios-web` is the server.
+In ASCII mode the graph is drawn with plain characters.
+
+When the dock is too narrow for all its readouts, the CPU graph is the first one dropped, and the readouts give way to notifications and copy-mode help while those are shown.
+The `--show-cpu` command-line flag turns it on as well.
+
+[#cfg-appearance-show-focus-follows-mouse-indicator]
+=== show_focus_follows_mouse_indicator
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows a small focus-follows-mouse indicator glyph at the right-hand end of the dock (`+` in ASCII mode).
+It is drawn in the theme's success colour while `+focus_follows_mouse+` is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles focus-follows-mouse, exactly like `Ctrl{plus}B` `f`.
+
+Useful if you toggle focus-follows-mouse often and want to see its state at a glance.
+Its colours can be overridden per theme.
+
+[#cfg-appearance-show-mouse-indicator]
+=== show_mouse_indicator
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows a small mouse-mode indicator glyph at the right-hand end of the dock (`M` in ASCII mode).
+It is drawn in the theme's success colour while `+mouse_enabled+` is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles mouse mode, like `Ctrl{plus}B` `M`.
+Since a click cannot reach tuios once the mouse is off, use the keyboard to turn it back on.
+
+Useful if you switch mouse handling off now and then to use your terminal's own selection.
+
+[#cfg-appearance-show-ram]
+=== show_ram
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows the memory usage of the machine tuios runs on as a percentage at the right-hand end of the dock, for example `RAM: 37.5%`.
+The value is refreshed every two seconds; over the SSH server or in `tuios-web` it is the server's memory.
+When the dock is too narrow, RAM is dropped after the CPU graph and before the mode indicators.
+The `--show-ram` command-line flag turns it on as well.
+
+[#cfg-appearance-show-resize-size]
+=== show_resize_size
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+While you resize the terminal window tuios runs in, a small popup in the middle of the screen shows the new size in columns × rows, so you can drag the window to an exact size.
+It disappears a little over a second after the last change.
+
+Only changes are shown, not the size tuios starts or attaches with.
+The size is in character cells; in ASCII mode the popup reads like `120 x 40`.
+Set it to `false` if you find the popup distracting.
+
+[#cfg-appearance-show-tiling-indicator]
+=== show_tiling_indicator
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows a small tiling indicator glyph at the right-hand end of the dock (`#` in ASCII mode).
+It is drawn in the theme's success colour while auto-tiling is on and dimmed while it is off, a tooltip says which on hover, and clicking it toggles tiling, exactly like the tiling keybinding.
+
+Useful if you switch between floating and tiled layouts and want to see the current mode at a glance.
+See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+[#cfg-appearance-show-window-number]
+=== show_window_number
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Prefixes a window's displayed title with its number, for example `1: bash`; a window without a title shows just the number.
+The number is the one the `+select_window_N+` shortcuts use: the window's position in its workspace, or its kept number when `+keep_window_numbers+` is on.
+The same prefix is used in the sidebar.
+
+Set it to `false` to show only the title.
+It is ignored as soon as `+window_title_format+` is set; use the `+{index}+` placeholder there instead.
+
+[#cfg-appearance-theme]
+=== theme
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+The colour theme, by ID.
+A theme supplies the 16 ANSI colours plus foreground, background and cursor, and tuios derives its own interface colours (borders, overlays, the dock) from it.
+
+* Empty (the default) disables theming: panes use your terminal's own colours.
+* A built-in theme ID, for example `dracula` or `nord`; `tuios --list-themes` prints every available ID and `tuios --preview-theme <id>` shows its colours.
+* A bundled tuios theme: `trainer` (light and high-contrast for a projected screen) or `trainee`.
+* A custom theme loaded from a `.json` or `.toml` file in `~/.config/tuios/themes/`, named by its `id`.
+
+[source,toml]
+----
+[appearance]
+theme = "dracula"
+----
+
+Only ANSI colours 0-15 are themed; truecolour output from programs passes through unchanged.
+Switching theme, also from the picker in the command palette or the settings page, recolours text that is already on screen.
+An unknown name logs a warning and leaves the colours as they were, rather than stopping tuios from starting.
+The `--theme` command-line flag takes precedence, and `tuios-web` uses `trainee` when neither the flag nor this option names a theme.
+`+border_focused_color+` and `+border_unfocused_color+` override the border colours a theme derives.
+See xref:themes.adoc#doc-themes[Themes].
+
+[#cfg-appearance-whichkey-enabled]
+=== whichkey_enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the which-key popup: a panel listing the keys available in the current prefix chord.
+It appears half a second after you press the leader key (`Ctrl{plus}B` by default) and lists the bindings of whichever chord is active, such as the top-level prefix or the workspace, minimize, window, debug, tape or layout submenu.
+It disappears as soon as you press the next key, so it costs nothing when you already know the chord, and it is not shown while the help overlay is open.
+
+Set it to `false` once you know your keybindings and find the popup distracting.
+Where it appears is set by `+whichkey_position+`.
+See xref:keybindings.adoc#doc-keybindings[Keybindings Reference].
+
+[#cfg-appearance-whichkey-position]
+=== whichkey_position
+
+[horizontal]
+Type:: string
+Default:: `++"bottom-right"++`
+
+Where the which-key popup appears on the screen.
+
+[cols="1,3"]
+|===
+|Value |Position
+
+|`bottom-right` |Bottom-right corner (the default)
+|`bottom-left` |Bottom-left corner
+|`top-right` |Top-right corner
+|`top-left` |Top-left corner
+|`center` |Centred on the screen
+|===
+
+The corners keep a small margin from the screen edge, and the popup is always kept on screen.
+Any other value is reported by the config validator and behaves like `bottom-right`.
+Choose a position that does not cover the part of your panes you usually look at, for example a top corner when the dock and prompts are at the bottom.
+
+[#cfg-appearance-window-title-format]
+=== window_title_format
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+A template that controls how a window's title is displayed, for more control than `+show_window_number+` offers.
+When it is set, `+show_window_number+` is ignored.
+
+[cols="1,3"]
+|===
+|Placeholder |Replaced by
+
+|`+{title}+` |The name you gave the window, or else the title the program inside it reported (the generic `Terminal <id>` counts as empty)
+|`+{index}+` |The window's number in its workspace, as used by the `+select_window_N+` shortcuts (see `+keep_window_numbers+`)
+|`+{cwd}+` |The shell's working directory, empty when it cannot be read
+|===
+
+Any other `+{...}+` placeholder is reported by the config validator and shown literally.
+The template is applied to the title bar and the sidebar alike, and is applied even when the title is empty, so a format with only `+{index}+` or `+{cwd}+` still shows something.
+
+[source,toml]
+----
+[appearance]
+window_title_format = "{index}: {title} ({cwd})"
+----
+
+Empty (the default) shows the title as-is, with the number prefix from `+show_window_number+`.
+
+The special value `fixed` keeps every window's title exactly as it was created: new windows start title-locked, as with `+lock_titles+`, and the title is shown with no number and no template.
+Combine it with `+initial_title_format+` to choose that title.
+
+[#cfg-appearance-window-title-position]
+=== window_title_position
+
+[horizontal]
+Type:: string
+Default:: `++"bottom"++`
+
+Where a window's title is drawn on its border.
+
+[cols="1,3"]
+|===
+|Value |Effect
+
+|`bottom` |The title is drawn as a badge on the bottom border (the default)
+|`top` |The title is drawn on the top border, sharing it with the window buttons on the right
+|`hidden` |No title is drawn
+|===
+
+The title shown is the name you gave the window, or else the title its program reported, formatted by `+show_window_number+` or `+window_title_format+`.
+With `bottom`, the copy-mode scroll position indicator is only drawn on the bottom border when no title occupies it.
+With `hidden`, renaming a window still works, since the rename editor is a separate dialog.
+
+The `--window-title-position` command-line flag takes precedence over this option.
+Any other value is reported by the config validator and falls back to `bottom`.
+
+[#cfg-appearance-word-characters]
+=== word_characters
+
+[horizontal]
+Type:: string
+Default:: `++"@-./_~?&=%+#"++`
+
+The punctuation characters that count as part of a word when a double-click selects one.
+Letters and digits always count and do not need listing.
+
+The default is the following set, the same one kitty uses:
+
+[source,toml]
+----
+[appearance]
+word_characters = "@-./_~?&=%+#"
+----
+
+With it, a path, a query string, a version number or a flag such as `--no-vm` is selected as one word instead of breaking at every punctuation mark.
+A colon is deliberately absent, so `host:port` and `file:line` select as their parts; add `:` if you would rather have them whole.
+An empty string means only letters and digits form words, which is different from leaving the option out (that keeps the default).
+
+Triple-click selects the whole line and is not affected.
+A double-click on an `http(s)` URL selects the whole URL regardless of this setting while `+open_url_on_double_click+` is on.
+
+[#cfg-appearance-zoom-max-width]
+=== zoom_max_width
+
+[horizontal]
+Type:: integer
+Default:: `++0++`
+
+The maximum width, in cells, of a zoomed window (`toggle_zoom`, `z` by default).
+With `0` (the default) a zoomed window fills the full width of the content area.
+With a positive value, for example `120`, a zoomed window is at most that wide and is centred horizontally, leaving the space on either side empty; on a screen narrower than the value the window simply fills the width.
+
+The width includes the window's border.
+This makes long lines easier to read on a very wide screen, a kind of "zen mode".
+The `--zoom-max-width` command-line flag takes precedence over this option.
+
+[#cfg-appearance-scrollbar]
+== [appearance.scrollbar]
+
+The `+[appearance.scrollbar]+` table shapes the scrollbar tuios floats over a pane's last content column.
+The bar is a position readout: it only appears while a pane is scrolled back into its history, never at the live tail, never on the alternate screen (full-screen programs such as editors), and never on a pane with fewer than three content rows.
+You can click and drag it to scroll.
+
+To switch the bar off altogether use `+hide_scrollbar+` in `+[appearance]+`, which predates this table and stays where it is.
+Every key here is optional; an absent or empty one takes the style's own default.
+In ASCII mode (`+--ascii-only+` or `+border_style = "ascii"+`) the bar uses `|` as its thumb, draws no hairline track, and ignores non-ASCII glyph overrides.
+
+[#cfg-appearance-scrollbar-style]
+=== style
+
+[horizontal]
+Type:: string
+Default:: `++"thin"++`
+
+Selects how the bar is drawn.
+
+* `thin` - a slim thumb (`▐`) over a hairline track (`▕`) in the pane's last content column.
+  The bar moves one whole row at a time.
+* `track` - a full-height track painted in the surface colour behind a solid block thumb (`█`).
+  The thumb is positioned to the half cell (with `▀` and `▄` at its ends), so it moves twice as smoothly as the thin style.
+
+An unknown value produces a config warning and the bar is drawn in the thin style.
+
+[source,toml]
+----
+[appearance.scrollbar]
+style = "track"
+----
+
+[#cfg-appearance-scrollbar-thumb]
+=== thumb
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Overrides the glyph used for the thumb, the part that marks where you are in the history.
+It must be exactly one cell wide; a wider value produces a config warning and the style's default glyph is used instead.
+Leave it empty to use the style's own thumb: `▐` for `thin`, `█` for `track`.
+
+Only the default `█` has half-height siblings, so with any other glyph the track style rounds a half-covered cell up to a whole one.
+
+[#cfg-appearance-scrollbar-tint]
+=== tint
+
+[horizontal]
+Type:: string
+Default:: `++"border"++`
+
+Sets the colour the thumb is drawn in.
+
+* `border` - the focused pane's bar matches its border: the pane's accent colour when it has one, otherwise the focused-border colour of the current mode.
+  An accent that would be too faint against the background falls back to the focus colour.
+  Bars of unfocused panes use the unfocused border grey.
+* `muted` - every bar, focused or not, uses the unfocused border grey.
+* A `+#RRGGBB+` literal such as `+"#89b4fa"+` - every bar uses that exact colour, with no contrast correction.
+
+Any other value produces a config warning and behaves like `border`.
+
+[#cfg-appearance-scrollbar-track]
+=== track
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Overrides the glyph drawn on the track cells the thumb does not cover.
+It must be exactly one cell wide; a wider value produces a config warning and the default is used.
+
+* Empty (the default) - the style's own track: the `▕` hairline for `thin`, a blank cell in the surface colour for `track`.
+* `none` - draw no track glyph.
+  In the thin style only the thumb is drawn and the rest of the column keeps showing the pane's content, which is how the thin bar looked before it had a track.
+  In the track style the surface-coloured background stays.
+* Any one-cell glyph, for example `·` or `│`.
+
+[source,toml]
+----
+[appearance.scrollbar]
+style = "thin"
+track = "none"
+----
+
+[#cfg-appearance-sidebar]
+== [appearance.sidebar]
+
+The `+[appearance.sidebar]+` table controls the session sidebar, also called the rail: a vertical panel at the left or right edge that lists your sessions, the terminals of the current session, and the AI agents running in any session.
+It reserves its columns the way the dock reserves its row, so panes and tiling layouts fit around it.
+
+The sidebar is off by default.
+Toggle it live with the leader key followed by `b` (`+prefix_toggle_sidebar+`), the command palette ("Toggle Sidebar"), or the Sidebar category of the in-app settings page.
+Keys that act while the rail has keyboard focus are configured under `+[keybindings.sidebar]+`.
+The older flat keys `+sidebar_enabled+`, `+sidebar_position+`, `+sidebar_width+`, `+sidebar_show_windows+`, `+sidebar_show_glyphs+` and `+sidebar_show_counts+` in `+[appearance]+` are still read and folded into this table; where both are present, the table wins.
+
+[#cfg-appearance-sidebar-enabled]
+=== enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Turns the sidebar on.
+With `false` the rail reserves no columns and none of the other options in this table have any visible effect.
+
+Even when enabled, the rail adapts to the screen width: below 40 columns it hides itself, between 40 and 59 columns it shrinks to a glyph-only strip, and between 60 and 89 columns it shows a narrow rail.
+See <<cfg-appearance-sidebar-width,width>>.
+
+[source,toml]
+----
+[appearance.sidebar]
+enabled = true
+position = "right"
+----
+
+[#cfg-appearance-sidebar-marquee]
+=== marquee
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+When `true`, hovering the mouse over a row whose title does not fit scrolls the title so you can read all of it.
+With `false`, a long title stays truncated.
+Only the hovered row ever scrolls.
+
+[#cfg-appearance-sidebar-position]
+=== position
+
+[horizontal]
+Type:: string
+Default:: `++"left"++`
+
+Chooses the screen edge the rail sits on.
+
+* `left` - the rail occupies the left edge.
+* `right` - the rail occupies the right edge.
+* `hidden` - the rail reserves no columns at all, even when <<cfg-appearance-sidebar-enabled,enabled>> is `true`.
+
+An unknown value produces a config warning and the rail is placed on the left.
+
+[#cfg-appearance-sidebar-show-agents]
+=== show_agents
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the agents section at the bottom of the rail: every pane, in every session, whose agent state is known, such as a running Claude Code or Codex.
+Set it to `false` if you do not run AI agents or prefer to follow them through notifications only.
+The section is also left out automatically when the rail is too short to carry it.
+
+[#cfg-appearance-sidebar-show-counts]
+=== show_counts
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the number of windows on each session row, right-aligned.
+The count only appears on the full-width rail and only for sessions that have windows; the narrow and glyph-only variants have no room for it.
+
+[#cfg-appearance-sidebar-show-glyphs]
+=== show_glyphs
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the agent-state glyph on each row, which tells at a glance whether the agent in a pane is working, waiting for input, done or has failed.
+With `false` the rows carry no state glyph.
+
+[#cfg-appearance-sidebar-show-windows]
+=== show_windows
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the terminals section, which lists the panes of the current session (or of the session you are peeking at) below the sessions list.
+With `false` the rail lists sessions, and agents if <<cfg-appearance-sidebar-show-agents,show_agents>> is on, only.
+
+[#cfg-appearance-sidebar-tooltips]
+=== tooltips
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Pops a one-row label naming whatever icon-only control the mouse pointer rests on.
+It covers the rows of the collapsed, glyph-only rail, the glyph controls on the expanded rail, and the dock's session controls and mode indicators.
+The expanded rail already says everything in words, so its rows never get a label.
+
+Despite living in this table, the switch applies to the dock's labels as well.
+The tooltip for truncated workspace names on the dock has its own switch, `+dock_workspace_tooltip+` in `+[appearance]+`.
+
+[#cfg-appearance-sidebar-width]
+=== width
+
+[horizontal]
+Type:: integer
+Default:: `++28++`
+
+The preferred width of the rail, in columns, on a wide screen.
+A value of `0` or less means the default of 28 columns.
+
+The value is a preference, not a guarantee:
+
+* On a screen of 90 columns or more the rail uses this width.
+* Between 60 and 89 columns it is capped to the narrow rail of 16 columns.
+* Between 40 and 59 columns it becomes the 3-column glyph strip.
+* Below 40 columns it is hidden.
+
+The rail also never squeezes the panes below 30 columns; it steps down to a narrower variant first.
+Dragging the rail's edge with the mouse changes the width live, and the dragged width is stored in `$XDG_STATE_HOME/tuios/sidebar.json`, where it takes precedence over this setting on the next start.
+
+[#cfg-appearance-sidebar-workspaces]
+=== workspaces
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Deprecated and no longer used.
+It named the workspace chip band the rail used to draw; panes now show which workspace they are on themselves, and switching workspaces lives on the dock and `++alt+1++`..`++alt+9++`.
+The key is still accepted so old config files keep loading, but a non-empty value produces a config warning and tuios never writes it back to the file.
+Remove it from your configuration.
+
+[#cfg-classroom]
+== [classroom]
+
+The `+[classroom]+` table configures the trainer console of `tuios-web` in PAM classroom deployments, where every trainee logs in to the browser terminal with their own system account.
+With the trainer console enabled, designated trainer accounts can open a trainee's live session from a picker, or directly with `+?attach=<username>+` on the connection URL, and both see and type into it.
+
+This is a security-sensitive feature: a trainer who attaches to a session has full control over the shells of that trainee's account.
+It is off by default, and all three options must be set before anyone can cross-attach.
+The table is read from the configuration `tuios-web` itself uses (its `--config` file, or the configuration of the account it runs as), not from the trainees' configurations.
+Changes to this table need a restart of `tuios-web` to take full effect.
+See xref:deployment.adoc#doc-deployment[Production Deployment] for the deployment requirements, such as the `tuios` daemon that must run alongside `tuios-web`.
+
+[#cfg-classroom-trainee-pattern]
+=== trainee_pattern
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+A Go (RE2) regular expression that a username must match to be an eligible target for the trainer console.
+When a trainer requests `+?attach=<username>+`, the request is only granted if the requested name matches this pattern, and the picker only lists sessions whose names match it.
+
+The pattern must match the whole username: TUIOS anchors it as `+^(?:pattern)$+`, so `guru[0-9]{2}` matches `guru07` but not `superguru07` or `guru07-admin`, and `alice|bob` matches only those two names.
+Writing your own `+^+` and `+$+` is allowed and changes nothing.
+Still keep the pattern as narrow as your trainee accounts, so it can never match another user, such as an administrator.
+
+[source,toml]
+----
+[classroom]
+trainee_pattern = "^guru[0-9]{2}$"
+----
+
+An empty pattern (the default) matches nothing; there is no implicit "match everyone".
+A pattern that does not compile also matches nothing, produces a configuration warning, and the picker shows the error.
+The trainer's own session never appears in the picker list, even when the trainer's name matches; it has its own entry.
+
+[#cfg-classroom-trainer-console]
+=== trainer_console
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+The master switch for the trainer console.
+
+* `false` (default): no cross-user attach is possible. A request with `+?attach=+` naming another user is refused like a failed login, and every connection gets the user's own session, exactly as without a `+[classroom]+` table.
+* `true`: classroom sessions become daemon-backed, so more than one connection can attach to the same session. Accounts listed in `trainer_users` land on the trainer picker and may attach to sessions matching `trainee_pattern`.
+
+The switch only has an effect when `tuios-web` runs with `--pam-auth`, and it needs a `tuios` daemon running alongside `tuios-web`; without one, a classroom connection shows an error instead of falling back to a non-persistent session.
+Turning it on without `trainer_users` or `trainee_pattern` produces a configuration warning, because nobody could use the console.
+
+[#cfg-classroom-trainer-users]
+=== trainer_users
+
+[horizontal]
+Type:: list of strings
+Default:: `++[]++`
+
+The exact usernames that may use the trainer console.
+This list is the real access gate: only an account that has authenticated through PAM and appears here can attach to another user's session.
+An empty list (the default) means nobody, even with `trainer_console = true`.
+
+[source,toml]
+----
+[classroom]
+trainer_console = true
+trainer_users = ["trainer", "tonk"]
+trainee_pattern = "^guru[0-9]{2}$"
+----
+
+Names are compared exactly, case included; there are no wildcards or groups.
+The check happens on the server against the username PAM just verified, never against anything the browser claims.
+A denied attach gets the same "authentication failed" answer as a wrong password, and is logged by `tuios-web` with the trainer and target names.
+
+Keep the list short and limited to accounts that really need it.
+A trainer always lands on the picker when connecting without `+?attach=+`; to reach their own session they choose it in the picker, or connect with their own username as the attach target.
+An attached trainer uses their own settings, not those of the trainee.
+
+[#cfg-daemon]
+== [daemon]
+
+The `+[daemon]+` table configures the background daemon that owns persistent sessions: the process that `tuios new` and `tuios attach` start automatically when none is running, and that you can also run yourself with `tuios daemon` or as a systemd service.
+See xref:sessions.adoc#doc-sessions[Sessions] for the session model.
+
+These keys are read once, when the daemon starts; a change takes effect after `tuios kill-server` and a new start.
+When no daemon is running, `tuios ssh` and `tuios-web` start one inside their own process.
+That built-in daemon reads this table from the same config file (for `tuios-web`, the one `--config` names), except `exit_when_empty`; a change there takes effect when you restart `tuios ssh` or `tuios-web`.
+
+[#cfg-daemon-agent-autodetect]
+=== agent_autodetect
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Turns the automatic detection of AI-agent CLIs in panes on or off.
+With detection on, the daemon periodically looks at the foreground process of every pane.
+When it recognises a known agent (`claude`, `codex`, `aider`, `gemini` and others, plus any names in `agent_binaries`), it marks the pane as `working`, so the agent glyph appears without the agent reporting anything itself; when the agent leaves the foreground, the mark is cleared again.
+
+Detection is deliberately subordinate to explicit reports: it only ever sets `working` (on a pane without a state) or `none`, and it never overwrites a state set through `tuios set-agent-state` or a harness integration.
+
+* `true` (default): detection runs, every `agent_detect_seconds` seconds.
+* `false`: no detection. Panes only get an agent state when something reports one.
+
+When the key is absent, the environment variable `+TUIOS_AGENT_AUTODETECT+` (set to `0`, `false`, `no` or `off`) can switch detection off as well.
+The same poll also keeps the foreground-command label of sidebar rows up to date, so that label stops updating when detection is off.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for details.
+
+[#cfg-daemon-agent-binaries]
+=== agent_binaries
+
+[horizontal]
+Type:: list of strings
+Default:: `++[]++`
+
+Extra program names that the auto-detector treats as AI agents, in addition to the built-in list.
+The names are merged with the built-in ones, never replacing them, and matched case-insensitively against the base name of the foreground process, so a full path matches as well.
+For interpreters such as `node`, `python3` or `npx`, the detector also inspects the arguments, so a script called `my-agent.js` is matched by the name `my-agent`.
+
+[source,toml]
+----
+[daemon]
+agent_binaries = ["agent", "forge"]
+----
+
+Names that are common words (`agent`, `pi`, `forge`) are left out of the built-in list on purpose: a false match labels an unrelated pane as an agent.
+Add them here only if you actually use such a tool.
+Names from the comma-separated environment variable `+TUIOS_AGENT_BINARIES+` are added too, and harness manifests in `~/.config/tuios/harnesses` are consulted before this list.
+Has no effect when `agent_autodetect` is off.
+
+[#cfg-daemon-agent-detect-seconds]
+=== agent_detect_seconds
+
+[horizontal]
+Type:: integer
+Default:: `++2++`
+
+How often, in seconds, the auto-detector polls the foreground process of each pane.
+
+* `0` (the effective default): use the environment variable `+TUIOS_AGENT_DETECT_SECONDS+` if it is set (zero or negative there disables detection), otherwise poll every 2 seconds.
+* A positive number: poll at that interval.
+* A negative number: disable auto-detection, the same as `agent_autodetect = false`.
+
+A shorter interval makes the agent glyph appear and disappear sooner, at the cost of a little CPU per pane per poll.
+A longer interval suits a machine with very many panes.
+When an agent exits, the daemon notices the shell prompt coming back as output and clears the glyph at once, so the interval mainly affects how quickly a newly started agent is noticed.
+
+[#cfg-daemon-exit-when-empty]
+=== exit_when_empty
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shuts the daemon process down once its last session is killed, like tmux's `exit-empty` option.
+Only a standalone `tuios daemon` reads this key: the daemon that `tuios ssh` and `tuios-web` start inside their own process lives as long as that server does.
+
+* `false` (default): the daemon keeps running with zero sessions, so the next `tuios new` or `tuios attach` is instant. Stop it explicitly with `tuios kill-server`.
+* `true`: the daemon exits as soon as the last session is killed.
+
+Only killing a session counts, through the quit menu, the close-session keybinding or `tuios kill-session`.
+Detaching never counts, however many sessions are left, and a session that reaches zero windows is still a session.
+
+Leave it off for a daemon that is meant to stay up, such as one behind a systemd unit or a long-lived server that serves one session after another.
+Turn it on if you prefer no TUIOS process to linger once you are done.
+The setting can also be toggled on the settings page, but it only applies once the daemon restarts.
+
+[#cfg-daemon-log-level]
+=== log_level
+
+[horizontal]
+Type:: string
+Default:: `++"off"++`
+
+How much the daemon writes to its debug log.
+
+* `off` (default): nothing.
+* `errors`: errors only.
+* `basic`: connection events and errors.
+* `messages`: every protocol message except pane input and output.
+* `verbose`: every message, including pane input and output.
+* `trace`: everything, plus hex dumps of the payloads.
+
+The numbers `0` to `5` are accepted as well; an unknown value means `off`.
+The log is written to the daemon's standard error (for the daemon built into `tuios ssh` or `tuios-web`, that program's standard error, so with systemd the journal) and kept in a ring buffer of the last 1000 entries, which `tuios logs` shows (`tuios logs -f` follows it).
+
+The environment variable `+TUIOS_LOG_LEVEL+` and the `--log-level` option of `tuios daemon` take precedence: this key is only used when neither has set a level.
+Raise it to diagnose connection or synchronisation problems, and set it back afterwards, because `verbose` and `trace` log everything typed into and printed by every pane.
+
+[#cfg-debug]
+== [debug]
+
+The `+[debug]+` table holds settings for development and presentation aids.
+The debug tools themselves (logs, cache statistics, the showkeys overlay) are reached with the leader key followed by `D`; see `+[keybindings.debug_prefix]+`.
+
+[#cfg-debug-show-key-events]
+=== show_key_events
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Shows the showkeys overlay: a keycast in the bottom-right corner that displays your last few keypresses as styled pills, in both window-management and terminal mode.
+It is meant for screencasts, presentations and live demos, where the audience otherwise cannot see which keys you press.
+
+The same overlay is toggled with the `+--show-keys+` command-line flag, the leader key followed by `D` and `k`, the command palette, and the settings page.
+Every toggle from within tuios writes the new state back to this option, so it survives a restart.
+See xref:showkeys.adoc#doc-showkeys[Showkeys Overlay] for details.
+
+[#cfg-env]
+== [env]
+
+The `+[env]+` table lists extra environment variables that tuios exports into every shell it spawns, in local windows and in daemon-backed sessions alike.
+They are added on top of the environment tuios itself inherited and after the variables tuios sets itself (such as `TERM`, `COLORTERM` and `+TUIOS_WINDOW_ID+`), so an entry here overrides an inherited variable of the same name, and even one of tuios's own.
+Values are taken literally: there is no expansion of `$HOME`, `~` or other variables, and every value must be a quoted TOML string.
+
+The table is read again each time a window is created, so an edit applies to the next new window without restarting tuios; shells that are already running keep their environment.
+For daemon-backed sessions the daemon reads its own copy of the configuration file.
+A key that is not a conventional variable name (letters, digits and underscores, not starting with a digit) produces a config warning but is still exported as written.
+Hook commands do not receive these variables; they get the environment of tuios itself plus their own `+TUIOS_*+` variables.
+
+[source,toml]
+----
+[env]
+EDITOR = "nvim"
+PAGER = "less -R"
+MY_PROJECT_ROOT = "/home/me/src/project"
+----
+
+[#cfg-hooks]
+== [hooks]
+
+The `+[hooks]+` table runs shell commands of your own when something happens in a session: a window opens or closes, focus moves, the workspace or layout changes, a client attaches or detaches, or an agent changes state.
+Each key is an event name from the table below, and each value is either a single command string or an array of command strings.
+An unknown event name is ignored with a log line naming the valid events; empty strings and non-string array entries are skipped.
+
+[source,toml]
+----
+[hooks]
+after-new-window = "notify-send TUIOS \"opened $TUIOS_WINDOW_NAME\""
+after-attach = [
+  "logger tuios attached to $TUIOS_SESSION_ID",
+  "~/.config/tuios/on-attach.sh",
+]
+----
+
+Every command is run with `sh -c`, whatever your login shell is, so pipes, redirection and variable expansion work.
+It runs in the background, in its own process, with the working directory of the TUIOS client and its full environment, plus these variables:
+
+* `+TUIOS_EVENT+`: the event name, so one script can serve several events.
+* `+TUIOS_SESSION_ID+`: the name of the session the event came from.
+* `+TUIOS_WORKSPACE+`: the workspace the event applies to.
+* `+TUIOS_WINDOW_ID+` and `+TUIOS_WINDOW_NAME+`: the window's ID and title, empty for events without a window.
+* `+TUIOS_PREV_WORKSPACE+`: the previous workspace after `after-workspace-switch`, otherwise `0`.
+* `+TUIOS_LAYOUT+`: the layout now in force after `after-layout-change` (`bsp`, `master-stack`, `scrolling` or `floating`), otherwise empty.
+* `+TUIOS_WIDTH+` and `+TUIOS_HEIGHT+`: the new size in cells after `after-resize`, otherwise `0`.
+* `+TUIOS_AGENT_STATE+`, `+TUIOS_AGENT_PREV_STATE+`, `+TUIOS_AGENT_HARNESS+` and `+TUIOS_AGENT_MESSAGE+`: the new and previous agent state, the harness ID and the free-text message, for `after-agent-state` only.
+
+All variables are always set, so a script can read them without checking first.
+
+When an event has several commands, they are all started at the same moment, each in its own process; they run concurrently and not in a guaranteed order.
+If one step depends on another, put them in one command (`a && b`) or in a script.
+TUIOS does not wait for hooks and does not read their output or exit status, so a slow hook never freezes the interface, and a hook that must report something should write to a file, a logger or a notification daemon.
+There is no time limit on a hook, with one exception: on `after-detach` the client waits at most two seconds for running hooks before it exits.
+
+Hooks run in the client, not in the daemon: in a session with several clients attached, each client fires its own hooks, and a detached session fires none.
+Under `tuios ssh` and `tuios-web` the client runs inside the server process, so hooks run on the server with that process's account.
+The table is read when the client starts.
+The `after-agent-state` event is gated by `+[notifications.agent]+`, whose `command` key is a shorthand for a hook on that event.
+See xref:hooks.adoc#doc-hooks[Hooks] for examples and the exact moments each event fires.
+
+[cols="2,5",options="header"]
+|===
+|Event |When it fires
+
+|`++after-agent-state++`
+|A pane's agent state changed to one [notifications.agent] alerts on.
+
+|`++after-attach++`
+|This client attached to a session.
+
+|`++after-close-window++`
+|A window has been closed.
+
+|`++after-detach++`
+|This client detached from a session that keeps running.
+
+|`++after-focus-change++`
+|Focus moved to a different window.
+
+|`++after-layout-change++`
+|The layout changed, including tiling turning on or off.
+
+|`++after-new-window++`
+|A window has been created.
+
+|`++after-resize++`
+|A window settled at a new size.
+
+|`++after-workspace-switch++`
+|The visible workspace changed.
+
+|===
+
+[#cfg-keybindings]
+== [keybindings]
+
+The `+[keybindings]+` table holds the leader key, and its sub-tables bind keys to actions, one sub-table per context: `+[keybindings.window_management]+`, `+[keybindings.prefix_mode]+`, `+[keybindings.terminal_mode]+`, `+[keybindings.sidebar]+` and so on.
+Each entry maps an action name to a list of keys, written as `+action = ["key", "key2"]+`.
+A key is a name such as `n`, `enter` or `f5`, optionally preceded by modifiers: `++ctrl+n++`, `++alt+shift+left++`, `++opt+1++` (on macOS, `opt` and `option` mean `alt`).
+Any of the listed keys triggers the action.
+
+Sub-tables merge with the defaults per action: an action you list replaces the default keys of that one action, and every action you leave out keeps its default binding.
+So a sub-table only needs the actions you want to change.
+An empty list, `+action = []+`, unbinds the action; in `+[keybindings.terminal_mode]+` the key then goes to the program in the pane again.
+Binding a key to one action does not remove it from another action that has it by default, so pick a free key or unbind the other action too.
+tuios warns at startup about a key shared by two window-management actions (the `+window_management+`, `+workspaces+`, `layout`, `+mode_control+`, `system` and `navigation` sub-tables); within any other sub-table, a key listed for two actions goes to the action whose name sorts first.
+A key that cannot be parsed is reported as a configuration error.
+
+[source,toml]
+----
+[keybindings]
+leader_key = "ctrl+a"
+
+[keybindings.prefix_mode]
+prefix_new_window = ["c", "y"]
+
+[keybindings.terminal_mode]
+terminal_focus_left = []
+terminal_focus_right = []
+----
+
+The tables below list the default bindings of every sub-table.
+See xref:keybindings.adoc#doc-keybindings[Keybindings Reference] for what each action does in context.
+
+[#cfg-keybindings-leader-key]
+=== leader_key
+
+[horizontal]
+Type:: string
+Default:: `++"ctrl+b"++`
+
+The prefix key for the tmux-style commands.
+Press it, release it, and then press a key from `+[keybindings.prefix_mode]+`, or a sub-menu key: `w` for workspaces, `m` for minimize, `t` for the window and tiling menu, `D` for debug tools, `T` for tapes.
+After a short pause the which-key popup lists the keys available next (see <<cfg-appearance-whichkey-enabled,whichkey_enabled>>).
+
+The leader works in window-management mode and in terminal mode, which means the program in the pane never receives that key directly.
+Pressing the leader twice in terminal mode passes the leader key itself through to the program in the pane, so with `++ctrl+a++` as leader a double press sends Ctrl+A.
+
+Pick a key your shell and editors do not need.
+Popular alternatives are `++ctrl+a++` (as in GNU Screen) and `++ctrl+space++`.
+An invalid key is reported as a configuration error; an empty value means the default.
+There is no command-line flag for this option.
+
+[source,toml]
+----
+[keybindings]
+leader_key = "ctrl+space"
+----
+
+[#cfg-keybindings-debug-prefix]
+== [keybindings.debug_prefix]
+
+Debug and development tools sub-menu, reached with the leader key then "D".
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++debug_prefix_animations++`
+|`++a++`
+|Toggle animations
+
+|`++debug_prefix_cache++`
+|`++c++`
+|Toggle cache statistics
+
+|`++debug_prefix_cancel++`
+|`++esc++`
+|Cancel debug prefix
+
+|`++debug_prefix_logs++`
+|`++l++`
+|Toggle log viewer
+
+|`++debug_prefix_reload_theme++`
+|`++r++`
+|Reload custom theme files
+
+|`++debug_prefix_showkeys++`
+|`++k++`
+|Toggle showkeys overlay
+
+|===
+
+[#cfg-keybindings-layout]
+== [keybindings.layout]
+
+Window positioning, snapping, and BSP tiling.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++equalize_splits++`
+|`++=++`
+|Equalize all split ratios
+
+|`++preselect_down++`
+|`++alt+j++`
+|Preselect down for next window
+
+|`++preselect_left++`
+|`++alt+h++`
+|Preselect left for next window
+
+|`++preselect_right++`
+|`++alt+l++`
+|Preselect right for next window
+
+|`++preselect_up++`
+|`++alt+k++`
+|Preselect up for next window
+
+|`++resize_height_grow++`
+|`++}++`, `++shift+]++`
+|Increase focused window height
+
+|`++resize_height_grow_top++`
+|`++]++`
+|Increase focused window height from top edge
+
+|`++resize_height_shrink++`
+|`++{++`, `++shift+[++`
+|Decrease focused window height
+
+|`++resize_height_shrink_top++`
+|`++[++`
+|Decrease focused window height from top edge
+
+|`++resize_master_grow++`
+|`++>++`, `++shift+.++`
+|Increase master width
+
+|`++resize_master_grow_left++`
+|`++.++`
+|Increase master width from left edge
+
+|`++resize_master_shrink++`
+|`++<++`, `++shift+,++`
+|Decrease master width
+
+|`++resize_master_shrink_left++`
+|`++,++`
+|Decrease master width from left edge
+
+|`++rotate_split++`
+|`++R++`
+|Rotate split
+
+|`++snap_corner_1++`
+|`++1++`
+|Snap to top-left
+
+|`++snap_corner_2++`
+|`++2++`
+|Snap to top-right
+
+|`++snap_corner_3++`
+|`++3++`
+|Snap to bottom-left
+
+|`++snap_corner_4++`
+|`++4++`
+|Snap to bottom-right
+
+|`++snap_fullscreen++`
+|`++f++`
+|Fullscreen
+
+|`++snap_left++`
+|`++h++`
+|Snap left
+
+|`++snap_right++`
+|`++l++`
+|Snap right
+
+|`++split_horizontal++`
+|`++-++`
+|Split window horizontally (top/bottom)
+
+|`++split_vertical++`
+|`++\|++`, `++\++`
+|Split window vertically (left/right)
+
+|`++swap_down++`
+|`++J++`, `++ctrl+down++`
+|Swap down
+
+|`++swap_left++`
+|`++H++`, `++ctrl+left++`
+|Swap left
+
+|`++swap_right++`
+|`++L++`, `++ctrl+right++`
+|Swap right
+
+|`++swap_up++`
+|`++K++`, `++ctrl+up++`
+|Swap up
+
+|`++toggle_tiling++`
+|`++t++`
+|Toggle tiling mode
+
+|`++unsnap++`
+|`++u++`
+|Unsnap
+
+|===
+
+[#cfg-keybindings-minimize-prefix]
+== [keybindings.minimize_prefix]
+
+Minimize sub-menu, reached with the leader key then "m".
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++minimize_prefix_cancel++`
+|`++esc++`
+|Minimize prefix cancel
+
+|`++minimize_prefix_focused++`
+|`++m++`
+|Minimize prefix focused
+
+|`++minimize_prefix_restore_1++`
+|`++1++`
+|Minimize prefix restore 1
+
+|`++minimize_prefix_restore_10++`
+|`++0++`
+|Minimize prefix restore 10
+
+|`++minimize_prefix_restore_2++`
+|`++2++`
+|Minimize prefix restore 2
+
+|`++minimize_prefix_restore_3++`
+|`++3++`
+|Minimize prefix restore 3
+
+|`++minimize_prefix_restore_4++`
+|`++4++`
+|Minimize prefix restore 4
+
+|`++minimize_prefix_restore_5++`
+|`++5++`
+|Minimize prefix restore 5
+
+|`++minimize_prefix_restore_6++`
+|`++6++`
+|Minimize prefix restore 6
+
+|`++minimize_prefix_restore_7++`
+|`++7++`
+|Minimize prefix restore 7
+
+|`++minimize_prefix_restore_8++`
+|`++8++`
+|Minimize prefix restore 8
+
+|`++minimize_prefix_restore_9++`
+|`++9++`
+|Minimize prefix restore 9
+
+|`++minimize_prefix_restore_all++`
+|`++M++`
+|Minimize prefix restore all
+
+|===
+
+[#cfg-keybindings-mode-control]
+== [keybindings.mode_control]
+
+Switching between window-management and terminal mode, help, and quit.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++enter_terminal_mode++`
+|`++i++`, `++enter++`
+|Enter terminal mode
+
+|`++enter_window_mode++`
+|`++esc++`
+|Enter window management mode
+
+|`++quit++`
+|`++q++`
+|Quit
+
+|`++toggle_help++`
+|`++?++`
+|Toggle help
+
+|===
+
+[#cfg-keybindings-navigation]
+== [keybindings.navigation]
+
+Arrow-key focus navigation between panes.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++nav_down++`
+|`++down++`
+|Nav down
+
+|`++nav_left++`
+|`++left++`
+|Nav left
+
+|`++nav_right++`
+|`++right++`
+|Nav right
+
+|`++nav_up++`
+|`++up++`
+|Nav up
+
+|===
+
+[#cfg-keybindings-prefix-mode]
+== [keybindings.prefix_mode]
+
+Tmux-style commands reached with the leader key (leader_key above, then one of these).
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++prefix_about++`
+|`++a++`
+|Show about tuios
+
+|`++prefix_close_session++`
+|`++X++`
+|Close session and panes
+
+|`++prefix_close_window++`
+|`++x++`
+|Close current window
+
+|`++prefix_command_palette++`
+|`++P++`
+|Open the command palette
+
+|`++prefix_debug++`
+|`++D++`
+|Enter debug prefix
+
+|`++prefix_detach++`
+|`++d++`
+|Detach, leave running
+
+|`++prefix_equalize_splits++`
+|`++=++`
+|Equalize all splits
+
+|`++prefix_exit_mode++`
+|`++esc++`
+|Leave terminal mode
+
+|`++prefix_explore++`
+|`++e++`
+|Focus/leave sidebar
+
+|`++prefix_fullscreen++`
+|`++z++`
+|Fullscreen current window
+
+|`++prefix_help++`
+|`++?++`
+|Toggle help
+
+|`++prefix_jump_notif++`
+|`++j++`
+|Jump to newest message
+
+|`++prefix_layout++`
+|`++L++`
+|Enter layout prefix
+
+|`++prefix_minimize++`
+|`++m++`
+|Enter minimize prefix
+
+|`++prefix_new_window++`
+|`++c++`
+|Create new window
+
+|`++prefix_next_window++`
+|`++n++`, `++tab++`
+|Next window
+
+|`++prefix_prev_window++`
+|`++p++`, `++shift+tab++`
+|Previous window
+
+|`++prefix_quit++`
+|`++q++`
+|Quit (opens the detach/kill-session menu)
+
+|`++prefix_rename_window++`
+|`++r++`
+|Rename window
+
+|`++prefix_rotate_split++`
+|`++R++`
+|Rotate split
+
+|`++prefix_scrollback++`
+|`++s++`
+|Open the scrollback browser
+
+|`++prefix_selection++`
+|`++[++`
+|Enter copy/scrollback mode
+
+|`++prefix_session_switcher++`
+|`++S++`
+|Open the session switcher
+
+|`++prefix_settings++`
+|`++,++`
+|Open settings
+
+|`++prefix_split_horizontal++`
+|`++-++`
+|Split window horizontally
+
+|`++prefix_split_vertical++`
+|`++\|++`, `++\++`
+|Split window vertically
+
+|`++prefix_tape++`
+|`++T++`
+|Enter tape manager prefix
+
+|`++prefix_toggle_focus_follows_mouse++`
+|`++f++`
+|Toggle focus follows mouse
+
+|`++prefix_toggle_mouse++`
+|`++M++`
+|Toggle mouse mode
+
+|`++prefix_toggle_sidebar++`
+|`++b++`
+|Toggle the session sidebar
+
+|`++prefix_toggle_tiling++`
+|`++space++`
+|Toggle tiling mode
+
+|`++prefix_window++`
+|`++t++`
+|Enter window prefix
+
+|`++prefix_workspace++`
+|`++w++`
+|Enter workspace prefix
+
+|`++prefix_workspace_switcher++`
+|`++W++`
+|Open the workspace switcher
+
+|`++switch_workspace_1++`
+|`++1++`
+|Switch to workspace 1
+
+|`++switch_workspace_2++`
+|`++2++`
+|Switch to workspace 2
+
+|`++switch_workspace_3++`
+|`++3++`
+|Switch to workspace 3
+
+|`++switch_workspace_4++`
+|`++4++`
+|Switch to workspace 4
+
+|`++switch_workspace_5++`
+|`++5++`
+|Switch to workspace 5
+
+|`++switch_workspace_6++`
+|`++6++`
+|Switch to workspace 6
+
+|`++switch_workspace_7++`
+|`++7++`
+|Switch to workspace 7
+
+|`++switch_workspace_8++`
+|`++8++`
+|Switch to workspace 8
+
+|`++switch_workspace_9++`
+|`++9++`
+|Switch to workspace 9
+
+|===
+
+[#cfg-keybindings-restore-minimized]
+== [keybindings.restore_minimized]
+
+Restoring a specific minimized window by number (Shift+1..9, Shift+0 for the tenth).
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++restore_minimized_1++`
+|`++shift+1++`, `++!++`
+|Restore minimized 1
+
+|`++restore_minimized_10++`
+|`++shift+0++`, `++)++`
+|Restore minimized 10
+
+|`++restore_minimized_2++`
+|`++shift+2++`, `++@++`
+|Restore minimized 2
+
+|`++restore_minimized_3++`
+|`++shift+3++`, `++#++`
+|Restore minimized 3
+
+|`++restore_minimized_4++`
+|`++shift+4++`, `++$++`
+|Restore minimized 4
+
+|`++restore_minimized_5++`
+|`++shift+5++`, `++%++`
+|Restore minimized 5
+
+|`++restore_minimized_6++`
+|`++shift+6++`, `++^++`
+|Restore minimized 6
+
+|`++restore_minimized_7++`
+|`++shift+7++`, `++&++`
+|Restore minimized 7
+
+|`++restore_minimized_8++`
+|`++shift+8++`, `++*++`
+|Restore minimized 8
+
+|`++restore_minimized_9++`
+|`++shift+9++`, `++(++`
+|Restore minimized 9
+
+|===
+
+[#cfg-keybindings-sidebar]
+== [keybindings.sidebar]
+
+Keys active only while the session sidebar rail has keyboard focus.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++accent++`
+|`++c++`
+|Accent
+
+|`++activate++`
+|`++enter++`
+|Activate
+
+|`++agents_filter++`
+|`++f++`
+|Agents filter
+
+|`++agents_sort++`
+|`++o++`
+|Agents sort
+
+|`++collapse++`
+|`++h++`, `++left++`
+|Collapse
+
+|`++cursor_down++`
+|`++j++`, `++down++`
+|Cursor down
+
+|`++cursor_up++`
+|`++k++`, `++up++`
+|Cursor up
+
+|`++exit++`
+|`++esc++`, `++s++`
+|Exit
+
+|`++expand++`
+|`++l++`, `++right++`
+|Expand
+
+|`++first++`
+|`++g++`, `++home++`
+|First
+
+|`++help++`
+|`++?++`
+|Help
+
+|`++jump_1++`
+|`++1++`
+|Jump 1
+
+|`++jump_10++`
+|`++0++`
+|Jump 10
+
+|`++jump_2++`
+|`++2++`
+|Jump 2
+
+|`++jump_3++`
+|`++3++`
+|Jump 3
+
+|`++jump_4++`
+|`++4++`
+|Jump 4
+
+|`++jump_5++`
+|`++5++`
+|Jump 5
+
+|`++jump_6++`
+|`++6++`
+|Jump 6
+
+|`++jump_7++`
+|`++7++`
+|Jump 7
+
+|`++jump_8++`
+|`++8++`
+|Jump 8
+
+|`++jump_9++`
+|`++9++`
+|Jump 9
+
+|`++kill++`
+|`++x++`
+|Kill
+
+|`++last++`
+|`++G++`, `++end++`
+|Last
+
+|`++menu++`
+|`++m++`
+|Menu
+
+|`++narrow++`
+|`++<++`
+|Narrow
+
+|`++new_session++`
+|`++n++`
+|New session
+
+|`++new_window++`
+|`++t++`
+|New window
+
+|`++rename++`
+|`++r++`
+|Rename
+
+|`++reorder_down++`
+|`++J++`, `++shift+down++`
+|Reorder down
+
+|`++reorder_up++`
+|`++K++`, `++shift+up++`
+|Reorder up
+
+|`++section++`
+|`++tab++`, `++shift+tab++`
+|Section
+
+|`++widen++`
+|`++>++`
+|Widen
+
+|===
+
+[#cfg-keybindings-system]
+== [keybindings.system]
+
+System-level controls. Currently empty; debug commands live under debug_prefix.
+
+This section has no default bindings.
+
+[#cfg-keybindings-tape-prefix]
+== [keybindings.tape_prefix]
+
+Project tape sub-menu, reached with the leader key then "T".
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++tape_prefix_cancel++`
+|`++esc++`
+|Cancel tape prefix
+
+|`++tape_prefix_manager++`
+|`++m++`
+|Open tape manager
+
+|`++tape_prefix_record++`
+|`++r++`
+|Start recording
+
+|`++tape_prefix_review++`
+|`++t++`
+|Review project tape
+
+|`++tape_prefix_stop++`
+|`++s++`
+|Stop recording
+
+|===
+
+[#cfg-keybindings-terminal-mode]
+== [keybindings.terminal_mode]
+
+Direct keybinds that work in terminal mode without pressing the leader key first.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++new_window++`
+|`++alt+t++`
+|New window
+
+|`++split_horizontal++`
+|`++alt+-++`
+|Split window horizontally (top/bottom)
+
+|`++split_vertical++`
+|`++alt+\|++`, `++alt+\++`
+|Split window vertically (left/right)
+
+|`++terminal_exit_mode++`
+|`++alt+esc++`
+|Exit terminal mode (to window mode)
+
+|`++terminal_focus_down++`
+|`++alt+down++`
+|Focus the pane below
+
+|`++terminal_focus_left++`
+|`++alt+left++`
+|Focus the pane to the left
+
+|`++terminal_focus_right++`
+|`++alt+right++`
+|Focus the pane to the right
+
+|`++terminal_focus_up++`
+|`++alt+up++`
+|Focus the pane above
+
+|`++terminal_next_window++`
+|`++alt+n++`
+|Next window (terminal mode)
+
+|`++terminal_prev_window++`
+|`++alt+p++`
+|Previous window (terminal mode)
+
+|`++terminal_scroll_down++`
+|`++shift+down++`
+|Scroll scrollback down a line
+
+|`++terminal_scroll_page_down++`
+|`++shift+pgdown++`
+|Scroll scrollback down a page
+
+|`++terminal_scroll_page_up++`
+|`++shift+pgup++`
+|Scroll scrollback up a page
+
+|`++terminal_scroll_up++`
+|`++shift+up++`
+|Scroll scrollback up a line
+
+|`++toggle_mouse++`
+|`++alt+m++`
+|Toggle mouse mode (no prefix)
+
+|`++toggle_sidebar++`
+|`++alt+s++`
+|Toggle the session sidebar (no prefix)
+
+|===
+
+[#cfg-keybindings-window-management]
+== [keybindings.window_management]
+
+Window creation, navigation, and control (active in window-management mode).
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++close_window++`
+|`++w++`, `++x++`
+|Close window
+
+|`++copy_selection++`
+|`++c++`
+|Copy selection to clipboard
+
+|`++focus_sidebar++`
+|`++s++`
+|Focus sidebar
+
+|`++minimize_window++`
+|`++m++`
+|Minimize window
+
+|`++new_window++`
+|`++n++`
+|New window
+
+|`++next_session++`
+|`++alt+shift+n++`
+|Next session
+
+|`++next_window++`
+|`++tab++`
+|Next window
+
+|`++prev_session++`
+|`++alt+shift+p++`
+|Previous session
+
+|`++prev_window++`
+|`++shift+tab++`
+|Previous window
+
+|`++rename_window++`
+|`++r++`
+|Rename window
+
+|`++restore_all++`
+|`++M++`
+|Restore all minimized
+
+|`++select_window_1++`
+|`++1++`, `++alt+1++`
+|Select window 1
+
+|`++select_window_10++`
+|`++0++`, `++alt+0++`
+|Select window 10
+
+|`++select_window_2++`
+|`++2++`, `++alt+2++`
+|Select window 2
+
+|`++select_window_3++`
+|`++3++`, `++alt+3++`
+|Select window 3
+
+|`++select_window_4++`
+|`++4++`, `++alt+4++`
+|Select window 4
+
+|`++select_window_5++`
+|`++5++`, `++alt+5++`
+|Select window 5
+
+|`++select_window_6++`
+|`++6++`, `++alt+6++`
+|Select window 6
+
+|`++select_window_7++`
+|`++7++`, `++alt+7++`
+|Select window 7
+
+|`++select_window_8++`
+|`++8++`, `++alt+8++`
+|Select window 8
+
+|`++select_window_9++`
+|`++9++`, `++alt+9++`
+|Select window 9
+
+|`++toggle_last_window++`
+|`++alt+`++`
+|Toggle last focused window
+
+|`++toggle_title_lock++`
+|`++l++`
+|Lock/unlock window title
+
+|`++toggle_zoom++`
+|`++z++`
+|Toggle zoom (fullscreen)
+
+|===
+
+[#cfg-keybindings-window-prefix]
+== [keybindings.window_prefix]
+
+Window sub-menu, reached with the leader key then "t".
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++window_prefix_cancel++`
+|`++esc++`
+|Window prefix cancel
+
+|`++window_prefix_close++`
+|`++x++`
+|Window prefix close
+
+|`++window_prefix_new++`
+|`++n++`
+|Window prefix new
+
+|`++window_prefix_next++`
+|`++tab++`
+|Window prefix next
+
+|`++window_prefix_prev++`
+|`++shift+tab++`
+|Window prefix prev
+
+|`++window_prefix_rename++`
+|`++r++`
+|Window prefix rename
+
+|`++window_prefix_tiling++`
+|`++t++`
+|Window prefix tiling
+
+|===
+
+[#cfg-keybindings-workspace-prefix]
+== [keybindings.workspace_prefix]
+
+Workspace sub-menu, reached with the leader key then "w".
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++workspace_prefix_cancel++`
+|`++esc++`
+|Workspace prefix cancel
+
+|`++workspace_prefix_move_1++`
+|`++!++`
+|Workspace prefix move 1
+
+|`++workspace_prefix_move_2++`
+|`++@++`
+|Workspace prefix move 2
+
+|`++workspace_prefix_move_3++`
+|`++#++`
+|Workspace prefix move 3
+
+|`++workspace_prefix_move_4++`
+|`++$++`
+|Workspace prefix move 4
+
+|`++workspace_prefix_move_5++`
+|`++%++`
+|Workspace prefix move 5
+
+|`++workspace_prefix_move_6++`
+|`++^++`
+|Workspace prefix move 6
+
+|`++workspace_prefix_move_7++`
+|`++&++`
+|Workspace prefix move 7
+
+|`++workspace_prefix_move_8++`
+|`++*++`
+|Workspace prefix move 8
+
+|`++workspace_prefix_move_9++`
+|`++(++`
+|Workspace prefix move 9
+
+|`++workspace_prefix_rename++`
+|`++r++`
+|Rename workspace
+
+|`++workspace_prefix_switch_1++`
+|`++1++`
+|Workspace prefix switch 1
+
+|`++workspace_prefix_switch_2++`
+|`++2++`
+|Workspace prefix switch 2
+
+|`++workspace_prefix_switch_3++`
+|`++3++`
+|Workspace prefix switch 3
+
+|`++workspace_prefix_switch_4++`
+|`++4++`
+|Workspace prefix switch 4
+
+|`++workspace_prefix_switch_5++`
+|`++5++`
+|Workspace prefix switch 5
+
+|`++workspace_prefix_switch_6++`
+|`++6++`
+|Workspace prefix switch 6
+
+|`++workspace_prefix_switch_7++`
+|`++7++`
+|Workspace prefix switch 7
+
+|`++workspace_prefix_switch_8++`
+|`++8++`
+|Workspace prefix switch 8
+
+|`++workspace_prefix_switch_9++`
+|`++9++`
+|Workspace prefix switch 9
+
+|===
+
+[#cfg-keybindings-workspaces]
+== [keybindings.workspaces]
+
+Moving a window to another workspace and following it there.
+
+[cols="5,2,4",options="header"]
+|===
+|Action |Default keys |Description
+
+|`++move_and_follow_1++`
+|`++alt+shift+1++`
+|Move to workspace 1 and follow
+
+|`++move_and_follow_2++`
+|`++alt+shift+2++`
+|Move to workspace 2 and follow
+
+|`++move_and_follow_3++`
+|`++alt+shift+3++`
+|Move to workspace 3 and follow
+
+|`++move_and_follow_4++`
+|`++alt+shift+4++`
+|Move to workspace 4 and follow
+
+|`++move_and_follow_5++`
+|`++alt+shift+5++`
+|Move to workspace 5 and follow
+
+|`++move_and_follow_6++`
+|`++alt+shift+6++`
+|Move to workspace 6 and follow
+
+|`++move_and_follow_7++`
+|`++alt+shift+7++`
+|Move to workspace 7 and follow
+
+|`++move_and_follow_8++`
+|`++alt+shift+8++`
+|Move to workspace 8 and follow
+
+|`++move_and_follow_9++`
+|`++alt+shift+9++`
+|Move to workspace 9 and follow
+
+|`++next_active_workspace++`
+|`++ctrl+alt+right++`
+|Next active workspace
+
+|`++next_workspace++`
+|`++ctrl+alt+shift+right++`
+|Next workspace
+
+|`++prev_active_workspace++`
+|`++ctrl+alt+left++`
+|Previous active workspace
+
+|`++prev_workspace++`
+|`++ctrl+alt+shift+left++`
+|Previous workspace
+
+|===
+
+[#cfg-notifications]
+== [notifications]
+
+The `+[notifications]+` table controls the messages TUIOS shows in the right-hand block of its dock: how long each severity stays up, whether errors wait to be dismissed, and whether programs running inside a pane may raise messages of their own.
+The durations are applied when the configuration is loaded; absent, zero or negative values keep the built-in defaults.
+
+What happens when an AI agent in a pane changes state lives in the separate <<cfg-notifications-agent,`+[notifications.agent]+`>> table.
+
+[#cfg-notifications-duration]
+=== duration
+
+[horizontal]
+Type:: integer
+Default:: `++6++`
+
+The number of seconds an informational or success message stays visible in the dock, such as "Copied 42 chars" or "Window: tiled".
+
+The value is a floor, not a cap.
+Every message is shown for at least this long, and a message that TUIOS itself asks to keep up longer (a failed session switch, for example, asks for twice the default) keeps the longer time.
+Zero or a negative number is treated as unset and leaves the default of 6 seconds in place; it cannot be used to hide messages.
+
+A value of 1 to 3 seconds is applied as written, but produces a configuration warning: below about four seconds a message becomes a time limit on reading it, which fails WCAG 2.2.1.
+Raise the value if you often miss messages; lower it only if you have read the warning and still want a faster dock.
+
+This duration is also used for agent alerts of the `done`, `idle` and `working` states, and for notifications raised by programs in a pane (see `guest`).
+
+[#cfg-notifications-error-duration]
+=== error_duration
+
+[horizontal]
+Type:: integer
+Default:: `++15++`
+
+The number of seconds an error message stays visible, but only when `error_sticky` is `false`.
+With the default `error_sticky = true` this value is ignored, because errors then stay until you dismiss them.
+
+Like `duration`, it is a floor: a message that asks for longer keeps the longer time.
+Zero or a negative number keeps the default of 15 seconds, and 1 to 3 seconds produces the same accessibility warning as `duration`.
+
+[#cfg-notifications-error-sticky]
+=== error_sticky
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Makes error messages wait in the dock until you dismiss them with kbd:[Esc], instead of expiring on a timer.
+
+* `true` (default): errors are sticky. A failure never disappears before you had a chance to read it.
+* `false`: errors expire after `error_duration` seconds, like any other message.
+
+Set it to `false` if TUIOS runs where nobody is around to press kbd:[Esc], such as on a projector or in a recording.
+An agent alert for the `errored` state is shown as an error, so with the default it also stays until dismissed.
+
+[#cfg-notifications-guest]
+=== guest
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Allows programs running inside a pane to raise notifications through the OSC 9, OSC 777 and OSC 99 escape sequences, such as a shell's "Command completed" or a build tool announcing that it finished.
+
+* `true` (default): such a notification appears in the dock, where it is clickable and jumps to the pane that raised it. It is also forwarded to the terminal TUIOS runs in, so a terminal like kitty, Ghostty or WezTerm can turn it into a desktop notification. Each pane is limited to one notification per half second.
+* `false`: guest notifications are dropped completely, both in the dock and on the host terminal.
+
+Turn it off when a program in a pane is too chatty, or when you do not want pane contents to be able to put text in front of you.
+A plain terminal bell (BEL) from a pane is not affected by this option.
+
+[#cfg-notifications-warning-duration]
+=== warning_duration
+
+[horizontal]
+Type:: integer
+Default:: `++8++`
+
+The number of seconds a warning stays visible in the dock, such as "Attached read-only" or an agent that needs your input.
+
+Like `duration`, it is a floor: a warning that asks to stay up longer keeps the longer time, and every warning is shown even when the code that raised it asked for no duration at all.
+Zero or a negative number keeps the default of 8 seconds, and 1 to 3 seconds produces the same accessibility warning as `duration`.
+Warnings never become sticky; only errors do, through `error_sticky`.
+
+[#cfg-notifications-agent]
+== [notifications.agent]
+
+The `+[notifications.agent]+` table decides what happens when the agent state of a pane changes, for example when an AI coding agent stops to ask you a question or finishes its task.
+An alert can go to several sinks at once: an in-band desktop notification on your terminal, an audible cue or bell, a clickable message in the TUIOS dock, and a shell command of your own.
+Which state changes alert at all is selected in <<cfg-notifications-agent-states,`+[notifications.agent.states]+`>>; custom sounds are set in <<cfg-notifications-agent-sounds,`+[notifications.agent.sounds]+`>>.
+
+Alerts are raised by an attached client, not by the daemon.
+A detached session keeps tracking agent state but announces nothing, and in a session with several clients attached, each client alerts on its own.
+A pane that is already in a state when a client first sees it does not alert, so reattaching does not replay old alerts.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for how panes get their state in the first place.
+
+[#cfg-notifications-agent-command]
+=== command
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+A shell command to run when an agent alert fires.
+It is a shorthand for registering the same command under the `after-agent-state` event in `+[hooks]+`, placed here so it sits beside the switches that gate it.
+If both are set, both run.
+
+The command runs in the background through `sh -c`, with the environment of the client plus `+TUIOS_AGENT_STATE+`, `+TUIOS_AGENT_PREV_STATE+`, `+TUIOS_AGENT_HARNESS+`, `+TUIOS_AGENT_MESSAGE+`, `+TUIOS_WINDOW_ID+`, `+TUIOS_WINDOW_NAME+` and the other variables every hook receives.
+Its output and exit status are discarded.
+It fires only for alerts that pass every other gate (`enabled`, the state table, `suppress_focused`, `quiet_hours` and the settle time), and it is silenced together with the other sinks.
+An empty string (the default) runs nothing.
+
+The typical use is to reach a device TUIOS cannot see, such as your phone:
+
+[source,toml]
+----
+[notifications.agent]
+command = 'curl -s -d "$TUIOS_WINDOW_NAME is $TUIOS_AGENT_STATE" ntfy.sh/my-topic'
+----
+
+The command is registered when the client starts, so a change needs a restart of the client.
+See xref:hooks.adoc#doc-hooks[Hooks] for the full contract.
+
+[#cfg-notifications-agent-dock]
+=== dock
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Shows the alert as a message in the TUIOS dock, for example "build needs input".
+The message is clickable and jumps to the pane that raised it, also when that pane is on another workspace or in another session.
+
+The severity, and therefore how long the message stays up, follows the state: `+needs_input+` is a warning, `errored` is an error (sticky by default, see `+[notifications] error_sticky+`), `done` is a success message, and `idle` and `working` are informational.
+
+Set it to `false` if you only want the desktop notification or the sound and find the extra dock message redundant.
+
+[#cfg-notifications-agent-enabled]
+=== enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+The master switch for agent alerts.
+
+* `true` (default): alerts fire according to the rest of this table.
+* `false`: no agent alert is raised at all. Every sink is silent, including `command` and any `after-agent-state` hook in `+[hooks]+`.
+
+Agent state itself is still tracked and shown in the sidebar and on the panes; only the alerts are switched off.
+
+[#cfg-notifications-agent-notify]
+=== notify
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Writes an in-band desktop notification (OSC 9) to the terminal the client is attached to.
+Terminals such as kitty, Ghostty, WezTerm and iTerm2 turn it into a desktop notification.
+
+Because the sequence travels in the same stream as the interface itself, it reaches the terminal in front of you, also when the session runs on another machine.
+Under an outer tmux or GNU screen, TUIOS wraps the sequence in the passthrough those multiplexers need; tmux additionally needs its `allow-passthrough` option enabled.
+
+Set it to `false` if your terminal does not support these notifications or shows them in a way you dislike.
+
+[#cfg-notifications-agent-quiet-hours]
+=== quiet_hours
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+A daily window of local time during which no agent alert is raised, written as `HH:MM-HH:MM`, for example `22:00-08:00`.
+Inside the window every sink is silent: the notification, the sound, the dock message and the command.
+
+The start is inclusive and the end is exclusive.
+A window whose end is earlier than its start wraps around midnight, so `22:00-08:00` covers the night.
+Hours run from `00` to `23` and minutes from `00` to `59`.
+An empty string (the default) means never quiet, and so does a window whose start and end are equal.
+
+A value that cannot be parsed produces a configuration warning and is ignored, so alerts are then never silenced by the clock.
+
+[source,toml]
+----
+[notifications.agent]
+quiet_hours = "22:00-07:30"
+----
+
+Quiet hours are checked when the state change arrives, before the settle time starts, using the clock of the machine the client runs on.
+
+[#cfg-notifications-agent-settle-seconds]
+=== settle_seconds
+
+[horizontal]
+Type:: integer
+Default:: `++2++`
+
+The number of seconds an alert is held back before it fires.
+If the pane leaves the alerting state within that time, the alert is dropped, so an agent that flips quickly between states produces one alert, or none, instead of a stream.
+
+When the time is up, TUIOS checks again before firing: the pane must still exist and still be in the same state, and with `suppress_focused` it must still not be focused.
+So a pane you looked at during the wait does not alert any more.
+
+* `0`: alert immediately, without any hold.
+* A positive number: hold the alert for that many seconds. The default is 2.
+* A negative number: not meaningful. It produces a configuration warning and the default is used.
+
+Raise it if a flappy agent still alerts too often; set it to `0` if you want every transition reported at once.
+
+[#cfg-notifications-agent-sound]
+=== sound
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Makes agent alerts audible.
+How that is done is set by `sound_mode`.
+
+* `false` (default): alerts are silent.
+* `true`: an alert plays a cue, rings the terminal bell, or both.
+
+The audio cue is played through an audio player on the machine where the TUIOS interface runs.
+For a local `tuios` or `tuios attach` that is your own machine; under `tuios ssh` (the SSH server) and `tuios-web`, the interface runs inside the server process, so the cue would play on the server.
+Use `sound_mode = "bell"` there: the bell travels to your terminal like the rest of the interface.
+
+[#cfg-notifications-agent-sound-cooldown-seconds]
+=== sound_cooldown_seconds
+
+[horizontal]
+Type:: integer
+Default:: `++3++`
+
+The shortest gap, in seconds, between two audible cues, counted across all panes together.
+When several agents finish at the same moment you hear one cue instead of one per pane; a cue that arrives within the cooldown is dropped, not delayed.
+
+* `0`: no cooldown. Only one cue plays at a time, so a cue arriving while another one plays can still be dropped.
+* A positive number: the gap in seconds. The default is 3.
+* A negative number: produces a configuration warning and the default is used.
+
+The cooldown applies to the audio cue only.
+The terminal bell of `sound_mode = "bell"` is not rate-limited by TUIOS; your terminal may do that itself.
+
+[#cfg-notifications-agent-sound-mode]
+=== sound_mode
+
+[horizontal]
+Type:: string
+Default:: `++"audio"++`
+
+How an alert is made audible when `sound` is `true`.
+
+* `audio` (default): play one of the two built-in cues, or a custom file from `+[notifications.agent.sounds]+`, through a system audio player: `paplay`, `pw-play`, `aplay`, `ffplay` or `mpv` on Linux and BSD, `afplay` on macOS. When no player is found, or playback fails a few times in a row, sound switches itself off for the rest of the session without a message.
+* `bell`: write a BEL character to your terminal and let the terminal decide what that means (a beep, a visual flash, an urgency hint, or nothing).
+* `both`: do each, for setups where one of them might be missed.
+
+An empty value means the default.
+An unrecognised value produces a configuration warning and `audio` is used.
+Choose `bell` for remote sessions (`tuios ssh`, `tuios-web`) and machines without an audio device, or when your terminal or window manager reacts usefully to a bell.
+Setting the environment variable `+TUIOS_NO_SOUND+` silences the audio cue whatever this option says.
+
+[#cfg-notifications-agent-suppress-focused]
+=== suppress_focused
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Drops alerts for the pane you are already looking at.
+
+* `true` (default): a pane that is focused when its state changes raises no alert, on the grounds that you can see it. A pane that becomes focused during the settle time is dropped as well.
+* `false`: every pane alerts, focused or not.
+
+Set it to `false` if you often have an agent on screen while your attention is elsewhere, for example in another application.
+
+[#cfg-notifications-agent-sounds]
+== [notifications.agent.sounds]
+
+The `+[notifications.agent.sounds]+` table replaces the two built-in alert cues with sound files of your own.
+It only matters when `+[notifications.agent]+` has `sound = true` and `sound_mode` is `audio` or `both`.
+
+There are two cues rather than one per state, because two sounds can be told apart by ear and five cannot.
+The attention cue is used for `+needs_input+` and `errored`; the "agent stopped" cue is used for `done`, `idle` and `working`.
+
+Each value is a path to a file on the machine the client runs on.
+The path is used as written: `~` and environment variables are not expanded, so use an absolute path.
+A path that is empty, does not exist or cannot be read falls back to the built-in cue, so a typo costs you the custom sound, not all sound.
+Use a WAV file: the ALSA and PipeWire players TUIOS prefers on Linux do not decode compressed formats such as MP3.
+
+[#cfg-notifications-agent-sounds-done]
+=== done
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Path to the cue played when an agent stopped, on a transition into `done`, `idle` or `working`.
+Empty (the default) uses the built-in cue, a short and quiet chime.
+
+[source,toml]
+----
+[notifications.agent.sounds]
+done = "/home/me/.config/tuios/sounds/done.wav"
+----
+
+[#cfg-notifications-agent-sounds-needs-input]
+=== needs_input
+
+[horizontal]
+Type:: string
+Default:: `++""++`
+
+Path to the attention cue, played when an agent waits for you (`+needs_input+`) or has failed (`errored`).
+Empty (the default) uses the built-in cue, which is higher, longer and louder than the "agent stopped" cue.
+Pick something you will notice, since this cue means work is blocked on you.
+
+[#cfg-notifications-agent-states]
+== [notifications.agent.states]
+
+The `+[notifications.agent.states]+` table selects which agent-state transitions raise an alert.
+Each key names a state; when a pane moves into a state that is set to `true`, the sinks of `+[notifications.agent]+` fire for it, subject to `enabled`, `suppress_focused`, `quiet_hours` and the settle time.
+
+The defaults are deliberately quiet: only the states that mean the agent has stopped and may need a human are on.
+Moving into `none` (no agent) never alerts.
+See xref:agent-state.adoc#doc-agent-state[Agent State] for what each state means and where it comes from.
+
+[#cfg-notifications-agent-states-done]
+=== done
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Alerts when an agent reports that it has finished its task.
+The `done` state is only set by an explicit report, such as `tuios set-agent-state done` or a harness integration, never guessed, so it is a reliable signal.
+The dock shows it as a success message, and it uses the "agent stopped" cue.
+On by default; turn it off if you only want to hear about agents that are blocked.
+
+[#cfg-notifications-agent-states-errored]
+=== errored
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Alerts when an agent stops because of an error.
+The dock shows it as an error message, which is sticky by default, and it uses the attention cue, the same one as `+needs_input+`.
+On by default.
+
+[#cfg-notifications-agent-states-idle]
+=== idle
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Alerts when an agent goes quiet.
+Unlike `done`, the `idle` state is often guessed: the daemon demotes a pane from `working` to `idle` after a stretch without output.
+That makes it the flappy state, so it is off by default.
+Turn it on if your agents do not report `done` themselves and you still want to know when they stopped, and consider a larger `settle_seconds` with it.
+It uses the "agent stopped" cue.
+
+[#cfg-notifications-agent-states-needs-input]
+=== needs_input
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+Alerts when an agent is blocked waiting for you, for example on a permission prompt or a question.
+This is the most important alert, and it is on by default.
+The dock shows it as a warning, and it uses the attention cue.
+
+[#cfg-notifications-agent-states-working]
+=== working
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Alerts when an agent starts working.
+That is rarely news, and an agent can enter this state many times per task, so it is off by default.
+With sound enabled it uses the "agent stopped" cue, so it is mostly useful together with `command`, for logging or an external status display.
+
+[#cfg-startup]
+== [startup]
+
+The `+[startup]+` table controls what a session looks like the moment it starts.
+With every option at its default of `false`, a session comes up empty and floating, in window-management mode, and you open the first window yourself.
+
+These options are one-shot: they are applied once, after the real terminal size is known, and only to a session that has no windows yet.
+Attaching to a session that already has windows restores that session's own layout and mode instead.
+All three are also available on the Startup page of the in-app settings, which saves them back to the config file; changes take effect on the next start.
+
+[#cfg-startup-open-default-window]
+=== open_default_window
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Opens one terminal window automatically when a session starts with none, so you land in a shell instead of an empty screen.
+The window is created exactly as if you had pressed `n`, so it honours tiling and `+maximize_new_windows+`.
+
+Leave it `false` if you prefer to start with an empty screen, or if a tape or a script populates the session for you.
+The web terminal (`tuios-web`) always turns this option on, together with <<cfg-startup-start-in-terminal-mode,start_in_terminal_mode>>.
+
+[#cfg-startup-start-in-terminal-mode]
+=== start_in_terminal_mode
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Starts in terminal mode, so your keystrokes go straight to the shell instead of to the window manager.
+Terminal mode needs a window to type into, so in practice this option only acts together with <<cfg-startup-open-default-window,open_default_window>>: without a window, the session stays in window-management mode.
+
+In a daemon session the default window is created asynchronously; tuios waits for it to arrive and then switches to terminal mode.
+
+[source,toml]
+----
+[startup]
+open_default_window = true
+start_in_terminal_mode = true
+----
+
+[#cfg-startup-tiled]
+=== tiled
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Starts a new session with automatic tiling enabled instead of floating windows.
+Windows opened afterwards are tiled automatically in the current layout mode.
+Combine it with <<cfg-startup-open-default-window,open_default_window>> to start in a tiled session with one terminal already open.
+
+Besides the first session, this option also applies to a session you create from within tuios, for example from the session switcher.
+Switching to a session that already exists keeps whatever layout you left it in.
+
+[#cfg-tape]
+== [tape]
+
+The `+[tape]+` table configures tape scripts: the `.tape` DSL and Lua tapes you keep in the tape directory (`$XDG_CONFIG_HOME/tuios/tapes`, normally `~/.config/tuios/tapes`), and the per-directory project tapes (`.tuios.tape` or `.tuios.tape.lua`) that tuios can detect when a shell enters a project directory.
+
+Project tapes are guarded by a trust model: nothing runs that you have not reviewed, and a tape edited after you trusted it has to be reviewed again.
+See xref:project-tapes.adoc#doc-project-tapes[Project Tapes] and xref:tape-lua.adoc#doc-tape-lua[Lua Tape Scripting].
+
+[#cfg-tape-allow-secrets]
+=== allow_secrets
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Allows Lua tapes to call `+tuios.secret(source, name [, database])+`, which reads an entry from a password manager and returns it to the script.
+Supported sources are `pass`, `gopass`, `passage` and `keepassxc`; KeePassXC needs a database path as third argument or in `+TUIOS_KEEPASSXC_DATABASE+`.
+
+With `false`, the Lua sandbox has no way to read a secret and `tuios.secret()` fails with an error, so even a tape you reviewed and trusted cannot pull secrets unless you opt in on this machine.
+Enabling it does not give Lua general process execution; only the listed password managers can be queried.
+
+If you only need the secret inside a shell command, you can leave this off and let the shell resolve it, for example with `$(pass show ...)` inside the typed command.
+
+[source,toml]
+----
+[tape]
+allow_secrets = true
+----
+
+[#cfg-tape-auto-review]
+=== auto_review
+
+[horizontal]
+Type:: boolean
+Default:: `++false++`
+
+Opens the tape review dialog automatically when the focused window's shell enters a directory with a project tape you can act on (untrusted, changed since you trusted it, or trusted).
+With `false`, detection only shows a passive banner and a dock badge, and you open the dialog yourself with the leader key followed by `T` and `t`.
+
+This only saves a keypress; it never weakens the trust boundary.
+You still choose Run once, Trust and run, Never or Not now.
+The dialog does not open for a tape you denied, for a directory already handled in this session, or for a trusted, unedited tape that `autorun = "auto"` runs on its own.
+It has no effect when <<cfg-tape-autorun,autorun>> is `off`.
+
+[#cfg-tape-autorun]
+=== autorun
+
+[horizontal]
+Type:: string
+Default:: `++"ask"++`
+
+The master switch for project tape detection.
+
+* `off` - no detection, no indicator; the feature is invisible.
+* `ask` - detection on.
+  An encountered tape shows a passive banner and a dock badge with its trust status, and nothing runs until you open the review dialog and choose to run it.
+* `auto` - a trusted tape that has not changed since you trusted it runs automatically when you enter its directory.
+  An untrusted or changed tape behaves exactly as in `ask`.
+
+There is no mode in which unreviewed content executes.
+An unknown value produces a config warning and falls back to `ask`.
+The environment variable `+TUIOS_TAPE_AUTORUN+` overrides this option for one run, which is useful in CI or when inspecting untrusted code, for example `+TUIOS_TAPE_AUTORUN=off tuios+`.
+
+[#cfg-tape-extensions]
+=== extensions
+
+[horizontal]
+Type:: list of strings
+Default:: `++[".tape", ".tape.lua"]++`
+
+The filename suffixes that count as tape files in the tape directory.
+They determine what the tape manager (the leader key followed by `T` and `m`) and the `tuios tape list`, `tuios tape show` and `tuios tape delete` commands list; any other file, such as a shared `.lua` helper module that other Lua tapes use, is filtered out.
+
+A suffix ending in `.lua` is played as a Lua tape, any other suffix as the `.tape` DSL.
+When several suffixes match a filename, the longest wins, so `.tape.lua` beats `.lua`.
+The suffix is stripped from the name shown in the tape manager.
+An empty list falls back to the default.
+This option does not affect project tape detection, which always looks for `.tuios.tape` and `.tuios.tape.lua`.
+
+[source,toml]
+----
+[tape]
+extensions = [".tape", ".tape.lua", ".tuios"]
+----

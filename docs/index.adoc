@@ -1,0 +1,150 @@
+[#doc-index]
+= TUIOS — Documentation Index
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+TUIOS (Terminal UI Operating System) is a terminal-based window manager with a vim-like modal interface, workspaces, tiling, persistent sessions, and SSH and web access.
+This index lists every document in this directory, grouped by topic.
+For an overview of the project and how to install it, see the link:../README.md[README].
+
+All documents are also bundled as chapters of one book, xref:tuios-book.adoc#doc-tuios-book[tuios-book.adoc]; `make docs-pdf` builds it as `tuios-book.pdf`.
+
+== Using TUIOS
+
+[cols="1,3", options="header"]
+|===
+|Document |Contents
+
+|xref:keybindings.adoc#doc-keybindings[Keybindings Reference]
+|Every keyboard shortcut, per mode, including the prefix (leader) key menus.
+
+|xref:configuration.adoc#doc-configuration[Configuration Guide]
+|All `config.toml` options: appearance, keybindings, notifications, classroom settings and more.
+
+|xref:config-reference.adoc#doc-config-reference[Configuration Reference]
+|Every configuration option, by table and in alphabetical order, with its type, default and a full explanation. Generated from the code.
+
+|xref:cli-reference.adoc#doc-cli-reference[CLI Reference]
+|Every `tuios` and `tuios-web` command and flag.
+
+|xref:bsp-tiling.adoc#doc-bsp-tiling[Binary Space Partitioning Tiling]
+|The default tiling layout: preselection, split control and resizing.
+
+|xref:layout-modes.adoc#doc-layout-modes[Layout Modes and Window Navigation]
+|BSP, master-stack and scrolling layouts, the aggregate view and multifocus.
+
+|xref:themes.adoc#doc-themes[Themes]
+|Built-in themes and writing your own theme as JSON.
+
+|xref:showkeys.adoc#doc-showkeys[Showkeys Overlay]
+|Showing pressed keys on screen for demos and screencasts.
+
+|xref:hooks.adoc#doc-hooks[Hooks]
+|Running shell commands on window, workspace and session events.
+
+|xref:agent-state.adoc#doc-agent-state[Agent State]
+|How panes running coding agents report their state, and how TUIOS shows it.
+|===
+
+== Sessions and remote access
+
+[cols="1,3", options="header"]
+|===
+|Document |Contents
+
+|xref:sessions.adoc#doc-sessions[Sessions]
+|Daemon mode, attaching and detaching, and what survives a restart.
+
+|xref:multi-client.adoc#doc-multi-client[Multi-Client Sessions]
+|Several clients attached to one session at the same time.
+
+|xref:web.adoc#doc-web[Web Terminal Mode (tuios-web)]
+|Serving TUIOS in a browser with the separate `tuios-web` binary.
+
+|xref:deployment.adoc#doc-deployment[Production Deployment (tuios-web)]
+|Running `tuios-web` as a service: systemd, nginx, TLS, PAM multi-tenant mode and the trainer console.
+
+|xref:protocol.adoc#doc-protocol[TUIOS JSON Verb Protocol]
+|Controlling a daemon session from outside over its Unix socket.
+|===
+
+== Tape scripting and automation
+
+[cols="1,3", options="header"]
+|===
+|Document |Contents
+
+|xref:tape-scripting.adoc#doc-tape-scripting[Tape Scripting Language Reference]
+|The tape DSL for automating window management workflows.
+
+|xref:tape-recording.adoc#doc-tape-recording[Tape Recording]
+|Recording your own actions as a replayable tape.
+
+|xref:tape-lua.adoc#doc-tape-lua[Lua Tape Scripting]
+|Tapes written in Lua, for when you need variables, loops and conditionals.
+
+|xref:project-tapes.adoc#doc-project-tapes[Project Tapes]
+|Per-directory `.tuios.tape` files that run when you enter a project.
+|===
+
+== Embedding
+
+[cols="1,3", options="header"]
+|===
+|Document |Contents
+
+|xref:library.adoc#doc-library[Using TUIOS as a Library]
+|Embedding the TUIOS window manager in your own Go program.
+
+|xref:sip-library.adoc#doc-sip-library[Sip]
+|Serving Bubble Tea applications in the browser.
+|===
+
+== Development
+
+[cols="1,3", options="header"]
+|===
+|Document |Contents
+
+|xref:contributing.adoc#doc-contributing[Contributing to TUIOS]
+|Setting up a development environment, coding conventions and submitting changes.
+
+|xref:architecture.adoc#doc-architecture[TUIOS Architecture]
+|The layered Model-View-Update architecture and its main components.
+
+|xref:rehydration.adoc#doc-rehydration[Pane Rehydration]
+|How a client rebuilds a pane from the daemon's authoritative state.
+
+|xref:style-cache.adoc#doc-style-cache[Style Cache Optimization]
+|The rendering style cache and how to tune it.
+
+|xref:perf.adoc#doc-perf[Performance Baselines]
+|Recorded idle and rendering performance baselines.
+
+|xref:deps.adoc#doc-deps[Dependency Graph]
+|The Go package dependency graph of TUIOS.
+
+|xref:release-automation.adoc#doc-release-automation[Release Automation Guide]
+|What happens when a release tag is pushed, and the secrets it needs.
+
+|xref:fork-changes.adoc#doc-fork-changes[Changes Since the Fork]
+|Everything added or changed in this fork, grouped by theme.
+|===

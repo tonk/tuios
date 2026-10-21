@@ -32,19 +32,19 @@ image passthrough, and comprehensive keyboard/mouse interaction.
 Full documentation is available in the [`docs/`](./docs/) folder.
 
 ### Quick Links
-- **[Getting Started](docs/KEYBINDINGS.md)** - Keybindings and quick reference
-- **[BSP Tiling](docs/BSP_TILING.md)** - Tiling with preselection and split control
-- **[Layout Modes](docs/LAYOUT_MODES.md)** - BSP, master-stack and scrolling layouts, aggregate view, multifocus
-- **[Configuration](docs/CONFIGURATION.md)** - Customize keybindings, themes, and behavior
-- **[Hooks](docs/HOOKS.md)** - Run shell commands on window and session events
-- **[Themes](docs/THEMES.md)** - Built-in themes and custom theme JSON
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - All command-line options
-- **[Tape Scripting](docs/TAPE_SCRIPTING.md)** - Automate workflows
-- **[Sessions](docs/SESSIONS.md)** - Daemon mode, attach/detach, and what survives
-- **[Multi-Client](docs/MULTI_CLIENT.md)** - Several clients on one session
-- **[Control Protocol](docs/protocol.md)** - JSON verb protocol for driving the daemon
-- **[Architecture](docs/ARCHITECTURE.md)** - Technical design
-- **[Changes Since the Fork](docs/FORK_CHANGES.md)** - Everything added or changed in this fork, by theme
+- **[Getting Started](docs/keybindings.adoc)** - Keybindings and quick reference
+- **[BSP Tiling](docs/bsp-tiling.adoc)** - Tiling with preselection and split control
+- **[Layout Modes](docs/layout-modes.adoc)** - BSP, master-stack and scrolling layouts, aggregate view, multifocus
+- **[Configuration](docs/configuration.adoc)** - Customize keybindings, themes, and behavior
+- **[Hooks](docs/hooks.adoc)** - Run shell commands on window and session events
+- **[Themes](docs/themes.adoc)** - Built-in themes and custom theme JSON
+- **[CLI Reference](docs/cli-reference.adoc)** - All command-line options
+- **[Tape Scripting](docs/tape-scripting.adoc)** - Automate workflows
+- **[Sessions](docs/sessions.adoc)** - Daemon mode, attach/detach, and what survives
+- **[Multi-Client](docs/multi-client.adoc)** - Several clients on one session
+- **[Control Protocol](docs/protocol.adoc)** - JSON verb protocol for driving the daemon
+- **[Architecture](docs/architecture.adoc)** - Technical design
+- **[Changes Since the Fork](docs/fork-changes.adoc)** - Everything added or changed in this fork, by theme
 
 <details>
 <summary>Table of Contents</summary>
@@ -111,7 +111,7 @@ docker run -it --rm ghcr.io/tonk/tuios:latest
 
 ### Tiling
 - **BSP Tiling** - Binary Space Partitioning with spiral layout
-- **Scrolling Layout** - niri-style columns on an infinite horizontal strip ([docs](docs/LAYOUT_MODES.md))
+- **Scrolling Layout** - niri-style columns on an infinite horizontal strip ([docs](docs/layout-modes.adoc))
 - **Master-Stack Layout** - One master pane with the rest stacked beside it
 - **Smart Auto-Split** - Aspect-ratio-aware splitting (opt-in)
 - **Shared Borders** - tmux-style separator lines between panes (`--shared-borders`)
@@ -138,7 +138,7 @@ docker run -it --rm ghcr.io/tonk/tuios:latest
 
 ### Session Management
 - **Daemon Mode** - Persistent sessions with detach/reattach (like tmux)
-- **Session Resurrection** - Sessions come back after a daemon restart or reboot with their structure and working directories ([docs](docs/SESSIONS.md))
+- **Session Resurrection** - Sessions come back after a daemon restart or reboot with their structure and working directories ([docs](docs/sessions.adoc))
 - **Session Switcher** - In-app session list (<kbd>Prefix</kbd>+<kbd>S</kbd>)
 - **Layout Templates** - Save/load window arrangements with working directories and startup commands
 - **Layout CLI** - `tuios layout list`, `tuios layout delete`, `tuios layout export`
@@ -150,18 +150,18 @@ docker run -it --rm ghcr.io/tonk/tuios:latest
 - **Layout Export** - Convert layouts to tape scripts for sharing
 
 ### Discovery & Navigation
-- **Which-Key Popup** - Hold the prefix key to see the chords available ([docs](docs/CONFIGURATION.md#whichkey_enabled))
-- **Aggregate View** - Searchable list of every window across every workspace, with previews ([docs](docs/LAYOUT_MODES.md#aggregate-view))
-- **Multifocus** - Broadcast typing to several panes at once, `Ctrl`+click to select ([docs](docs/LAYOUT_MODES.md#multifocus))
+- **Which-Key Popup** - Hold the prefix key to see the chords available ([docs](docs/configuration.adoc#whichkey_enabled))
+- **Aggregate View** - Searchable list of every window across every workspace, with previews ([docs](docs/layout-modes.adoc#aggregate-view))
+- **Multifocus** - Broadcast typing to several panes at once, `Ctrl`+click to select ([docs](docs/layout-modes.adoc#multifocus))
 
 ### More
 - **Showkeys Overlay** - Display pressed keys for presentations
 - **Customizable Keybindings** - TOML configuration with Kitty protocol support
-- **Hooks** - Run shell commands on window create, close and focus events ([docs](docs/HOOKS.md))
+- **Hooks** - Run shell commands on window create, close and focus events ([docs](docs/hooks.adoc))
 - **Mouse Support** - Wheel scrollback, drag-to-select with copy on release, double-click word and triple-click line, window drag, resize, scrollbar
 - **SSH Server Mode** - Remote terminal multiplexing
 - **Web Terminal Mode** - Browser-based access (separate `tuios-web` binary)
-- **Themes** - Bundled themes plus custom themes from JSON ([docs](docs/THEMES.md))
+- **Themes** - Bundled themes plus custom themes from JSON ([docs](docs/themes.adoc))
 
 ## Quick Start
 
@@ -217,7 +217,7 @@ tuios config edit            # Edit config in $EDITOR
 tuios keybinds list          # View all keybindings
 ```
 
-See [Configuration Guide](docs/CONFIGURATION.md) for all options including `show_clock`, `show_cpu`, `show_ram`, `shared_borders`, custom themes, and keybinding customization.
+See [Configuration Guide](docs/configuration.adoc) for all options including `show_clock`, `show_cpu`, `show_ram`, `shared_borders`, custom themes, and keybinding customization.
 
 ## What's New in v0.7.0
 
@@ -266,7 +266,7 @@ See [Configuration Guide](docs/CONFIGURATION.md) for all options including `show
 
 ## Architecture
 
-TUIOS follows the Model-View-Update pattern on Bubble Tea v2. For details, see [Architecture Guide](docs/ARCHITECTURE.md).
+TUIOS follows the Model-View-Update pattern on Bubble Tea v2. For details, see [Architecture Guide](docs/architecture.adoc).
 
 **Key design decisions:**
 - **Event-driven rendering** - PTY reader goroutines signal bubbletea via a buffered channel. No fixed-rate ticking for terminal content.

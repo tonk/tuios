@@ -94,7 +94,7 @@ func (m *OS) CancelLuaPlayback() {
 // It is the Lua counterpart of runProjectTape, sharing the same trust/review
 // callers ("Run once", "Trust and run", and auto-mode) and the same
 // session-per-project behavior, but with two simplifications documented in
-// docs/PROJECT_TAPES.md: there is no header (Session/Scope/Workspace/Require
+// docs/project-tapes.adoc: there is no header (Session/Scope/Workspace/Require
 // directives are a DSL-only concept), so a Lua project tape always builds a
 // session named after the directory. The returned command is the Lua bridge's
 // listener commands, which the caller must dispatch.

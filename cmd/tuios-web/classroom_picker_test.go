@@ -44,6 +44,25 @@ func TestNewClassroomPickerModelInvalidPattern(t *testing.T) {
 	}
 }
 
+// TestNewClassroomPickerModelAnchorsPattern pins that the picker lists only
+// sessions whose whole name matches trainee_pattern, the same rule the
+// server-side attach check applies: an unanchored "guru[0-9]{2}" must not list
+// "superguru07" or "guru07-admin".
+func TestNewClassroomPickerModelAnchorsPattern(t *testing.T) {
+	fakeSocket := runFakePAMHelperForAuth(t)
+	login := dialFakeLogin(t, fakeSocket, "ton")
+
+	m := newClassroomPickerModel(context.Background(), login, "guru[0-9]{2}", 80, 24, nil, false)
+	if m.patternErr != nil {
+		t.Fatalf("unexpected pattern error: %v", m.patternErr)
+	}
+	all := []session.SessionInfo{{Name: "guru07"}, {Name: "superguru07"}, {Name: "guru07-admin"}}
+	got := filterClassroomSessions(all, "ton", m.pattern)
+	if len(got) != 1 || got[0].Name != "guru07" {
+		t.Errorf("got %+v, want only guru07", got)
+	}
+}
+
 func TestNewClassroomPickerModelEmptyPattern(t *testing.T) {
 	fakeSocket := runFakePAMHelperForAuth(t)
 	login := dialFakeLogin(t, fakeSocket, "ton")

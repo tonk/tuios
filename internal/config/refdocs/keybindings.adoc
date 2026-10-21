@@ -1,0 +1,46 @@
+The `+[keybindings]+` table holds the leader key, and its sub-tables bind keys to actions, one sub-table per context: `+[keybindings.window_management]+`, `+[keybindings.prefix_mode]+`, `+[keybindings.terminal_mode]+`, `+[keybindings.sidebar]+` and so on.
+Each entry maps an action name to a list of keys, written as `+action = ["key", "key2"]+`.
+A key is a name such as `n`, `enter` or `f5`, optionally preceded by modifiers: `++ctrl+n++`, `++alt+shift+left++`, `++opt+1++` (on macOS, `opt` and `option` mean `alt`).
+Any of the listed keys triggers the action.
+
+Sub-tables merge with the defaults per action: an action you list replaces the default keys of that one action, and every action you leave out keeps its default binding.
+So a sub-table only needs the actions you want to change.
+An empty list, `+action = []+`, unbinds the action; in `+[keybindings.terminal_mode]+` the key then goes to the program in the pane again.
+Binding a key to one action does not remove it from another action that has it by default, so pick a free key or unbind the other action too.
+tuios warns at startup about a key shared by two window-management actions (the `+window_management+`, `+workspaces+`, `layout`, `+mode_control+`, `system` and `navigation` sub-tables); within any other sub-table, a key listed for two actions goes to the action whose name sorts first.
+A key that cannot be parsed is reported as a configuration error.
+
+[source,toml]
+----
+[keybindings]
+leader_key = "ctrl+a"
+
+[keybindings.prefix_mode]
+prefix_new_window = ["c", "y"]
+
+[keybindings.terminal_mode]
+terminal_focus_left = []
+terminal_focus_right = []
+----
+
+The tables below list the default bindings of every sub-table.
+See xref:keybindings.adoc#doc-keybindings[Keybindings Reference] for what each action does in context.
+
+@@ leader_key
+The prefix key for the tmux-style commands.
+Press it, release it, and then press a key from `+[keybindings.prefix_mode]+`, or a sub-menu key: `w` for workspaces, `m` for minimize, `t` for the window and tiling menu, `D` for debug tools, `T` for tapes.
+After a short pause the which-key popup lists the keys available next (see <<cfg-appearance-whichkey-enabled,whichkey_enabled>>).
+
+The leader works in window-management mode and in terminal mode, which means the program in the pane never receives that key directly.
+Pressing the leader twice in terminal mode passes the leader key itself through to the program in the pane, so with `++ctrl+a++` as leader a double press sends Ctrl+A.
+
+Pick a key your shell and editors do not need.
+Popular alternatives are `++ctrl+a++` (as in GNU Screen) and `++ctrl+space++`.
+An invalid key is reported as a configuration error; an empty value means the default.
+There is no command-line flag for this option.
+
+[source,toml]
+----
+[keybindings]
+leader_key = "ctrl+space"
+----

@@ -231,14 +231,6 @@ func runWebServer() error {
 	webServerConfig.ephemeral = ephemeralMode
 	webServerConfig.version = version
 
-	// If using daemon mode, ensure daemon is running
-	if !ephemeralMode {
-		if err := session.EnsureDaemonRunning(); err != nil {
-			log.Printf("Warning: Failed to start daemon, falling back to ephemeral mode: %v", err)
-			webServerConfig.ephemeral = true
-		}
-	}
-
 	// Create context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -314,6 +306,15 @@ func runWebServer() error {
 		ThemeName:         themeName,
 	}
 	config.ApplyOverrides(webOverrides, userConfig)
+
+	// If using daemon mode, ensure daemon is running. This waits for the config
+	// above so a daemon started in-process reads its [daemon] table.
+	if !ephemeralMode {
+		if err := session.EnsureDaemonRunning(userConfig); err != nil {
+			log.Printf("Warning: Failed to start daemon, falling back to ephemeral mode: %v", err)
+			webServerConfig.ephemeral = true
+		}
+	}
 
 	// In --pam-auth or --web-settings mode, sip's own server binds
 	// loopback-only and plain HTTP; the front door (below, after
@@ -957,7 +958,7 @@ func createClassroomTUIOSInstance(ctx context.Context, login *pamauth.Login, wid
 	handoffErr := session.SendClassroomLogin(socketPath, sessionName, sessionName, loginFD, width, height)
 	_ = loginFD.Close()
 	if handoffErr != nil {
-		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/DEPLOYMENT.md): %w", sessionName, handoffErr)
+		return nil, nil, fmt.Errorf("creating classroom session %q (is a tuios daemon running? see docs/deployment.adoc): %w", sessionName, handoffErr)
 	}
 
 	return attachDaemonSession(ctx, sessionName, false, width, height, graphicsOut, touch, sessionName, sessionName)

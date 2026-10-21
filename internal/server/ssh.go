@@ -80,7 +80,13 @@ func StartSSHServer(ctx context.Context, cfg *SSHServerConfig) error {
 
 	// If using daemon mode, ensure daemon is running
 	if !cfg.Ephemeral {
-		if err := session.EnsureDaemonRunning(); err != nil {
+		// The daemon this may start in-process reads [daemon] from the same
+		// config file a standalone `tuios daemon` would.
+		userConfig, err := config.LoadUserConfig()
+		if err != nil {
+			userConfig = nil
+		}
+		if err := session.EnsureDaemonRunning(userConfig); err != nil {
 			log.Printf("Warning: Failed to start daemon, falling back to ephemeral mode: %v", err)
 			cfg.Ephemeral = true
 		}

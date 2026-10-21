@@ -1,0 +1,56 @@
+The `+[classroom]+` table configures the trainer console of `tuios-web` in PAM classroom deployments, where every trainee logs in to the browser terminal with their own system account.
+With the trainer console enabled, designated trainer accounts can open a trainee's live session from a picker, or directly with `+?attach=<username>+` on the connection URL, and both see and type into it.
+
+This is a security-sensitive feature: a trainer who attaches to a session has full control over the shells of that trainee's account.
+It is off by default, and all three options must be set before anyone can cross-attach.
+The table is read from the configuration `tuios-web` itself uses (its `--config` file, or the configuration of the account it runs as), not from the trainees' configurations.
+Changes to this table need a restart of `tuios-web` to take full effect.
+See xref:deployment.adoc#doc-deployment[Production Deployment] for the deployment requirements, such as the `tuios` daemon that must run alongside `tuios-web`.
+
+@@ trainee_pattern
+A Go (RE2) regular expression that a username must match to be an eligible target for the trainer console.
+When a trainer requests `+?attach=<username>+`, the request is only granted if the requested name matches this pattern, and the picker only lists sessions whose names match it.
+
+The pattern must match the whole username: TUIOS anchors it as `+^(?:pattern)$+`, so `guru[0-9]{2}` matches `guru07` but not `superguru07` or `guru07-admin`, and `alice|bob` matches only those two names.
+Writing your own `+^+` and `+$+` is allowed and changes nothing.
+Still keep the pattern as narrow as your trainee accounts, so it can never match another user, such as an administrator.
+
+[source,toml]
+----
+[classroom]
+trainee_pattern = "^guru[0-9]{2}$"
+----
+
+An empty pattern (the default) matches nothing; there is no implicit "match everyone".
+A pattern that does not compile also matches nothing, produces a configuration warning, and the picker shows the error.
+The trainer's own session never appears in the picker list, even when the trainer's name matches; it has its own entry.
+
+@@ trainer_console
+The master switch for the trainer console.
+
+* `false` (default): no cross-user attach is possible. A request with `+?attach=+` naming another user is refused like a failed login, and every connection gets the user's own session, exactly as without a `+[classroom]+` table.
+* `true`: classroom sessions become daemon-backed, so more than one connection can attach to the same session. Accounts listed in `trainer_users` land on the trainer picker and may attach to sessions matching `trainee_pattern`.
+
+The switch only has an effect when `tuios-web` runs with `--pam-auth`, and it needs a `tuios` daemon running alongside `tuios-web`; without one, a classroom connection shows an error instead of falling back to a non-persistent session.
+Turning it on without `trainer_users` or `trainee_pattern` produces a configuration warning, because nobody could use the console.
+
+@@ trainer_users
+The exact usernames that may use the trainer console.
+This list is the real access gate: only an account that has authenticated through PAM and appears here can attach to another user's session.
+An empty list (the default) means nobody, even with `trainer_console = true`.
+
+[source,toml]
+----
+[classroom]
+trainer_console = true
+trainer_users = ["trainer", "tonk"]
+trainee_pattern = "^guru[0-9]{2}$"
+----
+
+Names are compared exactly, case included; there are no wildcards or groups.
+The check happens on the server against the username PAM just verified, never against anything the browser claims.
+A denied attach gets the same "authentication failed" answer as a wrong password, and is logged by `tuios-web` with the trainer and target names.
+
+Keep the list short and limited to accounts that really need it.
+A trainer always lands on the picker when connecting without `+?attach=+`; to reach their own session they choose it in the picker, or connect with their own username as the attach target.
+An attached trainer uses their own settings, not those of the trainee.

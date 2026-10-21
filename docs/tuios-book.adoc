@@ -1,0 +1,96 @@
+[#doc-tuios-book]
+= TUIOS — The Terminal UI Operating System
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+:doctype: book
+:book:
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 2
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+
+[preface]
+== About this book
+
+This book collects all TUIOS documentation in one volume.
+Every chapter is also a separate document in this directory; `index.adoc` lists them.
+
+= Using TUIOS
+
+include::keybindings.adoc[leveloffset=+1]
+
+include::configuration.adoc[leveloffset=+1]
+
+include::cli-reference.adoc[leveloffset=+1]
+
+include::bsp-tiling.adoc[leveloffset=+1]
+
+include::layout-modes.adoc[leveloffset=+1]
+
+include::themes.adoc[leveloffset=+1]
+
+include::showkeys.adoc[leveloffset=+1]
+
+include::hooks.adoc[leveloffset=+1]
+
+include::agent-state.adoc[leveloffset=+1]
+
+= Sessions and Remote Access
+
+include::sessions.adoc[leveloffset=+1]
+
+include::multi-client.adoc[leveloffset=+1]
+
+include::web.adoc[leveloffset=+1]
+
+include::deployment.adoc[leveloffset=+1]
+
+include::protocol.adoc[leveloffset=+1]
+
+= Tape Scripting and Automation
+
+include::tape-scripting.adoc[leveloffset=+1]
+
+include::tape-recording.adoc[leveloffset=+1]
+
+include::tape-lua.adoc[leveloffset=+1]
+
+include::project-tapes.adoc[leveloffset=+1]
+
+= Embedding
+
+include::library.adoc[leveloffset=+1]
+
+include::sip-library.adoc[leveloffset=+1]
+
+= Development
+
+include::contributing.adoc[leveloffset=+1]
+
+include::architecture.adoc[leveloffset=+1]
+
+include::rehydration.adoc[leveloffset=+1]
+
+include::style-cache.adoc[leveloffset=+1]
+
+include::perf.adoc[leveloffset=+1]
+
+include::deps.adoc[leveloffset=+1]
+
+include::release-automation.adoc[leveloffset=+1]
+
+include::fork-changes.adoc[leveloffset=+1]
+
+include::config-reference.adoc[leveloffset=+1]

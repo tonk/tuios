@@ -234,8 +234,12 @@ func HandleTerminalModeKey(msg tea.KeyPressMsg, o *app.OS) (*app.OS, tea.Cmd) {
 						return o, nil
 					}
 				}
-				// Legacy: send raw Ctrl+B byte
-				_ = focusedWindow.SendInput([]byte{0x02})
+				// Legacy: encode the configured leader like any forwarded key,
+				// so a leader of ctrl+a sends 0x01, not a hard-coded Ctrl+B.
+				appCursorKeys := focusedWindow.Terminal != nil && focusedWindow.Terminal.ApplicationCursorKeys()
+				if raw := getRawKeyBytesWithMode(msg, appCursorKeys); len(raw) > 0 {
+					_ = focusedWindow.SendInput(raw)
+				}
 			}
 			return o, nil
 		}

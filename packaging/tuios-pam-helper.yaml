@@ -15,7 +15,7 @@ maintainer: "Ton Kersten <tonk@smartowl.nl>"
 description: |
   Privileged PAM authentication helper for tuios-web's optional --pam-auth
   mode: authenticates a trainee against PAM and spawns their shells as
-  their own Unix account. Must run as root; see docs/DEPLOYMENT.md before
+  their own Unix account. Must run as root; see docs/deployment.adoc before
   deploying. This package installs the binary, a starter
   /etc/pam.d/tuios-web, and a systemd unit
   (/etc/systemd/system/tuios-pam-helper.service) - it does not enable

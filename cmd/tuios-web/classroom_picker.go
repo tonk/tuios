@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/pamauth"
 	"github.com/tonk/tuios/internal/session"
 )
@@ -87,7 +88,7 @@ func newClassroomPickerModel(ctx context.Context, login *pamauth.Login, traineeP
 	}
 	if traineePattern == "" {
 		m.patternErr = fmt.Errorf("classroom.trainee_pattern is empty; no session can ever match")
-	} else if re, err := regexp.Compile(traineePattern); err != nil {
+	} else if re, err := config.CompileTraineePattern(traineePattern); err != nil {
 		m.patternErr = fmt.Errorf("classroom.trainee_pattern %q does not compile: %w", traineePattern, err)
 	} else {
 		m.pattern = re

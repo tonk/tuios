@@ -27,7 +27,8 @@ LINUX_ARCHES := amd64 arm64
 PAM_HELPER_ARCH := amd64
 
 .PHONY: all build tuios tuios-web install clean dist package package-windows checksums \
-	pam-helper install-pam-helper dist-pam-helper package-pam-helper check-pam-headers
+	pam-helper install-pam-helper dist-pam-helper package-pam-helper check-pam-headers \
+	sync-doc-revisions docs-config-reference docs-pdf docs-pdf-assets
 
 all: build
 
@@ -142,3 +143,26 @@ package-pam-helper: dist-pam-helper
 			PAM_D_SRC=$(PAM_HELPER_DIR)/pam.d/tuios-web \
 			nfpm package --config $(PACKAGING)/tuios-pam-helper.yaml --packager $$fmt --target $(DIST)/ || exit 1; \
 	done
+
+# Set :revnumber:/:revdate: in docs/*.adoc from the latest release tag.
+sync-doc-revisions:
+	@./scripts/sync-doc-revisions.sh
+
+# Regenerate the title-page logo PNG (source: assets/logo.svg).
+docs-pdf-assets:
+	@command -v inkscape >/dev/null 2>&1 || { echo "inkscape is required to build docs/pdf-theme/tuios-title-logo.png"; exit 1; }
+	inkscape assets/logo.svg \
+		--export-type=png \
+		--export-filename=docs/pdf-theme/tuios-title-logo.png \
+		-w 600
+
+# Regenerate docs/config-reference.adoc from internal/config (options, defaults)
+# and internal/config/refdocs/*.adoc (explanations).
+docs-config-reference:
+	go test ./internal/config -run TestConfigReferenceDoc -update
+
+# Build the branded TUIOS book: every document in docs/ as a chapter of one PDF.
+docs-pdf: docs-config-reference docs-pdf-assets
+	@command -v asciidoctor-pdf >/dev/null 2>&1 || { echo "asciidoctor-pdf is required (gem install asciidoctor-pdf rouge)"; exit 1; }
+	@echo "Building docs/tuios-book.pdf …"
+	cd docs && asciidoctor-pdf -o tuios-book.pdf tuios-book.adoc

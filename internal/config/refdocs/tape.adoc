@@ -1,0 +1,57 @@
+The `+[tape]+` table configures tape scripts: the `.tape` DSL and Lua tapes you keep in the tape directory (`$XDG_CONFIG_HOME/tuios/tapes`, normally `~/.config/tuios/tapes`), and the per-directory project tapes (`.tuios.tape` or `.tuios.tape.lua`) that tuios can detect when a shell enters a project directory.
+
+Project tapes are guarded by a trust model: nothing runs that you have not reviewed, and a tape edited after you trusted it has to be reviewed again.
+See xref:project-tapes.adoc#doc-project-tapes[Project Tapes] and xref:tape-lua.adoc#doc-tape-lua[Lua Tape Scripting].
+
+@@ allow_secrets
+Allows Lua tapes to call `+tuios.secret(source, name [, database])+`, which reads an entry from a password manager and returns it to the script.
+Supported sources are `pass`, `gopass`, `passage` and `keepassxc`; KeePassXC needs a database path as third argument or in `+TUIOS_KEEPASSXC_DATABASE+`.
+
+With `false`, the Lua sandbox has no way to read a secret and `tuios.secret()` fails with an error, so even a tape you reviewed and trusted cannot pull secrets unless you opt in on this machine.
+Enabling it does not give Lua general process execution; only the listed password managers can be queried.
+
+If you only need the secret inside a shell command, you can leave this off and let the shell resolve it, for example with `$(pass show ...)` inside the typed command.
+
+[source,toml]
+----
+[tape]
+allow_secrets = true
+----
+
+@@ auto_review
+Opens the tape review dialog automatically when the focused window's shell enters a directory with a project tape you can act on (untrusted, changed since you trusted it, or trusted).
+With `false`, detection only shows a passive banner and a dock badge, and you open the dialog yourself with the leader key followed by `T` and `t`.
+
+This only saves a keypress; it never weakens the trust boundary.
+You still choose Run once, Trust and run, Never or Not now.
+The dialog does not open for a tape you denied, for a directory already handled in this session, or for a trusted, unedited tape that `autorun = "auto"` runs on its own.
+It has no effect when <<cfg-tape-autorun,autorun>> is `off`.
+
+@@ autorun
+The master switch for project tape detection.
+
+* `off` - no detection, no indicator; the feature is invisible.
+* `ask` - detection on.
+  An encountered tape shows a passive banner and a dock badge with its trust status, and nothing runs until you open the review dialog and choose to run it.
+* `auto` - a trusted tape that has not changed since you trusted it runs automatically when you enter its directory.
+  An untrusted or changed tape behaves exactly as in `ask`.
+
+There is no mode in which unreviewed content executes.
+An unknown value produces a config warning and falls back to `ask`.
+The environment variable `+TUIOS_TAPE_AUTORUN+` overrides this option for one run, which is useful in CI or when inspecting untrusted code, for example `+TUIOS_TAPE_AUTORUN=off tuios+`.
+
+@@ extensions
+The filename suffixes that count as tape files in the tape directory.
+They determine what the tape manager (the leader key followed by `T` and `m`) and the `tuios tape list`, `tuios tape show` and `tuios tape delete` commands list; any other file, such as a shared `.lua` helper module that other Lua tapes use, is filtered out.
+
+A suffix ending in `.lua` is played as a Lua tape, any other suffix as the `.tape` DSL.
+When several suffixes match a filename, the longest wins, so `.tape.lua` beats `.lua`.
+The suffix is stripped from the name shown in the tape manager.
+An empty list falls back to the default.
+This option does not affect project tape detection, which always looks for `.tuios.tape` and `.tuios.tape.lua`.
+
+[source,toml]
+----
+[tape]
+extensions = [".tape", ".tape.lua", ".tuios"]
+----

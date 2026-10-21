@@ -1,0 +1,58 @@
+The `+[appearance.scrollbar]+` table shapes the scrollbar tuios floats over a pane's last content column.
+The bar is a position readout: it only appears while a pane is scrolled back into its history, never at the live tail, never on the alternate screen (full-screen programs such as editors), and never on a pane with fewer than three content rows.
+You can click and drag it to scroll.
+
+To switch the bar off altogether use `+hide_scrollbar+` in `+[appearance]+`, which predates this table and stays where it is.
+Every key here is optional; an absent or empty one takes the style's own default.
+In ASCII mode (`+--ascii-only+` or `+border_style = "ascii"+`) the bar uses `|` as its thumb, draws no hairline track, and ignores non-ASCII glyph overrides.
+
+@@ style
+Selects how the bar is drawn.
+
+* `thin` - a slim thumb (`▐`) over a hairline track (`▕`) in the pane's last content column.
+  The bar moves one whole row at a time.
+* `track` - a full-height track painted in the surface colour behind a solid block thumb (`█`).
+  The thumb is positioned to the half cell (with `▀` and `▄` at its ends), so it moves twice as smoothly as the thin style.
+
+An unknown value produces a config warning and the bar is drawn in the thin style.
+
+[source,toml]
+----
+[appearance.scrollbar]
+style = "track"
+----
+
+@@ thumb
+Overrides the glyph used for the thumb, the part that marks where you are in the history.
+It must be exactly one cell wide; a wider value produces a config warning and the style's default glyph is used instead.
+Leave it empty to use the style's own thumb: `▐` for `thin`, `█` for `track`.
+
+Only the default `█` has half-height siblings, so with any other glyph the track style rounds a half-covered cell up to a whole one.
+
+@@ tint
+Sets the colour the thumb is drawn in.
+
+* `border` - the focused pane's bar matches its border: the pane's accent colour when it has one, otherwise the focused-border colour of the current mode.
+  An accent that would be too faint against the background falls back to the focus colour.
+  Bars of unfocused panes use the unfocused border grey.
+* `muted` - every bar, focused or not, uses the unfocused border grey.
+* A `+#RRGGBB+` literal such as `+"#89b4fa"+` - every bar uses that exact colour, with no contrast correction.
+
+Any other value produces a config warning and behaves like `border`.
+
+@@ track
+Overrides the glyph drawn on the track cells the thumb does not cover.
+It must be exactly one cell wide; a wider value produces a config warning and the default is used.
+
+* Empty (the default) - the style's own track: the `▕` hairline for `thin`, a blank cell in the surface colour for `track`.
+* `none` - draw no track glyph.
+  In the thin style only the thumb is drawn and the rest of the column keeps showing the pane's content, which is how the thin bar looked before it had a track.
+  In the track style the surface-coloured background stays.
+* Any one-cell glyph, for example `·` or `│`.
+
+[source,toml]
+----
+[appearance.scrollbar]
+style = "thin"
+track = "none"
+----

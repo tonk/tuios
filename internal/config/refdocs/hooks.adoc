@@ -1,0 +1,38 @@
+The `+[hooks]+` table runs shell commands of your own when something happens in a session: a window opens or closes, focus moves, the workspace or layout changes, a client attaches or detaches, or an agent changes state.
+Each key is an event name from the table below, and each value is either a single command string or an array of command strings.
+An unknown event name is ignored with a log line naming the valid events; empty strings and non-string array entries are skipped.
+
+[source,toml]
+----
+[hooks]
+after-new-window = "notify-send TUIOS \"opened $TUIOS_WINDOW_NAME\""
+after-attach = [
+  "logger tuios attached to $TUIOS_SESSION_ID",
+  "~/.config/tuios/on-attach.sh",
+]
+----
+
+Every command is run with `sh -c`, whatever your login shell is, so pipes, redirection and variable expansion work.
+It runs in the background, in its own process, with the working directory of the TUIOS client and its full environment, plus these variables:
+
+* `+TUIOS_EVENT+`: the event name, so one script can serve several events.
+* `+TUIOS_SESSION_ID+`: the name of the session the event came from.
+* `+TUIOS_WORKSPACE+`: the workspace the event applies to.
+* `+TUIOS_WINDOW_ID+` and `+TUIOS_WINDOW_NAME+`: the window's ID and title, empty for events without a window.
+* `+TUIOS_PREV_WORKSPACE+`: the previous workspace after `after-workspace-switch`, otherwise `0`.
+* `+TUIOS_LAYOUT+`: the layout now in force after `after-layout-change` (`bsp`, `master-stack`, `scrolling` or `floating`), otherwise empty.
+* `+TUIOS_WIDTH+` and `+TUIOS_HEIGHT+`: the new size in cells after `after-resize`, otherwise `0`.
+* `+TUIOS_AGENT_STATE+`, `+TUIOS_AGENT_PREV_STATE+`, `+TUIOS_AGENT_HARNESS+` and `+TUIOS_AGENT_MESSAGE+`: the new and previous agent state, the harness ID and the free-text message, for `after-agent-state` only.
+
+All variables are always set, so a script can read them without checking first.
+
+When an event has several commands, they are all started at the same moment, each in its own process; they run concurrently and not in a guaranteed order.
+If one step depends on another, put them in one command (`a && b`) or in a script.
+TUIOS does not wait for hooks and does not read their output or exit status, so a slow hook never freezes the interface, and a hook that must report something should write to a file, a logger or a notification daemon.
+There is no time limit on a hook, with one exception: on `after-detach` the client waits at most two seconds for running hooks before it exits.
+
+Hooks run in the client, not in the daemon: in a session with several clients attached, each client fires its own hooks, and a detached session fires none.
+Under `tuios ssh` and `tuios-web` the client runs inside the server process, so hooks run on the server with that process's account.
+The table is read when the client starts.
+The `after-agent-state` event is gated by `+[notifications.agent]+`, whose `command` key is a shorthand for a hook on that event.
+See xref:hooks.adoc#doc-hooks[Hooks] for examples and the exact moments each event fires.

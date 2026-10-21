@@ -2,6 +2,7 @@ package config
 
 import (
 	"log"
+	"slices"
 
 	"github.com/tonk/tuios/internal/theme"
 )
@@ -109,7 +110,7 @@ func ApplyOverrides(overrides Overrides, userConfig *UserConfig) {
 	// Window Title Position - CLI flag takes precedence, otherwise use user config
 	if overrides.WindowTitlePosition != "" {
 		WindowTitlePosition = overrides.WindowTitlePosition
-	} else if userConfig != nil && userConfig.Appearance.WindowTitlePosition != "" {
+	} else if userConfig != nil && slices.Contains(WindowTitlePositions, userConfig.Appearance.WindowTitlePosition) {
 		WindowTitlePosition = userConfig.Appearance.WindowTitlePosition
 	}
 

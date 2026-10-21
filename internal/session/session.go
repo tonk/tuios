@@ -1753,7 +1753,7 @@ func (p *PTY) GetTerminalState(maxScrollback int) *TerminalState {
 // TerminalStateOf serializes everything a client needs to arrive at the picture
 // this emulator holds. It is one half of the wire contract; ApplyTerminalState
 // is the other, and the two are kept in this file so a field added to one is
-// read by the other. docs/REHYDRATION.md states the contract.
+// read by the other. docs/rehydration.adoc states the contract.
 //
 // Width and height are the pane's, which the caller knows; the emulator's own
 // size lags a resize the shell has not acknowledged yet.

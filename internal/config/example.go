@@ -34,7 +34,7 @@ var exampleTables = []exampleTable{
 	{
 		Path: "appearance",
 		Fields: []exampleField{
-			{"border_style", `"rounded"`, `Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block. "hidden" also hides the window buttons.`},
+			{"border_style", `"rounded"`, `Border style: rounded, normal, thick, double, hidden, block, ascii, outer-half-block, inner-half-block. "hidden" keeps the window buttons; set hide_window_buttons to hide them too.`},
 			{"hide_window_buttons", "false", "Hide window control buttons (minimize, maximize, close)."},
 			{"quit_on_last_window_close", "false", "Quit tuios when the last window closes, instead of showing the TUIOS screen."},
 			{"hide_scrollbar", "false", "Hide the scrollbar thumb on the pane border."},
@@ -43,7 +43,6 @@ var exampleTables = []exampleTable{
 			{"copy_on_select", "true", "Copy a mouse selection to the clipboard as soon as it's released."},
 			{"open_url_on_double_click", "true", "Open an http(s) URL in the default browser when it is double-clicked in a pane. Never over SSH or tuios-web, where the browser would start on the server."},
 			{"focus_follows_mouse", "false", "Focus the pane under the cursor as the mouse moves."},
-			{"focus_follows_mouse_in_terminal", "false", "Also hover-focus while in terminal mode."},
 			{"alt_drag", "true", "Alt + left-drag moves a pane, like most desktop window managers."},
 			{"click_to_type", `"single"`, "What a click on a pane's content does in window-management mode: single, double, off."},
 			{"word_characters", `"@-./_~?&=%+#"`, "Punctuation counted as part of a word for double-click selection."},
@@ -64,9 +63,9 @@ var exampleTables = []exampleTable{
 			{"clock_bg_color", `""`, `Hex color for the clock badge background, e.g. "#1e1e2e". Empty uses the theme's color.`},
 			{"show_cpu", "false", "Show a CPU graph in the dock."},
 			{"show_ram", "false", "Show RAM usage in the dock."},
-			{"show_mouse_indicator", "false", "Show a Mouse:ON/OFF readout in the dock."},
-			{"show_tiling_indicator", "false", "Show a Tile:ON/OFF readout in the dock."},
-			{"show_focus_follows_mouse_indicator", "false", "Show a FFM:ON/OFF readout in the dock."},
+			{"show_mouse_indicator", "false", "Show a mouse-mode glyph in the dock, lit when on and dimmed when off; click it to toggle."},
+			{"show_tiling_indicator", "false", "Show a tiling-mode glyph in the dock, lit when on and dimmed when off; click it to toggle."},
+			{"show_focus_follows_mouse_indicator", "false", "Show a focus-follows-mouse glyph in the dock, lit when on and dimmed when off; click it to toggle."},
 			{"theme", `""`, `Color theme name (e.g. "dracula", "nord", or a custom theme in ~/.config/tuios/themes/). Empty uses the terminal's own colors.`},
 			{"shared_borders", "false", "Share borders between adjacent tiled windows."},
 			{"maximize_new_windows", "false", "A new floating window fills the content area instead of spawning at half size. No effect while auto-tiling is on."},
@@ -83,10 +82,10 @@ var exampleTables = []exampleTable{
 			{"dock_workspace_tabs", "true", "Show a clickable workspace strip in the dock."},
 			{"dock_workspace_tooltip", "true", "Pop a truncated workspace name in full on hover."},
 			{"dock_separator", "true", "Draw the hairline between the panes and the dock bar. Off gives its row to the panes; a notification then shows without its countdown along the line."},
-			{"dock_pill_caps", "false", "Draw powerline caps on the dock's pills instead of flat ends."},
+			{"dock_pill_caps", "false", "Draw powerline caps on the dock's minimized-window pills instead of flat ends. The mode chip and workspace tabs always have caps."},
 			{"dock_pill_underline", "true", "Underline the active workspace/window pill's label. The one mark that survives ASCII mode and monochrome; turn off if the pill's own fill already makes it obvious."},
 			{"session_colors", "true", "Give each session its own color on the rail and the session switcher."},
-			{"set_terminal_title", "true", `Set the host terminal's window title to "tuios" once at startup (OSC 2).`},
+			{"set_terminal_title", "true", `Mirror the focused pane's title to the host terminal's window title (OSC 2), falling back to "tuios" when no pane is focused.`},
 			{"keep_window_numbers", "false", "Keep a window's number when another one closes instead of renumbering them sequentially. A new window takes the lowest free number."},
 			{"dock_window_list", "false", "List every window of the current workspace in the dock, not just minimized ones. A window wanting attention (agent needs input/errored/unseen-done, or new output/a bell/a notification while unfocused) blinks until focused."},
 			{"check_for_updates", "true", "Check GitHub for a newer tuios release every 12 hours and show it at the right of the dock; click it to open the release page. Off, tuios never contacts GitHub."},
@@ -115,7 +114,7 @@ var exampleTables = []exampleTable{
 			{"show_counts", "true", "Show the window count on each session row."},
 			{"show_agents", "true", "Show the agents section at the rail's bottom."},
 			{"marquee", "true", "Scroll a hovered row's overflowing title."},
-			{"tooltips", "true", "Label the collapsed strip on hover."},
+			{"tooltips", "true", "Show hover tooltips: the collapsed rail's labels and the dock's session controls and mode indicators."},
 			{"workspaces", `""`, "Deprecated, no longer used; kept so old config files still parse."},
 		},
 	},
@@ -138,7 +137,7 @@ var exampleTables = []exampleTable{
 			{"sound_mode", `"audio"`, `How sound is made: "audio" plays a cue, "bell" writes a BEL, "both" does each.`},
 			{"sound_cooldown_seconds", "3", "Shortest gap between two audible cues, counted across every pane."},
 			{"dock", "true", "Show the alert in tuios's own dock; click it to jump to the pane."},
-			{"command", `""`, "Shell command to run on an alert. Shorthand for the after-agent-state hook; see docs/HOOKS.md."},
+			{"command", `""`, "Shell command to run on an alert. Shorthand for the after-agent-state hook; see docs/hooks.adoc."},
 			{"settle_seconds", "2", "Hold an alert this long and drop it if the pane leaves the state before it expires."},
 			{"suppress_focused", "true", "Say nothing about the pane you're already looking at."},
 			{"quiet_hours", `""`, `Silence every sink inside a local-time window, e.g. "22:00-08:00". Empty means never quiet.`},
@@ -165,8 +164,6 @@ var exampleTables = []exampleTable{
 		Path: "daemon",
 		Fields: []exampleField{
 			{"log_level", `"off"`, "Debug log level: off, errors, basic, messages, verbose, trace."},
-			{"default_codec", `"gob"`, "Protocol codec between client and daemon: gob, json."},
-			{"socket_path", `""`, "Custom daemon socket path. Empty uses $XDG_RUNTIME_DIR/tuios/daemon.sock."},
 			{"agent_autodetect", "true", "Auto-detect a pane's foreground AI-agent CLI (claude, codex, aider, ...) to set its agent-state glyph."},
 			{"agent_detect_seconds", "2", "How often the auto-detector polls each pane, in seconds. Negative disables detection."},
 			{"agent_binaries", "[]", "Extra binary names to treat as agents, merged with the built-in list."},
@@ -178,15 +175,15 @@ var exampleTables = []exampleTable{
 		Fields: []exampleField{
 			{"open_default_window", "false", "Open one terminal window automatically when a session starts with none."},
 			{"tiled", "false", "Start a new session with tiling enabled instead of floating."},
-			{"start_in_terminal_mode", "false", "Start focused in terminal mode, when a window is present, so typing goes straight to the shell."},
+			{"start_in_terminal_mode", "false", "Start focused in terminal mode, so typing goes straight to the shell. Only takes effect together with open_default_window."},
 		},
 	},
 	{
 		Path: "tape",
 		Fields: []exampleField{
-			{"autorun", `"ask"`, "Project tape (.tuios.tape) detection: off, ask, auto. See docs/PROJECT_TAPES.md."},
+			{"autorun", `"ask"`, "Project tape (.tuios.tape) detection: off, ask, auto. See docs/project-tapes.adoc."},
 			{"auto_review", "false", "Auto-open the tape review/trust dialog on detection, instead of only the passive banner."},
-			{"extensions", `[".tape", ".tape.lua"]`, "Filename suffixes listed in the tape manager (Ctrl+T) and tuios tape CLI; anything else (e.g. a shared .lua helper) is filtered out."},
+			{"extensions", `[".tape", ".tape.lua"]`, "Filename suffixes listed in the tape manager (leader, T, m) and tuios tape CLI; anything else (e.g. a shared .lua helper) is filtered out."},
 			{"allow_secrets", "false", "Allow Lua tapes to call tuios.secret() (pass, gopass, passage, keepassxc). Off by default so reviewed tapes cannot pull secrets unless you opt in."},
 		},
 	},
@@ -201,7 +198,7 @@ var exampleTables = []exampleTable{
 		Fields: []exampleField{
 			{"trainer_console", "false", "Enable the trainer console (tuios-web PAM classroom mode only, requires a tuios daemon running alongside it): trainer_users may attach to another trainee's live session via ?attach=<username> on the connection URL."},
 			{"trainer_users", "[]", "Exact usernames allowed to attach to another user's session via ?attach=. This is the actual access gate - empty means nobody, even with trainer_console set."},
-			{"trainee_pattern", `""`, `Go regular expression matched against the username given to ?attach= before an authorized trainer may attach to it, e.g. "^guru[0-9]{2}$". Required non-empty - no target matches an empty pattern.`},
+			{"trainee_pattern", `""`, `Go regular expression matched against the username given to ?attach= before an authorized trainer may attach to it, e.g. "guru[0-9]{2}". Must match the whole username; ^ and $ are implied. Required non-empty - no target matches an empty pattern.`},
 		},
 	},
 	{
@@ -270,7 +267,8 @@ const exampleHeader = `# TUIOS annotated reference configuration.
 # Copy the lines you want into your real config with ` + "`tuios config edit`" + `, or
 # find its path with ` + "`tuios config path`" + `.
 #
-# Full prose docs: docs/CONFIGURATION.md, docs/KEYBINDINGS.md, docs/HOOKS.md
+# Full prose docs: docs/config-reference.adoc, docs/configuration.adoc,
+# docs/keybindings.adoc, docs/hooks.adoc
 `
 
 // GenerateExampleConfig renders the fully commented reference config: every
@@ -328,8 +326,8 @@ func GenerateExampleConfig() string {
 
 	b.WriteString("\n[hooks]\n")
 	writeWrappedComment(&b, "Run a shell command on a session event. A value can be a single command "+
-		"string or an array of commands run in order. Every command receives the "+
-		"parent environment plus event-specific TUIOS_* variables. See docs/HOOKS.md.")
+		"string or an array of commands, which all start at once rather than in order. Every command receives the "+
+		"parent environment plus event-specific TUIOS_* variables. See docs/hooks.adoc.")
 	b.WriteString("#\n")
 	events := hooks.AllEvents()
 	assignments := make([]string, len(events))

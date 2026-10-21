@@ -1,12 +1,12 @@
 [Unit]
 Description=tuios - background session daemon (classroom trainer console support)
-Documentation=https://github.com/tonk/tuios/blob/main/docs/DEPLOYMENT.md
+Documentation=https://github.com/tonk/tuios/blob/main/docs/deployment.adoc
 After=network.target
 
 [Service]
 Type=simple
 
-# Needed only for the [classroom] trainer console (docs/DEPLOYMENT.md,
+# Needed only for the [classroom] trainer console (docs/deployment.adoc,
 # "Trainer console"): tuios-web dials this daemon to create/attach a
 # trainee's classroom session instead of spawning shells itself. Not needed
 # for any other tuios-web deployment shape - skip this unit entirely if
@@ -25,7 +25,7 @@ Group=tuios-web
 # never be reachable from here. XDG_RUNTIME_DIR is set explicitly instead,
 # to tuios-web.service's own StateDirectory-managed, non-tmp directory - the
 # identical value must also be added to tuios-web.service's own
-# [Service] section (see docs/DEPLOYMENT.md).
+# [Service] section (see docs/deployment.adoc).
 Environment=HOME=/home/tuios-web
 Environment=XDG_RUNTIME_DIR=/var/lib/tuios-web
 # Share tuios-web's XDG config tree so appearance.initial_title_format /

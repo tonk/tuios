@@ -16,6 +16,7 @@ import (
 	"charm.land/lipgloss/v2/table"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/tonk/tuios/internal/config"
 	"github.com/tonk/tuios/internal/harness"
 	"github.com/tonk/tuios/internal/session"
 	"github.com/tonk/tuios/internal/tape"
@@ -1206,7 +1207,7 @@ func getRunCommandArgCompletions(command string, argIndex int, toComplete string
 		}
 	case "SetBorderStyle":
 		if argIndex == 1 {
-			return []string{"rounded", "normal", "thick", "double", "hidden", "block", "ascii"}
+			return config.BorderStyles
 		}
 	case "FocusDirection":
 		if argIndex == 1 {
@@ -1253,7 +1254,7 @@ func getConfigValueCompletions(path, _ string) []string {
 	case "dockbar_position", "appearance.dockbar_position":
 		return []string{"top", "bottom", "hidden"}
 	case "border_style", "appearance.border_style":
-		return []string{"rounded", "normal", "thick", "double", "hidden", "block", "ascii"}
+		return config.BorderStyles
 	case "animations", "appearance.animations_enabled", "animations_enabled":
 		return []string{"true", "false", "toggle", "on", "off"}
 	case "hide_window_buttons", "appearance.hide_window_buttons":

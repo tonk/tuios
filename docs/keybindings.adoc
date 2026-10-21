@@ -1,0 +1,541 @@
+[#doc-keybindings]
+= Keybindings Reference
+ifndef::book[]
+Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
+:revnumber: v0.9.6
+:revdate: 2026-10-20
+ifdef::backend-pdf[]
+:title-page:
+:pdf-theme: tuios
+:pdf-themesdir: pdf-theme
+endif::backend-pdf[]
+:toc: left
+:toc-title: Table of Contents
+:toclevels: 3
+:sectnums:
+:sectanchors:
+:idprefix:
+:idseparator: -
+:icons: font
+:experimental:
+:source-highlighter: rouge
+endif::book[]
+
+Complete keyboard shortcut reference for TUIOS. All keybindings are customizable through the xref:configuration.adoc#doc-configuration[configuration file].
+
+== Modes
+
+TUIOS has two main modes:
+
+* *Window Management Mode* - Navigate and manage windows (default on startup)
+* *Terminal Mode* - Input goes directly to the focused terminal
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`i` or `Enter` |Enter Terminal Mode
+|`Ctrl{plus}B` then `d` or `Esc` |Return to Window Management Mode (from Terminal Mode)
+|`?` (Window Mode) or `Ctrl{plus}B ?` (universal) |Toggle help overlay
+|`q` (Window Mode) or `Ctrl{plus}B q` (universal) |Quit TUIOS
+|===
+
+=== Terminal Mode Keys
+
+These work while typing into a pane, without the leader key. They live in `+[keybindings.terminal_mode]+`.
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`Alt{plus}N` / `Alt{plus}P` |Next / previous window
+|`Alt{plus}Esc` |Leave Terminal Mode
+|`Alt{plus}←` `Alt{plus}→` `Alt{plus}↑` `Alt{plus}↓` |Focus the pane in that direction
+|`Alt{plus}-` |Split the focused pane horizontally (top/bottom)
+|`Alt{plus}{vbar}` or `Alt{plus}++\++` |Split the focused pane vertically (left/right)
+|`Alt{plus}S` |Toggle sidebar
+|`Alt{plus}M` |Toggle mouse mode
+|===
+
+Focus moves to the nearest pane whose facing edge lies in that direction and whose span overlaps the current pane's; ties go to the earlier pane. At the edge of the layout nothing happens, and focus does not wrap.
+
+[[alt--alt-conflict-with-your-shell]]
+==== Alt{plus}← / Alt{plus}→ conflict with your shell
+
+In readline, fish and zsh, `Alt{plus}←` and `Alt{plus}→` move the cursor one word at a time, which is one of the most-used shell editing bindings there is. TUIOS binds them to pane focus by default, as zellij and most tiling window managers do. Each direction is a separate action, so hand back whichever you want:
+
+[source,toml]
+----
+[keybindings.terminal_mode]
+terminal_focus_left = []
+terminal_focus_right = []
+----
+
+With those unbound, the keys reach the shell unchanged. `Alt{plus}↑` and `Alt{plus}↓` are unclaimed by the common shells, so they are the safer pair to keep. If you would rather keep word movement and still have directional focus, put it on a chord the shell does not want:
+
+[source,toml]
+----
+[keybindings.terminal_mode]
+terminal_focus_left = ["alt+shift+left"]
+terminal_focus_right = ["alt+shift+right"]
+----
+
+== Sidebar
+
+The sidebar (the rail) is a keyboard scope: while it is focused it owns every key, so its bindings live in their own `+[keybindings.sidebar]+` section and never fire on a pane.
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`s` (Window Mode) or `Ctrl{plus}B e` (universal) |Focus the rail, or leave it
+|`?` (in the rail) |Open the help overlay on the rail's section
+|`Esc` (in the rail) |Leave the rail, back to the mode and pane you came from
+|===
+
+The rail's remaining keys are listed by that help overlay, which reads them from your configuration, so it stays correct when you rebind them. `Esc` always leaves the rail even when the section binds nothing.
+
+== Window Management
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`z` |Toggle zoom (fullscreen focused window)
+|`l` |Lock/unlock focused window's title (blocks OSC title changes from the app inside it)
+|`n` |Create new window
+|`w` or `x` |Close focused window
+|`r` |Rename focused window
+|`m` |Minimize focused window
+|`c` |Copy the focused pane's selection to the clipboard
+|`Shift{plus}M` |Restore all minimized windows
+|`Tab` |Focus next window
+|`Shift{plus}Tab` |Focus previous window
+|`1-9`, `0` (Window Mode) or `Alt{plus}1` through `Alt{plus}9`, `Alt{plus}0` (works anywhere, also while typing) |Select window by number; `0` is window 10
+|++`++Alt{plus}++``++ (works anywhere, also while typing) |Toggle to the last focused window, and back again on a second press
+|`Shift{plus}1-9`, `Shift{plus}0` or `+!@#$%^&*()+` |Restore minimized window by number; `Shift{plus}0` is the tenth
+|`Alt{plus}S` |Toggle sidebar (works without the prefix; also `Ctrl{plus}B` `b`)
+|`Alt{plus}M` |Toggle mouse mode (works without the prefix; also `Ctrl{plus}B` `Shift{plus}M`)
+|===
+
+*macOS:* Use `Option{plus}1` through `Option{plus}9`, and ++`++Option{plus}++``++ for the last-window toggle (automatically configured by default)
+
+== Workspaces
+
+TUIOS supports 9 workspaces for organizing windows. Tiling on/off (`Ctrl{plus}B`
+`Space`) is remembered per workspace, so one can be tiled while another
+floats; the layout mode used while tiled (BSP/master-stack/scrolling) is
+session-wide. See xref:layout-modes.adoc#doc-layout-modes[Layout Modes].
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`Ctrl{plus}B` `1-9` |Switch to workspace 1-9
+|`Alt{plus}Shift{plus}1` through `Alt{plus}Shift{plus}9` |Move window to workspace and follow
+|===
+
+*macOS:* Use `Option{plus}Shift{plus}1` through `Option{plus}Shift{plus}9` for move-and-follow (automatically configured by default)
+
+== Window Layout
+
+=== Manual Snapping (Non-Tiling Mode)
+
+==== Keyboard Snapping
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`h` |Snap window to left half
+|`l` |Snap window to right half
+|`f` |Fullscreen window
+|`u` |Unsnap/restore window
+|`1` |Snap to top-left corner
+|`2` |Snap to top-right corner
+|`3` |Snap to bottom-left corner
+|`4` |Snap to bottom-right corner
+|===
+
+==== Mouse Edge Snapping
+
+In floating mode (non-tiling), drag a window to the screen edges to snap it:
+
+[cols=",",options="header",]
+|===
+|Edge |Action
+|Top center |Fullscreen
+|Left edge |Snap to left half
+|Right edge |Snap to right half
+|Top-left corner |Snap to top-left quarter
+|Top-right corner |Snap to top-right quarter
+|Bottom-left corner |Snap to bottom-left quarter
+|Bottom-right corner |Snap to bottom-right quarter
+|===
+
+The edge detection zone is 5 pixels from the screen edge. Simply drag a window by its title bar and release when the cursor reaches the desired edge.
+
+=== Tiling Mode
+
+TUIOS uses Binary Space Partitioning (BSP) for automatic tiling. Windows are arranged in an alternating vertical/horizontal split pattern (spiral layout).
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`t` |Toggle automatic tiling mode
+|`Shift{plus}H` or `Ctrl{plus}Left` |Swap with window to the left
+|`Shift{plus}L` or `Ctrl{plus}Right` |Swap with window to the right
+|`Shift{plus}K` or `Ctrl{plus}Up` |Swap with window above
+|`Shift{plus}J` or `Ctrl{plus}Down` |Swap with window below
+|`+<+` or `Shift{plus},` |Decrease master window width (from right edge)
+|`+>+` or `Shift{plus}.` |Increase master window width (from right edge)
+|`+{+` or `Shift{plus}++[++` |Decrease focused window height (from bottom edge)
+|`}` or `Shift{plus}++]++` |Increase focused window height (from bottom edge)
+|`,` |Decrease master window width (from left edge)
+|`.` |Increase master window width (from left edge)
+|`+[+` |Decrease focused window height (from top edge)
+|`+]+` |Increase focused window height (from top edge)
+|===
+
+=== BSP Split Controls
+
+These commands are available in tiling mode via the prefix key. In terminal mode they are also bound directly as `Alt{plus}-` / `Alt{plus}++|++` (see <<terminal-mode-keys,Terminal Mode Keys>>), so a fullscreen pane can be split without leaving the shell.
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `-` |Split focused window horizontally (top/bottom)
+|`Ctrl{plus}B` `{vbar}` or `+\+` |Split focused window vertically (left/right)
+|`Ctrl{plus}B` `R` |Rotate split direction at focused window
+|`Ctrl{plus}B` `=` |Equalize all splits (reset to 50/50 ratios)
+|===
+
+The dock shows the next split direction (V for vertical, H for horizontal) when tiling mode is active.
+
+=== BSP Preselection
+
+Control where the next window spawns relative to the focused window:
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Alt{plus}h` |Next window appears left of focused
+|`Alt{plus}l` |Next window appears right of focused
+|`Alt{plus}k` |Next window appears above focused
+|`Alt{plus}j` |Next window appears below focused
+|===
+
+After preselecting a direction, create a new window with `n` or `Ctrl{plus}B` `c`. The preselection is consumed after one window creation.
+
+*Note*: Preselection only works when tiling mode is enabled (press `t` to enable).
+
+*Use Case*: Creating asymmetric layouts (sidebars, specific window placement).
+
+== Copy Mode
+
+Enter copy mode with `Ctrl{plus}B` `+[+` to navigate scrollback and select text using vim-style commands.
+
+=== Basic Navigation
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`Ctrl{plus}B` `+[+` |Enter copy mode
+|`h` `j` `k` `l` |Move cursor left/down/up/right
+|`w` `b` `e` |Word forward / word backward / word end
+|`0` `^` `$` |Start of line / first non-blank / end of line
+|`gg` |Jump to top of scrollback
+|`G` |Jump to bottom (live output)
+|`+{number}G+` |Jump to line number (e.g., `10G`)
+|`+{+` `}` |Jump to previous/next paragraph
+|`Ctrl{plus}U` `Ctrl{plus}D` |Half page up/down
+|`Ctrl{plus}B` `Ctrl{plus}F` |Full page up/down
+|`i` |Return to terminal mode
+|`q` or `Esc` |Exit copy mode
+|===
+
+=== Count Prefix
+
+Prefix any motion with a number to repeat it:
+
+* `10j` - Move down 10 lines
+* `5w` - Move forward 5 words
+* `+3{+` - Jump up 3 paragraphs
+
+=== Character Search
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`+f{char}+` |Find next occurrence of char on line
+|`+F{char}+` |Find previous occurrence of char on line
+|`+t{char}+` |Move cursor before next char
+|`+T{char}+` |Move cursor after previous char
+|`;` |Repeat last character search
+|`,` |Repeat last search (opposite direction)
+|===
+
+=== Search
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`/` |Search forward
+|`?` |Search backward
+|`n` |Next match
+|`N` |Previous match
+|`Ctrl{plus}L` |Clear search highlights
+|===
+
+=== Visual Selection
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`v` |Enter visual character mode
+|`V` |Enter visual line mode
+|`y` or `c` |Yank (copy) selection to clipboard
+|`Esc` or `q` |Exit visual mode
+|===
+
+=== Other Commands
+
+[cols=",",options="header",]
+|===
+|Key |Action
+|`%` |Jump to matching bracket
+|===
+
+== Prefix Commands
+
+Press `Ctrl{plus}B`, release, then press the command key (tmux-style).
+
+*Note:* The leader key (`Ctrl{plus}B` by default) is configurable. See xref:configuration.adoc#doc-configuration[Configuration Guide] for details on customizing the `+leader_key+` option.
+
+=== Main Prefix (`Ctrl{plus}B`)
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `c` |Create new window
+|`Ctrl{plus}B` `x` |Close current window
+|`Ctrl{plus}B` `,` or `r` |Rename window
+|`Ctrl{plus}B` `n` or `Tab` |Next window
+|`Ctrl{plus}B` `p` or `Shift{plus}Tab` |Previous window
+|`Ctrl{plus}B` `1-9` |Switch to workspace 1-9
+|`Ctrl{plus}B` `Space` |Toggle tiling mode
+|`Ctrl{plus}B` `z` |Toggle Zoom (fullscreen focused window)
+|`Ctrl{plus}B` `w` |Enter workspace prefix menu
+|`Ctrl{plus}B` `m` |Enter minimize prefix menu
+|`Ctrl{plus}B` `t` |Enter window prefix menu
+|`Ctrl{plus}B` `D` |Enter debug prefix menu
+|`Ctrl{plus}B` `+[+` |Enter copy mode
+|`Ctrl{plus}B` `Esc` (or `Alt{plus}Esc`) |Exit terminal mode, never detaches
+|`Ctrl{plus}B` `d` |Detach from a daemon session, leaving it running. Outside a daemon session it exits terminal mode
+|`Ctrl{plus}B` `q` |Quit TUIOS
+|`Ctrl{plus}B` `?` |Toggle help
+|`Ctrl{plus}B` `b` |Toggle sidebar
+|`Ctrl{plus}B` `M` |Toggle mouse mode
+|`Ctrl{plus}B` `S` |Session Switcher
+|`Ctrl{plus}B` `L` |Load Layout
+|`Ctrl{plus}B` `P` |Command Palette (alternative)
+|`Ctrl{plus}P` |Command Palette
+|`Ctrl{plus}B` `Ctrl{plus}B` |Send literal Ctrl{plus}B to terminal
+|===
+
+=== Workspace Prefix (`Ctrl{plus}B` `w`)
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `w` `1-9` |Switch to workspace
+|`Ctrl{plus}B` `w` `Shift{plus}1-9` |Move window to workspace and follow
+|`Ctrl{plus}B` `w` `Esc` |Cancel
+|===
+
+=== Minimize Prefix (`Ctrl{plus}B` `m`)
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `m` `m` |Minimize focused window
+|`Ctrl{plus}B` `m` `1-9`, `0` |Restore minimized window by number; `0` is the tenth
+|`Ctrl{plus}B` `m` `Shift{plus}M` |Restore all minimized windows
+|`Ctrl{plus}B` `m` `Esc` |Cancel
+|===
+
+=== Window Prefix (`Ctrl{plus}B` `t`)
+
+Alternative prefix-based access to window commands:
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `t` `n` |Create new window
+|`Ctrl{plus}B` `t` `x` |Close window
+|`Ctrl{plus}B` `t` `r` |Rename window
+|`Ctrl{plus}B` `t` `Tab` |Next window
+|`Ctrl{plus}B` `t` `Shift{plus}Tab` |Previous window
+|`Ctrl{plus}B` `t` `t` |Toggle tiling mode
+|`Ctrl{plus}B` `t` `Esc` |Cancel
+|===
+
+=== Tape Prefix (`Ctrl{plus}B` `T`)
+
+Record and manage tape sessions, and review a project tape:
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `T` `m` |Open the tape manager
+|`Ctrl{plus}B` `T` `t` |Review the project tape in the current directory
+|`Ctrl{plus}B` `T` `r` |Start recording (prompts for name)
+|`Ctrl{plus}B` `T` `s` |Stop recording and save
+|`Ctrl{plus}B` `T` `Esc` |Cancel tape menu
+|===
+
+See xref:tape-recording.adoc#doc-tape-recording[Tape Recording Guide] for recording workflows and
+xref:project-tapes.adoc#doc-project-tapes[Project Tapes] for the per-directory `.tuios.tape` autorun
+feature that `Ctrl{plus}B` `T` `t` reviews.
+
+=== Layout Prefix (`Ctrl{plus}B` `L`)
+
+Save and load window layout templates:
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `L` `l` |Load layout template
+|`Ctrl{plus}B` `L` `s` |Save layout template
+|`Ctrl{plus}B` `L` `Esc` |Cancel
+|===
+
+Layout loading is non-destructive: existing windows are repositioned to match the template rather than being killed. Extra windows are minimized.
+
+=== Debug Prefix (`Ctrl{plus}B` `D`)
+
+Access debug and development tools:
+
+[cols=",",options="header",]
+|===
+|Key Sequence |Action
+|`Ctrl{plus}B` `D` `l` |Toggle log viewer
+|`Ctrl{plus}B` `D` `c` |Toggle cache statistics
+|`Ctrl{plus}B` `D` `k` |Toggle showkeys overlay
+|`Ctrl{plus}B` `D` `a` |Toggle animations
+|`Ctrl{plus}B` `D` `r` |Reload custom theme files from `~/.config/tuios/themes/` without restarting
+|`Ctrl{plus}B` `D` `Esc` |Cancel
+|===
+
+*Log Viewer Keys:*
+
+* `q`, `Esc` - Exit log viewer
+* `j`, `k`, `↑`, `↓` - Scroll up/down one line
+* `Ctrl{plus}U`, `Ctrl{plus}D`, `PgUp`, `PgDn` - Scroll half page
+* `g`, `Home` - Go to top
+* `G`, `End` - Go to bottom
+
+*Cache Statistics Keys:*
+
+* `q`, `Esc`, `c` - Exit cache stats viewer
+* `r` - Reset cache statistics
+
+== Mouse Controls
+
+* *Mouse Wheel*: Scroll the pane's scrollback (when no mouse tracking, not alt screen). No mode is entered and nothing is announced; scrolling back to the bottom returns to live output, and so does typing.
+* *Left Drag in a pane*: Select text. Releasing copies it (`+copy_on_select+`, on by default)
+* *Double Click*: Select the word under the pointer (`+word_characters+` decides what a word is). On a web address it selects the whole URL and opens it in your browser (`+open_url_on_double_click+`, on by default)
+* *Triple Click*: Select the whole line. The highlight is immediate, but a multi-click copies about a third of a second after the last click, so a triple-click never puts the word on the clipboard on its way to the line
+* *Left Drag Above/Below a pane*: Continues the selection and scrolls
+* *Left Click*: Focus window. On a pane's content in window management mode it also enters terminal mode, so the pane is ready to type in. Set `+click_to_type = "double"+` under `+[appearance]+` to need two clicks for that, or `"off"` to keep the click to focusing alone
+* *Left Drag on the title bar*: Move window (non-tiling) or swap windows (tiling). In window management mode the whole window is a drag handle
+* *Right Drag*: Resize window (non-tiling only)
+* *Alt{plus}Left Drag*: Move the window, from anywhere on it, including while you are typing in it. This is the usual desktop window-manager gesture, and it is what a plain left drag over a pane's content cannot be, since that selects text. Typing resumes in the pane when the window lands. Set `+alt_drag = false+` under `+[appearance]+` to hand the gesture back to the pane
+* *Ctrl{plus}Left Drag*: Also moves the window, and drops it as soon as Ctrl is released. Kept alongside Alt{plus}Left Drag; use whichever your hands know
+* *Alt{plus}Right Drag*: Resize the window from the nearest corner. The same as Right Drag, except it never opens the context menu, so a short drag cannot turn into a menu by accident
+* *Shift{plus}Right Click*: Open the context menu for whatever is under the pointer
+* *Title Bar Buttons*: Minimize, maximize, or close window
+* *Click Dock Item*: Restore minimized window
+* *Copy Mode Click*: Move cursor to position
+* *Right Border Click*: Scrollbar jump
+* *Right Border Drag*: Scrollbar scroll
+
+Panes running an application that asked for the mouse (vim, less, htop) receive
+every one of these events themselves; tuios does not interpret them. Alt{plus}Left
+Drag and Ctrl{plus}Left Drag are the two exceptions, so a pane can always be moved
+without first leaving the app inside it. `+alt_drag = false+` gives Alt{plus}Left Drag
+back to such an app.
+
+=== Context Menus
+
+Shift{plus}right-click opens a short menu of the actions that make sense for what is
+under the pointer. Each row shows the key currently bound to the same action, so
+the menu doubles as a reminder of the keyboard; rebinding an action changes what
+the menu shows.
+
+[cols=",",options="header",]
+|===
+|Target |Offers
+|A pane, anywhere on it |Copy selection, open in browser, paste, split right, split down, rename, zoom, minimize, close
+|A selection, right-clicked in terminal mode |Copy selection, open in browser, paste, clear selection
+|Dock entry |Restore that window, restore all
+|Dock background |New window, toggle tiling, restore all
+|Empty desktop |New window, toggle tiling, command palette, settings, help
+|===
+
+*Open in browser* appears only while the selection is a web address: an
+`http://` or `https://` URL and nothing else around it but blanks or a trailing
+full stop, or text that a program linked (OSC 8). It is left out over the SSH
+server and in `tuios-web`, where the browser would start on the server, and it
+does not depend on `+open_url_on_double_click+`.
+
+A pane is one target. Its border rows are part of it, so the whole surface of a
+pane opens the same menu and there is nothing to aim at.
+
+Arrow keys or `j`/`k` move the selection, `Enter` runs it, `Esc` closes. Moving
+the pointer over the menu highlights the row under it. Clicking away from the
+menu closes it without running anything. An action that has nothing to act on
+right now (copy with no selection, split with tiling off) is shown greyed out
+and is skipped by the arrow keys, so the menu keeps the same shape whether or
+not the action is available. On a screen too short to show every row, the menu
+scrolls with the selection rather than drawing past the bottom edge.
+
+Plain right-click still resizes a window; the menu is on the shift chord so it
+takes nothing away.
+
+== Customization
+
+All keybindings can be customized in the configuration file. See the xref:configuration.adoc#doc-configuration[Configuration Guide] for details.
+
+=== Quick Customization
+
+[source,bash]
+----
+# Edit your keybindings
+tuios config edit
+
+# View current configuration
+tuios keybinds list
+
+# View only your customizations
+tuios keybinds list-custom
+----
+
+== Platform-Specific Notes
+
+=== macOS
+
+Default window selection and move-and-follow use the Option key:
+
+* `Option{plus}1` through `Option{plus}9` - Select window by number
+* ++`++Option{plus}++``++ - Toggle to the last focused window
+* `Option{plus}Shift{plus}1` through `Option{plus}Shift{plus}9` - Move window to workspace and follow
+
+In your terminal, you can still type Option key unicode characters (¡™£¢∞§¶•ª) in Terminal Mode.
+
+=== Linux
+
+Uses standard Alt key for window selection and move-and-follow:
+
+* `Alt{plus}1` through `Alt{plus}9`
+* `Alt{plus}Shift{plus}1` through `Alt{plus}Shift{plus}9`
+
+== Related Documentation
+
+* xref:configuration.adoc#doc-configuration[Configuration Guide] - Customize keybindings
+* xref:cli-reference.adoc#doc-cli-reference[CLI Reference] - Command-line options
+* link:../README.md[README] - Project overview

@@ -24,7 +24,7 @@ import (
 // therefore asking the copy whether it agrees with itself, and a copy always
 // does.
 //
-// That split is where the worst bugs of the month lived, and docs/REHYDRATION.md
+// That split is where the worst bugs of the month lived, and docs/rehydration.adoc
 // is the audit of them. What reaches the screen when a route gets it wrong is
 // two stretches of one pane's output, far apart in time, adjacent on the glass:
 // a stream replayed across a hole, or the same lines painted twice at a seam.
@@ -40,7 +40,7 @@ import (
 // emulator and never from an attached client, so it is an independent observer
 // of the same state rather than a second look at the same buffer.
 //
-// docs/REHYDRATION.md names that emulator the authority for grid, cursor, modes
+// docs/rehydration.adoc names that emulator the authority for grid, cursor, modes
 // and scrollback, on the grounds that it is the only thing that has seen every
 // byte, and its feed now blocks rather than dropping a chunk when it falls
 // behind. That is what makes it usable as a witness for content and not only for
