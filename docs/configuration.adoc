@@ -90,13 +90,16 @@ from, not a config file. Add `--write` to save it next to your real config as
 ----
 tuios config check
 tuios config reformat
+tuios config clean
 ----
 
 `check` reports every invalid, obsolete or duplicate setting with its line
 number, and exits non-zero when it finds any. `reformat` sorts the settings in
 each section, aligns them on `=` and keeps your comments, saving the previous
-file as `config.toml.bak`. See the xref:cli-reference.adoc#tuios-config[CLI reference]
-for the details.
+file as `config.toml.bak`. `clean` removes every setting that is at its default
+or has no effect, so the file holds only what you changed; add `--reformat` to
+sort and align what is left in the same go. See the
+xref:cli-reference.adoc#tuios-config[CLI reference] for the details.
 
 == Configuration File Location
 

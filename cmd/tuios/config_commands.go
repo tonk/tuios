@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -280,4 +281,77 @@ func reformatConfigFile(args []string, toStdout bool) error {
 	}
 	fmt.Printf("Reformatted %s\n  Previous version kept as %s\n", path, backup)
 	return nil
+}
+
+// cleanConfigFile removes the settings that change nothing from the config
+// file, keeping the original as <file>.bak, or prints the result when
+// toStdout is set. With reformat it also sorts and aligns what is left, in the
+// same write, so the backup is still the original file. What was removed is
+// reported on stderr when printing to stdout.
+func cleanConfigFile(args []string, toStdout, reformat bool) error {
+	path, err := configFileArg(args)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+	// #nosec G304 - reading the config file the user pointed at is the point
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	cleaned, removed, err := config.CleanConfig(data)
+	if err != nil {
+		return err
+	}
+	if reformat {
+		if cleaned, err = config.ReformatConfig(cleaned); err != nil {
+			return err
+		}
+	}
+	if toStdout {
+		if _, err := os.Stdout.Write(cleaned); err != nil {
+			return err
+		}
+		reportCleaned(os.Stderr, path, removed)
+		return nil
+	}
+	if len(removed) == 0 && string(cleaned) == string(data) {
+		fmt.Printf("%s has no default or unused settings\n", path)
+		return nil
+	}
+
+	backup := path + ".bak"
+	if err := os.WriteFile(backup, data, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("failed to write backup: %w", err)
+	}
+	if err := os.WriteFile(path, cleaned, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	reportCleaned(os.Stdout, path, removed)
+	fmt.Printf("  Previous version kept as %s\n", backup)
+	return nil
+}
+
+// reportCleaned summarises what CleanConfig removed: the settings at their
+// default as a count, and each one that had no effect by name, since those
+// are the ones worth knowing about.
+func reportCleaned(w io.Writer, path string, removed []config.CleanedSetting) {
+	defaults := 0
+	var noEffect []config.CleanedSetting
+	for _, r := range removed {
+		if r.Reason == config.CleanDefault {
+			defaults++
+		} else {
+			noEffect = append(noEffect, r)
+		}
+	}
+	_, _ = fmt.Fprintf(w, "Cleaned %s: removed %d setting(s) at their default and %d with no effect\n",
+		path, defaults, len(noEffect))
+	for _, r := range noEffect {
+		_, _ = fmt.Fprintf(w, "  line %d: %s (no effect)\n", r.Line, r.Key)
+	}
 }

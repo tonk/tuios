@@ -849,17 +849,11 @@ func LoadUserConfig() (*UserConfig, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var cfg UserConfig
-	if err := toml.Unmarshal(data, &cfg); err != nil {
+	parsed, err := parseUserConfig(data)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
-
-	// Validate and fill in missing sections with defaults
-	defaultCfg := DefaultConfig()
-	fillMissingAppearance(&cfg, defaultCfg)
-	fillMissingDaemon(&cfg, defaultCfg)
-	fillMissingTape(&cfg, defaultCfg)
-	fillMissingKeybinds(&cfg, defaultCfg)
+	cfg := *parsed
 
 	// Validate configuration
 	validation := ValidateConfig(&cfg)
@@ -883,6 +877,22 @@ func LoadUserConfig() (*UserConfig, error) {
 	// ApplyOverrides (which lets CLI flags win) and/or ApplyAppearanceConfig.
 	// This keeps a second load (e.g. inside NewOS) from clobbering CLI flags and
 	// stops the per-connection server paths from racing other sessions' globals.
+	return &cfg, nil
+}
+
+// parseUserConfig decodes a config file and fills in what it leaves out with
+// the defaults, the way LoadUserConfig reads it, without validating it. It is
+// also how CleanConfig tells whether a setting changes anything.
+func parseUserConfig(data []byte) (*UserConfig, error) {
+	var cfg UserConfig
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	defaultCfg := DefaultConfig()
+	fillMissingAppearance(&cfg, defaultCfg)
+	fillMissingDaemon(&cfg, defaultCfg)
+	fillMissingTape(&cfg, defaultCfg)
+	fillMissingKeybinds(&cfg, defaultCfg)
 	return &cfg, nil
 }
 

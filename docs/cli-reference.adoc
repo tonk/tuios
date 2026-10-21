@@ -1612,6 +1612,7 @@ Manage TUIOS configuration file.
 * `tuios config example` - Print a fully commented reference configuration
 * `tuios config check` - Check the configuration for invalid, obsolete and duplicate settings
 * `tuios config reformat` - Sort the settings in each section and align them on `=`
+* `tuios config clean` - Remove the settings that are at their default or have no effect
 
 ==== `tuios config path`
 
@@ -1728,6 +1729,47 @@ setting is defined twice, is left alone; `tuios config check` says why.
 ----
 tuios config reformat --stdout | diff ~/.config/tuios/config.toml -
 tuios config reformat
+----
+
+==== `+tuios config clean [file]+`
+
+Remove every setting from the configuration file that changes nothing, so the
+file holds only what you actually chose:
+
+* settings written at their default value
+* settings TUIOS does not use: obsolete keys such as `+[daemon] default_codec+`,
+and values such as `0` or `""` that TUIOS reads as "use the default"
+
+Each setting is checked against how TUIOS loads the file, one at a time, so a
+setting is only removed when taking it out leaves the configuration the same.
+A comment directly above a removed setting goes with it, and a section left
+without settings is removed together with its comments. Everything else stays
+as written, in the same order. `+[env]+` and `+[hooks]+` have no defaults and are
+never touched.
+
+A setting at its default stops following the default once you write it down:
+leaving it out means a later TUIOS version with a different default gives you
+the new one. That is usually what you want, and it is the reason to clean the
+file that `tuios config reset` or the settings page wrote out in full.
+
+The previous file is kept as `+<file>.bak+`. A file that doesn't parse is left
+alone; `tuios config check` says why. What was removed is reported: the
+settings at their default as a count, the ones with no effect by name.
+
+*Flags:*
+
+* `--stdout` - Print the cleaned file instead of rewriting it (the report goes
+to stderr)
+* `--reformat` - Also sort and align the settings left over, as
+`tuios config reformat` does, in the same write, so `+<file>.bak+` is still the
+original file
+
+*Example:*
+
+[source,bash]
+----
+tuios config clean --stdout | diff ~/.config/tuios/config.toml -
+tuios config clean --reformat
 ----
 
 '''''
