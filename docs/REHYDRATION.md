@@ -199,6 +199,22 @@ Two things had to be true for that rule to hold, and neither was:
   is handed only the lines that scrolled off while it was away: the daemon sends
   a bounded window and a client keeps far more, so replacing the buffer would cut
   a long history down to the size of that window on every workspace switch.
+- **Pending history goes out unlaid.** A snapshot reads the scrollback as it
+  stands (`Emulator.UnsettledScrollbackLen` and the readers beside it), so it
+  never lays out the lines a resize left pending at whatever width the daemon
+  has at that moment. Doing that dropped the history that did not fit the line
+  limit at that width, so a snapshot taken while a pane was briefly narrow,
+  during a drag, cost the daemon history its client kept. The pending rows
+  travel at the width they were written at, `ScrollbackPending` says how many
+  of the oldest rows they are, and `ApplyTerminalState` marks them pending in
+  the receiving emulator (`Emulator.MarkScrollbackPending`), which lays them
+  out at its own width when its history is read. `ScrollbackLen` is the length
+  the history will have once laid out (`Emulator.LaidOutScrollbackLen`), worked
+  out without laying it out, so the count a surviving emulator compares with
+  its own stays comparable. The matrix lays the daemon's rows out in a scratch
+  emulator before comparing them, and the rig watches a pane for change with
+  the unsettled readers, since reading a client's history mid-drag cut it in
+  the same way.
 - **The cursor is restored.** It was serialized and never applied.
 - **The request's own fields are honoured.** `IncludeScrollback` was written by
   the client and never read; `MaxScrollbackLines` was never written or read; and
@@ -360,6 +376,20 @@ seeds nothing, and what scrolled off while it was away is absent from the
 client's history. Counting cannot say more once either side is at its cap;
 doing it right needs the wire to carry how many rows scrolled off since a
 stream position.
+
+Reading the scrollback lays out the lines a resize left pending, at whatever
+width the emulator has at that moment (`Screen.settleReflow`), and the ring
+keeps its line limit while doing it: lines laid out at a narrow width take more
+rows, so the oldest are dropped. Two emulators fed the same bytes and resizes
+therefore keep the same history only if their history is read at the same
+widths. A snapshot no longer reads it that way (see the pending-history entry
+under what the wire carries), which removed the trigger that made
+`TestRehydrationMatrix/*/resized-while-producing` fail about one run in five.
+What is left are reads that are a viewer's own: on the daemon, `capture-pane`
+with scrollback (`PTY.CaptureContent`); on a client, the scrollback browser,
+copy mode and the scrollbar of a pane scrolled back. One of those during a drag
+over a producing pane still costs that side the history that does not fit at
+the narrow width, and the two copies then disagree about old scrollback.
 
 ## What the wire still does not carry
 

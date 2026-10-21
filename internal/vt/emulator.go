@@ -460,6 +460,68 @@ func (e *Emulator) ScrollbackLine(index int) uv.Line {
 	return e.scrs[0].ScrollbackLine(index)
 }
 
+// UnsettledScrollbackLen is ScrollbackLen without laying out the lines a
+// resize left pending: the history as it stands, some of it possibly at an
+// older width (see ScrollbackPending).
+//
+// It exists for snapshots. Laying the history out at the width the emulator
+// happens to have keeps the newest lines that fit the scrollback limit at that
+// width and drops the rest for good, so a read while a pane is briefly narrow
+// (a drag) costs this emulator history that another one fed the same bytes
+// keeps. A snapshot reads the history as it stands instead and hands the
+// pending lines on, for the receiver to lay out at its own width.
+func (e *Emulator) UnsettledScrollbackLen() int {
+	return e.scrs[0].ScrollbackLen()
+}
+
+// LaidOutScrollbackLen is the ScrollbackLen the history will have once the
+// pending lines are laid out at the current width, worked out without laying
+// them out (see UnsettledScrollbackLen). It is the length to compare with
+// another emulator's ScrollbackLen; the unsettled length counts pending lines
+// at whatever width they were written at.
+func (e *Emulator) LaidOutScrollbackLen() int {
+	return e.scrs[0].laidOutScrollbackLen()
+}
+
+// UnsettledScrollbackLine is ScrollbackLine without laying out pending lines
+// (see UnsettledScrollbackLen).
+func (e *Emulator) UnsettledScrollbackLine(index int) uv.Line {
+	return e.scrs[0].ScrollbackLine(index)
+}
+
+// UnsettledScrollbackLineWrap is ScrollbackLineWrap without laying out pending
+// lines (see UnsettledScrollbackLen).
+func (e *Emulator) UnsettledScrollbackLineWrap(index int) LineWrap {
+	if sb := e.scrs[0].Scrollback(); sb != nil {
+		return sb.LineWrap(index)
+	}
+	return HardBreak
+}
+
+// ScrollbackPending is how many of the oldest scrollback lines a resize left
+// to be laid out at the current width. The unsettled readers hand them out at
+// the width they were laid out at.
+func (e *Emulator) ScrollbackPending() int {
+	if sb := e.scrs[0].Scrollback(); sb != nil {
+		return sb.pending
+	}
+	return 0
+}
+
+// MarkScrollbackPending marks the n oldest scrollback lines as still to be
+// laid out at the current width, the state a resize leaves them in. It is for
+// seeding an emulator from a snapshot whose own emulator had not laid them out
+// yet: they are then laid out here, at this emulator's width, when something
+// first reads the history. n is clamped to the lines held; 0 changes nothing.
+func (e *Emulator) MarkScrollbackPending(n int) {
+	sb := e.scrs[0].Scrollback()
+	if sb == nil || n <= 0 {
+		return
+	}
+	sb.pending = min(max(sb.pending, n), sb.Len())
+	e.reflowPending.Store(true)
+}
+
 // SetScrollbackMaxLines sets the maximum number of lines for the scrollback buffer.
 func (e *Emulator) SetScrollbackMaxLines(maxLines int) {
 	e.scrs[0].SetScrollbackMaxLines(maxLines)

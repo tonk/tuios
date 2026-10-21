@@ -432,6 +432,7 @@ func compareSides(t *testing.T, r *rig, ptyID string) {
 	if st == nil {
 		t.Fatal("the daemon has no copy of the pane")
 	}
+	st = laidOut(st)
 
 	w.RLockIO()
 	defer w.RUnlockIO()
