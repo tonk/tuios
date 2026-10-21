@@ -2,8 +2,8 @@
 = Release Automation Guide
 ifndef::book[]
 Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
-:revnumber: v0.9.6
-:revdate: 2026-10-20
+:revnumber: v0.9.7
+:revdate: 2026-10-21
 ifdef::backend-pdf[]
 :title-page:
 :pdf-theme: tuios

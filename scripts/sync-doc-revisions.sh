@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
 # Sync :revnumber: and :revdate: in docs/*.adoc from the latest release tag.
-# Run at release time after tagging (or via: make sync-doc-revisions).
+# Run at release time (or via: make sync-doc-revisions).
+#
+# With a version argument (sync-doc-revisions.sh v1.2.3) it sets that version
+# instead, dated today, so the docs can carry a release's number in the commit
+# that release is then tagged on.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-revnumber="$(git -C "${ROOT}" describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || true)"
-if [[ -z "${revnumber}" ]]; then
-  echo "No release tag (vX.Y.Z) found" >&2
-  exit 1
+if [[ $# -gt 0 ]]; then
+  revnumber="$1"
+  if [[ ! "${revnumber}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Version must look like vX.Y.Z, got: ${revnumber}" >&2
+    exit 1
+  fi
+  revdate="$(date +%F)"
+else
+  revnumber="$(git -C "${ROOT}" describe --tags --abbrev=0 --match 'v*.*.*' 2>/dev/null || true)"
+  if [[ -z "${revnumber}" ]]; then
+    echo "No release tag (vX.Y.Z) found" >&2
+    exit 1
+  fi
+  revdate="$(git -C "${ROOT}" log -1 --format=%cs "${revnumber}")"
 fi
-revdate="$(git -C "${ROOT}" log -1 --format=%cs "${revnumber}")"
 
 shopt -s nullglob
 files=("${ROOT}"/docs/*.adoc)

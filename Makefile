@@ -144,9 +144,10 @@ package-pam-helper: dist-pam-helper
 			nfpm package --config $(PACKAGING)/tuios-pam-helper.yaml --packager $$fmt --target $(DIST)/ || exit 1; \
 	done
 
-# Set :revnumber:/:revdate: in docs/*.adoc from the latest release tag.
+# Set :revnumber:/:revdate: in docs/*.adoc from the latest release tag, or
+# from DOC_VERSION (make sync-doc-revisions DOC_VERSION=v1.2.3) before tagging.
 sync-doc-revisions:
-	@./scripts/sync-doc-revisions.sh
+	@./scripts/sync-doc-revisions.sh $(DOC_VERSION)
 
 # Regenerate the title-page logo PNG (source: assets/logo.svg).
 docs-pdf-assets:
