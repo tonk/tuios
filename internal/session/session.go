@@ -144,7 +144,14 @@ type SessionState struct {
 	//
 	// Daemon-owned: clients never send it, and false is what every older client
 	// and every pre-existing state file reads back as.
-	Restored         bool           `json:"restored,omitempty"`
+	Restored bool `json:"restored,omitempty"`
+	// ClassroomUser is the trainee whose PAM login spawned this session's
+	// shells, for a classroom session (see SetClassroomSpawner); empty for an
+	// ordinary one. It is written only into saved state (ResurrectionState),
+	// so a restarted daemon can tell a session it must not restore: it has no
+	// login to spawn the shells through, and spawning them itself would run
+	// them as its own account under the trainee's name. Daemon-owned.
+	ClassroomUser    string         `json:"classroom_user,omitempty"`
 	Windows          []WindowState  `json:"windows"`
 	FocusedWindowID  string         `json:"focused_window_id,omitempty"`
 	CurrentWorkspace int            `json:"current_workspace"`
@@ -1101,6 +1108,9 @@ func (s *Session) AllOptions() map[string]string {
 // send Cwd, so this daemon-side capture is the only source of it.
 func (s *Session) ResurrectionState() *SessionState {
 	state := s.GetState()
+	if sp := s.ClassroomSpawner(); sp != nil {
+		state.ClassroomUser = sp.Username()
+	}
 	for i := range state.Windows {
 		ptyID := state.Windows[i].PTYID
 		if ptyID == "" {

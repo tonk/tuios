@@ -206,6 +206,12 @@ the right directory, but whatever was running in those panes is not. A `vim` you
 had open is closed, a build you had running is dead, and the scrollback above the
 prompt is empty.
 
+Classroom sessions (`tuios-web --pam-auth` with the trainer console) are the
+exception: their shells run under the trainee's own login, which a restart
+cannot bring back, so the daemon discards their saved state instead of
+restoring them, and `tuios resurrect` refuses them. The trainee's next login
+creates the session again. See xref:deployment.adoc#doc-deployment[Production Deployment].
+
 Start the daemon with `--no-restore` to skip automatic restoration; saved state
 is left on disk and can still be restored on demand with `tuios resurrect`.
 `tuios attach --no-restore` does the same thing for the common case of a

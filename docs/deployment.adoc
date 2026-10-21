@@ -464,6 +464,17 @@ full-screen error instead of silently falling back to a different,
 non-persistent kind of session - if trainees report that, check
 `systemctl status tuios-daemon.service` first.
 
+*Classroom sessions do not survive a daemon restart.* Every shell in one runs
+under the trainee's own PAM login, which the daemon only holds while the
+trainee is logged in. After a restart it has no login to start them through,
+so it does not restore these sessions: it removes their saved state at
+startup (`Discarding saved state for classroom session ...` in its log) and
+the trainee's next login creates the session again, under their own account.
+A trainee is therefore missing from the trainer console until they log in
+again. Saved state written by a tuios version before this check does not say
+which sessions were classroom sessions; remove those files once by hand
+(`~/.local/state/tuios/sessions/<trainee>.json` under the daemon's `HOME`).
+
 == Hardening notes
 
 The shipped `tuios-web.service` applies only `NoNewPrivileges=true` and

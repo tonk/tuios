@@ -40,6 +40,15 @@ func (d *Daemon) restoreAllSessions() {
 			RemoveResurrectionState(name)
 			continue
 		}
+		if state.ClassroomUser != "" {
+			// Same reasoning: restoreSession refuses it, so leaving the file
+			// would offer a session that cannot come back. The trainee's next
+			// login creates the session afresh, under their own account.
+			log.Printf("Discarding saved state for classroom session %q: its shells need %q's own login, and their next login creates it again",
+				name, state.ClassroomUser)
+			RemoveResurrectionState(name)
+			continue
+		}
 		if _, err := d.restoreSession(state); err != nil {
 			LogError("Failed to restore session %q: %v", name, err)
 			continue
@@ -70,6 +79,17 @@ func (d *Daemon) restoreSession(state *SessionState) (*Session, error) {
 	// about the session that already exists rather than about what was saved.
 	if len(state.Windows) == 0 {
 		return nil, fmt.Errorf("saved state for session %q has no windows, there is nothing to restore", state.Name)
+	}
+
+	// A classroom session's shells ran under the trainee's own PAM login,
+	// which no restart can bring back. Restoring it spawned every window as
+	// this daemon's own account instead, under the trainee's name: the
+	// session showed up in the trainer's picker as if the trainee were
+	// logged in, and attaching to it handed out a shell as the service
+	// account. Refused for the automatic restore and 'tuios resurrect'
+	// alike; the trainee's next login creates the session again.
+	if state.ClassroomUser != "" {
+		return nil, fmt.Errorf("session %q is a classroom session of %q: its shells need their own login, so it comes back when they log in again", state.Name, state.ClassroomUser)
 	}
 
 	width, height := state.Width, state.Height
