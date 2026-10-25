@@ -401,3 +401,64 @@ func TestKittyModParam(t *testing.T) {
 		}
 	}
 }
+
+// A lock key that is on (Num Lock, Caps Lock) travels as a modifier bit once
+// the host reports all keys as escape codes, which tuios asks for when
+// hold_window_mode is a modifier key. Those bits change nothing about what the
+// key types, so they must not turn a key that would be sent as text into a
+// CSI u report: an app that only asked for disambiguation then gets "2 with
+// Shift" for "@" and cannot know what the layout made of it.
+func TestEncodeKeyCSIuIgnoresLockModifiers(t *testing.T) {
+	disambiguate := ansi.KittyDisambiguateEscapeCodes
+	tests := []struct {
+		name     string
+		key      KeyPressEvent
+		flags    int
+		expected string
+	}{
+		{
+			name:     "plain char with num lock",
+			key:      KeyPressEvent{Code: 'a', Text: "a", Mod: ModNumLock},
+			flags:    disambiguate,
+			expected: "",
+		},
+		{
+			name:     "shift+2 (@) with num lock",
+			key:      KeyPressEvent{Code: '2', ShiftedCode: '@', Text: "@", Mod: ModShift | ModNumLock},
+			flags:    disambiguate,
+			expected: "",
+		},
+		{
+			name:     "shift+9 (() with caps lock",
+			key:      KeyPressEvent{Code: '9', ShiftedCode: '(', Text: "(", Mod: ModShift | ModCapsLock},
+			flags:    disambiguate,
+			expected: "",
+		},
+		{
+			name:     "shift+[ ({) with num and caps lock",
+			key:      KeyPressEvent{Code: '[', ShiftedCode: '{', Text: "{", Mod: ModShift | ModNumLock | ModCapsLock},
+			flags:    disambiguate,
+			expected: "",
+		},
+		{
+			name:     "ctrl+a with num lock is still CSI u",
+			key:      KeyPressEvent{Code: 'a', Mod: ModCtrl | ModNumLock},
+			flags:    disambiguate,
+			expected: "\x1b[97;5u",
+		},
+		{
+			name:     "report-all-keys still reports shift+2 with num lock",
+			key:      KeyPressEvent{Code: '2', ShiftedCode: '@', Text: "@", Mod: ModShift | ModNumLock},
+			flags:    ansi.KittyReportAllKeysAsEscapeCodes,
+			expected: "\x1b[50;2u",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := EncodeKeyCSIu(tt.key, tt.flags); got != tt.expected {
+				t.Errorf("EncodeKeyCSIu() = %q, want %q", got, tt.expected)
+			}
+		})
+	}
+}

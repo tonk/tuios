@@ -204,16 +204,22 @@ func EncodeKeyCSIu(key KeyPressEvent, flags int) string {
 
 	code := int(key.Code)
 
+	// Lock keys that are on (Num Lock, Caps Lock) arrive as modifier bits when
+	// the host reports all keys as escape codes. They change nothing about what
+	// a key types, so they must not decide between text and CSI u: with Num
+	// Lock on, Shift+2 would otherwise go out as "2 with Shift" instead of "@".
+	mod := key.Mod &^ (ModCapsLock | ModNumLock | ModScrollLock)
+
 	// Don't encode basic printable characters without modifiers
 	// (unless report-all-keys flag is set)
 	if flags&ansi.KittyReportAllKeysAsEscapeCodes == 0 {
-		if key.Mod == 0 && code >= 0x20 && code < 0x7f {
+		if mod == 0 && code >= 0x20 && code < 0x7f {
 			return ""
 		}
 		// For Shift+printable that produces different text (e.g., Shift+a → 'A'),
 		// the kitty spec says to send the text directly, not CSI u.
 		// Only use CSI u when there are other modifiers (Ctrl, Alt) besides Shift.
-		if key.Text != "" && key.Mod == 1 { // Shift only (ModShift = 1)
+		if key.Text != "" && mod == ModShift {
 			return ""
 		}
 	}

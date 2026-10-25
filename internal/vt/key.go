@@ -16,6 +16,11 @@ const (
 	ModAlt   = uv.ModAlt
 	ModCtrl  = uv.ModCtrl
 	ModMeta  = uv.ModMeta
+
+	// Lock keys, reported as modifiers by a host in report-all-keys mode
+	ModCapsLock   = uv.ModCapsLock
+	ModNumLock    = uv.ModNumLock
+	ModScrollLock = uv.ModScrollLock
 )
 
 // KeyPressEvent represents a key press event.
