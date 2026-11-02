@@ -15,7 +15,12 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pin 24.04: ubuntu-latest is 26.04, whose libpam0g-dev is an amd64v3
+    # package. A cgo link against that stamps tuios-pam-helper with
+    # "x86 ISA needed: x86-64-v3", and older lab hosts refuse to start it
+    # ("CPU ISA level is lower than required"). 24.04 still ships baseline
+    # amd64 PAM headers/libs.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -37,7 +42,9 @@ jobs:
         run: |
           set -eu
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends libpam0g-dev
+          # binutils: objcopy, used by make dist-pam-helper to drop a
+          # build-host .note.gnu.property ISA mark (see Makefile).
+          sudo apt-get install -y -qq --no-install-recommends libpam0g-dev binutils
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3
 
       - name: Cross-compile and package (deb, rpm, standalone binaries)

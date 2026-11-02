@@ -27,12 +27,15 @@ LINUX_ARCHES := amd64 arm64
 PAM_HELPER_ARCH := amd64
 
 # Force the baseline x86-64 ISA for pam-helper. Without this, a cgo build on a
-# modern CI runner (GitHub's ubuntu-latest) stamps the binary with
-# "x86 ISA needed: ... x86-64-v3", and glibc on older lab hosts (e.g. KVM
-# guests without v2/v3 flags) refuses to run it:
-#   tuios-pam-helper: CPU ISA level is lower than required
-# GOAMD64=v1 covers the Go side; CGO_CFLAGS pins gcc so object files don't
-# re-raise the requirement through .note.gnu.property.
+# modern CI runner stamps the binary with "x86 ISA needed: ... x86-64-v3",
+# and glibc on older lab hosts (e.g. KVM guests without v2/v3 flags) refuses
+# to run it: "CPU ISA level is lower than required".
+# GOAMD64=v1 covers the Go side; CGO_CFLAGS pins gcc so our own objects don't
+# re-raise the requirement. Linking against an amd64v3 libpam (Ubuntu 26.04+)
+# can still leave a v3 .note.gnu.property — dist-pam-helper strips that note
+# afterwards; at runtime the host's own libpam.so is loaded, so the build
+# host's ISA mark is not meaningful. Prefer a baseline runner too
+# (.github/workflows/release.yml pins ubuntu-24.04 for that reason).
 PAM_HELPER_GOENV := CGO_ENABLED=1 GOOS=linux GOARCH=$(PAM_HELPER_ARCH) GOAMD64=v1 \
 	CGO_CFLAGS="-O2 -g -march=x86-64 -mtune=generic"
 
@@ -144,6 +147,11 @@ dist-pam-helper: check-pam-headers
 	@echo "==> tuios-pam-helper linux/$(PAM_HELPER_ARCH) (GOAMD64=v1, -march=x86-64)"
 	cd $(PAM_HELPER_DIR) && $(PAM_HELPER_GOENV) go build -trimpath -ldflags "$(LDFLAGS)" \
 		-o $(DIST)/tuios-pam-helper_$(VERSION)_linux_$(PAM_HELPER_ARCH) ./helper
+	# Drop a build-host ISA requirement note left by linking against
+	# amd64v3 PAM libs (see PAM_HELPER_GOENV comment). objcopy is part of
+	# binutils; present on the release runners and any normal build host.
+	objcopy --remove-section=.note.gnu.property \
+		$(DIST)/tuios-pam-helper_$(VERSION)_linux_$(PAM_HELPER_ARCH)
 
 package-pam-helper: dist-pam-helper
 	@for fmt in deb rpm; do \
