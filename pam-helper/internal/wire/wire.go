@@ -38,7 +38,7 @@ const SocketPath = "/run/tuios-pam-helper.sock"
 
 // Message types.
 const (
-	MsgLogin          byte = 1 // client -> helper: username, password
+	MsgLogin          byte = 1 // client -> helper: username, password, [rhost]
 	MsgLoginResult    byte = 2 // helper -> client: ok, [error]
 	MsgSpawnPTY       byte = 3 // client -> helper: cols, rows
 	MsgSpawnPTYResult byte = 4 // helper -> client: ok, pid, [error]; fd rides along on success
@@ -113,8 +113,8 @@ func ReadMessage(conn *net.UnixConn) (msgType byte, payload []byte, fd int, err 
 }
 
 // PutField appends v to buf as a 4-byte length prefix followed by v — the
-// sub-field framing used inside a message payload (e.g. Login's username and
-// password, both riding in one MsgLogin payload).
+// sub-field framing used inside a message payload (e.g. Login's username,
+// password and optional rhost, all riding in one MsgLogin payload).
 func PutField(buf *bytes.Buffer, v []byte) {
 	var n [4]byte
 	binary.BigEndian.PutUint32(n[:], uint32(len(v)))

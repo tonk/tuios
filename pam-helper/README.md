@@ -25,9 +25,11 @@ file descriptors and gets out of the way:
   spawns as many shells as asked, each on its own fresh PTY, each running as
   the trainee's own uid/gid/groups. Every PTY master fd is sent to the caller
   via `SCM_RIGHTS` ancillary data (`internal/wire`), the same fd-passing
-  mechanism tools like `sudo` use. Closing the connection is what ends the
-  login: the helper signals every shell still running for it, then tears
-  down the PAM session.
+  mechanism tools like `sudo` use. Each spawn also writes a utmp/wtmp login
+  record for that pts (and clears it when the shell exits), so `who`/`w` on
+  the host show the trainee as logged in. Closing the connection is what ends
+  the login: the helper signals every shell still running for it, clears any
+  remaining utmp entries, then tears down the PAM session.
 - **`internal/pamauth`** (main tuios module) — `tuios-web`'s client for the
   above. Never privileged, never touches PAM itself.
 - **`client/`** (this module) — a minimal manual test client: log in, get a
@@ -206,6 +208,11 @@ just the standalone helper/client:
 - `pam_systemd.so` registered a real `loginctl`-visible session for the
   trainee's uid, confirming `pam_open_session` actually ran, not just
   `pam_authenticate`.
+- **utmp/wtmp**: each spawned shell writes a `USER_PROCESS` entry (and clears
+  it to `DEAD_PROCESS` on exit / login teardown). `who`/`w` show the trainee
+  on their `pts/N` with the browser's remote address in the FROM column.
+  (`pam_unix`'s session component only syslog's nowadays; it does not write
+  utmp - the helper does, the same way `sshd`/`login` do.)
 
 ## What's still not here
 

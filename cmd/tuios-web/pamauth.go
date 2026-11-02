@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/Gaurav-Gosain/sip"
 	"github.com/tonk/tuios/internal/config"
@@ -44,7 +46,7 @@ func pamAuthMiddleware(socketPath string, classroom config.ClassroomConfig) sip.
 			}
 			if login == nil {
 				var err error
-				login, err = pamauth.Dial(socketPath, username, password)
+				login, err = pamauth.Dial(socketPath, username, password, clientHost(r))
 				if err != nil {
 					// The specific reason (wrong password vs. helper unreachable
 					// vs. account locked) is only useful server-side: handing it
@@ -132,4 +134,22 @@ func pamLoginFromContext(ctx context.Context) (*pamauth.Login, bool) {
 	}
 	login, ok := id.(*pamauth.Login)
 	return login, ok
+}
+
+// clientHost returns the remote address to record in utmp's ut_host for a
+// PAM login. Prefers the first X-Forwarded-For hop when present (nginx in
+// front of tuios-web - see docs/deployment.adoc), otherwise the direct
+// peer from RemoteAddr. Empty only when the request carries nothing usable.
+func clientHost(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if host, _, ok := strings.Cut(xff, ","); ok {
+			return strings.TrimSpace(host)
+		}
+		return strings.TrimSpace(xff)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }

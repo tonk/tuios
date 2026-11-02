@@ -76,11 +76,14 @@ type Login struct {
 func (l *Login) Username() string { return l.username }
 
 // Dial connects to the helper at socketPath and authenticates username with
-// password. A non-nil error means either the connection or the PAM login
-// itself failed — the caller cannot distinguish which without inspecting
-// the error text, which is deliberate: neither should be reported to the
-// browser in more detail than "authentication failed".
-func Dial(socketPath, username, password string) (*Login, error) {
+// password. rhost is the remote client host/IP recorded in utmp when the
+// helper later spawns a shell (who(1)'s FROM column); pass "" when unknown
+// (e.g. Verify, which never spawns). A non-nil error means either the
+// connection or the PAM login itself failed — the caller cannot distinguish
+// which without inspecting the error text, which is deliberate: neither
+// should be reported to the browser in more detail than "authentication
+// failed".
+func Dial(socketPath, username, password, rhost string) (*Login, error) {
 	if socketPath == "" {
 		socketPath = DefaultSocketPath
 	}
@@ -93,6 +96,11 @@ func Dial(socketPath, username, password string) (*Login, error) {
 	var buf bytes.Buffer
 	putField(&buf, []byte(username))
 	putField(&buf, []byte(password))
+	// Always send the rhost field (possibly empty) so the helper's decoder
+	// has a stable three-field layout from current clients; older helpers
+	// that only read username+password still accept this - trailing bytes on
+	// a unixpacket message are simply unused.
+	putField(&buf, []byte(rhost))
 	if err := writeMessage(uconn, msgLogin, buf.Bytes(), -1); err != nil {
 		_ = uconn.Close()
 		return nil, fmt.Errorf("sending login: %w", err)
@@ -255,7 +263,7 @@ func (l *Login) String() string { return "pam-authenticated" }
 // credentials the later WebSocket upgrade - which does call Dial to
 // establish a real, lasting Login - can then reuse automatically.
 func Verify(socketPath, username, password string) error {
-	login, err := Dial(socketPath, username, password)
+	login, err := Dial(socketPath, username, password, "")
 	if err != nil {
 		return err
 	}

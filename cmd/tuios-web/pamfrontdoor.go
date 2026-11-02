@@ -140,7 +140,7 @@ func requirePAM(pamSocketPath string, next http.Handler) http.Handler {
 		// cache without another pam-helper round trip.
 		if r.URL.Path == "/" {
 			sid := ensureSessionCookie(w, r)
-			login, err := pamauth.Dial(pamSocketPath, username, password)
+			login, err := pamauth.Dial(pamSocketPath, username, password, clientHost(r))
 			if err != nil {
 				log.Printf("PAM login for %q failed: %v", username, err)
 				unauthorizedHTTP(w)

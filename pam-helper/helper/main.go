@@ -8,10 +8,13 @@
 // touches a shell's stdin/stdout again once its fd has crossed over.
 //
 // Closing the connection is what ends the login: every child shell still
-// running for it is signalled, then the PAM session is closed and its
-// credentials released. This lets one authenticated trainee open and close
-// as many windows as they like without re-entering a password, while still
-// tying the whole login's lifetime to one clear, unambiguous event.
+// running for it is signalled, its utmp entries cleared, then the PAM
+// session is closed and its credentials released. This lets one authenticated
+// trainee open and close as many windows as they like without re-entering a
+// password, while still tying the whole login's lifetime to one clear,
+// unambiguous event. Each SpawnPTY also writes a utmp/wtmp USER_PROCESS
+// record so who(1)/w(1) show the trainee as logged in (pam_unix no longer
+// does this itself - see utmp_linux.go).
 //
 // The wire protocol (see ../internal/wire) sends the password in the clear
 // over a local socket, with no client authentication of its own beyond "can
@@ -102,9 +105,25 @@ func main() {
 	}
 }
 
+// child is one shell this login spawned, tracked so ClosePTY can only signal
+// our own pids and so the matching utmp slot is cleared exactly once when
+// the process exits (or the login tears down before Wait runs).
+type child struct {
+	proc       *os.Process
+	line       string // utmp ut_line, e.g. "pts/3"
+	logoutOnce sync.Once
+}
+
+func (c *child) clearUtmp() {
+	c.logoutOnce.Do(func() {
+		utmpLogout(c.line, c.proc.Pid)
+	})
+}
+
 // login is one authenticated PAM session and the shells spawned under it.
 type login struct {
 	username string
+	rhost    string // remote host/IP from the client, for utmp ut_host; may be empty
 	tx       *pam.Transaction
 	u        *user.User
 	uid, gid uint32
@@ -113,7 +132,7 @@ type login struct {
 	env      []string
 
 	mu       sync.Mutex
-	children map[int]*os.Process // pid -> process, only pids this login itself spawned
+	children map[int]*child // pid -> child, only pids this login itself spawned
 }
 
 func handleConn(conn *net.UnixConn) {
@@ -128,13 +147,13 @@ func handleConn(conn *net.UnixConn) {
 		log.Printf("expected MsgLogin, got type %d", msgType)
 		return
 	}
-	username, password, err := decodeLogin(payload)
+	username, password, rhost, err := decodeLogin(payload)
 	if err != nil {
 		log.Printf("decoding login message: %v", err)
 		return
 	}
 
-	lg, err := authenticate(username, password)
+	lg, err := authenticate(username, password, rhost)
 	if err != nil {
 		log.Printf("login for %q failed: %v", username, err)
 		_ = wire.WriteMessage(conn, wire.MsgLoginResult, encodeResult(false, err), -1)
@@ -142,7 +161,11 @@ func handleConn(conn *net.UnixConn) {
 	}
 	defer lg.close()
 
-	log.Printf("login for %q ok", username)
+	if rhost != "" {
+		log.Printf("login for %q ok (from %s)", username, rhost)
+	} else {
+		log.Printf("login for %q ok", username)
+	}
 	if err := wire.WriteMessage(conn, wire.MsgLoginResult, encodeResult(true, nil), -1); err != nil {
 		log.Printf("sending login result: %v", err)
 		return
@@ -201,8 +224,10 @@ func handleClosePTY(conn *net.UnixConn, lg *login, payload []byte) {
 }
 
 // authenticate runs the PAM login sequence once. On success the returned
-// *login can spawn any number of shells until close is called.
-func authenticate(username, password string) (*login, error) {
+// *login can spawn any number of shells until close is called. rhost is the
+// optional remote host/IP the client reported (written into utmp ut_host on
+// each SpawnPTY); empty is fine.
+func authenticate(username, password, rhost string) (*login, error) {
 	answered := false
 	convo := func(style pam.Style, msg string) (string, error) {
 		switch style {
@@ -230,6 +255,16 @@ func authenticate(username, password string) (*login, error) {
 	fail := func(step string, err error) (*login, error) {
 		endOnce()
 		return nil, fmt.Errorf("%s: %w", step, err)
+	}
+
+	// PAM_RHOST is informational for modules that care (audit, lastlog); we
+	// also keep it on the login for utmp. PAM_TTY is deliberately not set
+	// here: no PTY exists yet, and pam_unix's session component no longer
+	// writes utmp from it anyway - see utmp_linux.go.
+	if rhost != "" {
+		if err := tx.SetItem(pam.Rhost, rhost); err != nil {
+			log.Printf("pam(%s): setting PAM_RHOST: %v", username, err)
+		}
 	}
 
 	if err := tx.Authenticate(0); err != nil {
@@ -270,6 +305,7 @@ func authenticate(username, password string) (*login, error) {
 
 	return &login{
 		username: username,
+		rhost:    rhost,
 		tx:       tx,
 		u:        u,
 		uid:      uint32(uid),
@@ -277,12 +313,13 @@ func authenticate(username, password string) (*login, error) {
 		groups:   groups,
 		shell:    shell,
 		env:      buildEnv(u, shell, tx),
-		children: make(map[int]*os.Process),
+		children: make(map[int]*child),
 	}, nil
 }
 
 // spawnShell starts one more shell for this login, on its own fresh PTY at
-// the given size.
+// the given size, and records a utmp/wtmp USER_PROCESS entry for it so
+// who(1) shows the trainee as logged in.
 func (lg *login) spawnShell(cols, rows int) (ptmx *os.File, proc *os.Process, err error) {
 	// #nosec G204 - lg.shell is resolved from /etc/passwd for the
 	// already-authenticated user, not attacker input.
@@ -302,12 +339,24 @@ func (lg *login) spawnShell(cols, rows int) (ptmx *os.File, proc *os.Process, er
 		return nil, nil, fmt.Errorf("starting shell: %w", err)
 	}
 
+	line, err := ptsLine(ptmx)
+	if err != nil {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+		_ = ptmx.Close()
+		return nil, nil, fmt.Errorf("resolving pts name for utmp: %w", err)
+	}
+
+	c := &child{proc: cmd.Process, line: line}
+	utmpLogin(lg.username, line, lg.rhost, cmd.Process.Pid)
+
 	lg.mu.Lock()
-	lg.children[cmd.Process.Pid] = cmd.Process
+	lg.children[cmd.Process.Pid] = c
 	lg.mu.Unlock()
 
 	go func() {
 		_ = cmd.Wait() // reap; the caller detects exit itself via its copy of the pty fd
+		c.clearUtmp()
 		lg.mu.Lock()
 		delete(lg.children, cmd.Process.Pid)
 		lg.mu.Unlock()
@@ -319,28 +368,34 @@ func (lg *login) spawnShell(cols, rows int) (ptmx *os.File, proc *os.Process, er
 // closeShell signals one of this login's own shells to exit. It refuses to
 // touch a pid this login did not itself spawn — a compromised or careless
 // client asking a root process to kill an arbitrary pid is exactly the kind
-// of request this must never honor blindly.
+// of request this must never honor blindly. The matching utmp entry is
+// cleared by the Wait goroutine once the process actually exits.
 func (lg *login) closeShell(pid int) error {
 	lg.mu.Lock()
-	proc, ok := lg.children[pid]
+	c, ok := lg.children[pid]
 	lg.mu.Unlock()
 	if !ok {
 		return fmt.Errorf("pid %d does not belong to this login", pid)
 	}
-	return proc.Signal(syscall.SIGHUP)
+	return c.proc.Signal(syscall.SIGHUP)
 }
 
-// close signals every shell still running for this login, then tears down
-// the PAM session. Called once the connection ends, whatever the reason.
+// close signals every shell still running for this login, clears any utmp
+// entries that Wait has not cleared yet, then tears down the PAM session.
+// Called once the connection ends, whatever the reason.
 func (lg *login) close() {
 	lg.mu.Lock()
-	remaining := make([]*os.Process, 0, len(lg.children))
-	for _, p := range lg.children {
-		remaining = append(remaining, p)
+	remaining := make([]*child, 0, len(lg.children))
+	for _, c := range lg.children {
+		remaining = append(remaining, c)
 	}
 	lg.mu.Unlock()
-	for _, p := range remaining {
-		_ = p.Signal(syscall.SIGHUP)
+	for _, c := range remaining {
+		_ = c.proc.Signal(syscall.SIGHUP)
+		// Clear utmp now rather than waiting for Wait: the connection is
+		// gone and who(1) should stop listing this login immediately, even
+		// if a shell is slow to die.
+		c.clearUtmp()
 	}
 	closeSession(lg.tx)
 	_ = lg.tx.End()
@@ -426,17 +481,26 @@ func buildEnv(u *user.User, shell string, tx *pam.Transaction) []string {
 
 // --- message payload encode/decode ---
 
-func decodeLogin(payload []byte) (username, password string, err error) {
+func decodeLogin(payload []byte) (username, password, rhost string, err error) {
 	r := bytes.NewReader(payload)
 	u, err := wire.GetField(r)
 	if err != nil {
-		return "", "", fmt.Errorf("reading username: %w", err)
+		return "", "", "", fmt.Errorf("reading username: %w", err)
 	}
 	p, err := wire.GetField(r)
 	if err != nil {
-		return "", "", fmt.Errorf("reading password: %w", err)
+		return "", "", "", fmt.Errorf("reading password: %w", err)
 	}
-	return string(u), string(p), nil
+	// Optional third field: remote host/IP for utmp. Older clients (and
+	// Verify-style dials that have nothing useful to report) omit it.
+	if r.Len() == 0 {
+		return string(u), string(p), "", nil
+	}
+	h, err := wire.GetField(r)
+	if err != nil {
+		return "", "", "", fmt.Errorf("reading rhost: %w", err)
+	}
+	return string(u), string(p), string(h), nil
 }
 
 func encodeResult(ok bool, err error) []byte {

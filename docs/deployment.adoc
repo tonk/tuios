@@ -321,7 +321,15 @@ curl -o /dev/null -w '%{http_code}\n' https://tuios.yourdomain.example/tuios-set
 Then open the URL in a real browser. PAM mode should show a native login
 popup before anything else renders. Either mode should land in a working
 shell; `whoami` inside it should be the trainee's own account in PAM mode,
-or the `tuios-web` service account otherwise.
+or the `tuios-web` service account otherwise. In PAM mode, `who`/`w` on the
+host should also list the trainee on a `pts/N` line (utmp is updated by
+`tuios-pam-helper` when each shell is spawned - see
+link:../pam-helper/README.md[pam-helper/README.md]):
+
+[source,bash]
+----
+who    # expect: <trainee> pts/N ... <browser IP>
+----
 
 [source,bash]
 ----

@@ -121,6 +121,10 @@ packaging and release pipeline.
 * A PAM-spawned window's `+{user}+` title placeholder now shows the trainee,
 not the `tuios-web` service account; PAM-spawned shells also get
 `+TUIOS_ENV=1+` like every other spawn path.
+* `tuios-pam-helper` writes utmp/wtmp on each spawned shell (and clears them
+on exit), so `who`/`w` show PAM `tuios-web` trainees as logged in; the
+browser's remote address is carried through as utmp's FROM host
+(`X-Forwarded-For` when nginx is in front).
 
 == `tuios-web` theming, fonts and appearance
 

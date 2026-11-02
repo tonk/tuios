@@ -231,7 +231,7 @@ func TestClassroomPickerViewFillsTheTerminal(t *testing.T) {
 // not the full HTTP auth flow.
 func dialFakeLogin(t *testing.T, socketPath, username string) *pamauth.Login {
 	t.Helper()
-	login, err := pamauth.Dial(socketPath, username, "irrelevant")
+	login, err := pamauth.Dial(socketPath, username, "irrelevant", "")
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}

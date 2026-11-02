@@ -102,7 +102,7 @@ func (h *fakeHelper) serve(t *testing.T, conn *net.UnixConn) {
 func TestLoginSpawnAndClosePTY(t *testing.T) {
 	h := newFakeHelper(t)
 
-	login, err := Dial(h.socketPath(), "trainee", "irrelevant")
+	login, err := Dial(h.socketPath(), "trainee", "irrelevant", "")
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestLoginSpawnAndClosePTY(t *testing.T) {
 func TestNewLoginFromFile(t *testing.T) {
 	h := newFakeHelper(t)
 
-	original, err := Dial(h.socketPath(), "trainee", "irrelevant")
+	original, err := Dial(h.socketPath(), "trainee", "irrelevant", "")
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
@@ -206,7 +206,7 @@ func TestNewLoginFromFile(t *testing.T) {
 func TestNewLoginFromFileSurvivesGC(t *testing.T) {
 	h := newFakeHelper(t)
 
-	original, err := Dial(h.socketPath(), "trainee", "irrelevant")
+	original, err := Dial(h.socketPath(), "trainee", "irrelevant", "")
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
