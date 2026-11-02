@@ -26,6 +26,16 @@ LINUX_ARCHES := amd64 arm64
 # revisit if arm64 is ever actually needed.
 PAM_HELPER_ARCH := amd64
 
+# Force the baseline x86-64 ISA for pam-helper. Without this, a cgo build on a
+# modern CI runner (GitHub's ubuntu-latest) stamps the binary with
+# "x86 ISA needed: ... x86-64-v3", and glibc on older lab hosts (e.g. KVM
+# guests without v2/v3 flags) refuses to run it:
+#   tuios-pam-helper: CPU ISA level is lower than required
+# GOAMD64=v1 covers the Go side; CGO_CFLAGS pins gcc so object files don't
+# re-raise the requirement through .note.gnu.property.
+PAM_HELPER_GOENV := CGO_ENABLED=1 GOOS=linux GOARCH=$(PAM_HELPER_ARCH) GOAMD64=v1 \
+	CGO_CFLAGS="-O2 -g -march=x86-64 -mtune=generic"
+
 .PHONY: all build tuios tuios-web install clean dist package package-windows checksums \
 	pam-helper install-pam-helper dist-pam-helper package-pam-helper check-pam-headers \
 	sync-doc-revisions docs-config-reference docs-pdf docs-pdf-assets
@@ -123,7 +133,7 @@ check-pam-headers:
 	}
 
 pam-helper: check-pam-headers
-	cd $(PAM_HELPER_DIR) && go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINDIR)/tuios-pam-helper ./helper
+	cd $(PAM_HELPER_DIR) && $(PAM_HELPER_GOENV) go build -trimpath -ldflags "$(LDFLAGS)" -o $(BINDIR)/tuios-pam-helper ./helper
 
 install-pam-helper: pam-helper
 	sudo install -m 0755 $(BINDIR)/tuios-pam-helper $(INSTALL_DIR)/tuios-pam-helper
@@ -131,8 +141,8 @@ install-pam-helper: pam-helper
 
 dist-pam-helper: check-pam-headers
 	mkdir -p $(DIST)
-	@echo "==> tuios-pam-helper linux/$(PAM_HELPER_ARCH)"
-	cd $(PAM_HELPER_DIR) && CGO_ENABLED=1 GOOS=linux GOARCH=$(PAM_HELPER_ARCH) go build -trimpath -ldflags "$(LDFLAGS)" \
+	@echo "==> tuios-pam-helper linux/$(PAM_HELPER_ARCH) (GOAMD64=v1, -march=x86-64)"
+	cd $(PAM_HELPER_DIR) && $(PAM_HELPER_GOENV) go build -trimpath -ldflags "$(LDFLAGS)" \
 		-o $(DIST)/tuios-pam-helper_$(VERSION)_linux_$(PAM_HELPER_ARCH) ./helper
 
 package-pam-helper: dist-pam-helper
