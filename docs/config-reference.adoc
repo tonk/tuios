@@ -11,8 +11,8 @@ endif::book[]
 = Configuration Reference
 ifndef::book[]
 Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
-:revnumber: v0.9.12
-:revdate: 2026-11-02
+:revnumber: v0.9.13
+:revdate: 2026-11-04
 ifdef::backend-pdf[]
 :title-page:
 :pdf-theme: tuios
