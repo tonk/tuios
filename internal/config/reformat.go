@@ -18,6 +18,14 @@ type reformatItem struct {
 	key      string
 	value    string
 	trailing string
+	raw      []string // the source lines, written as-is when not aligning
+}
+
+// ReformatOptions selects what ReformatConfigWith does to the keys of every
+// section. ReformatConfig does both.
+type ReformatOptions struct {
+	Sort  bool // sort the keys of every section alphabetically
+	Align bool // align the '=' of the keys in every section
 }
 
 // reformatSection is a [table] (or the keys before the first one) as
@@ -46,6 +54,13 @@ type reformatSection struct {
 // written. A file that doesn't decode (a syntax error, a duplicate key) is
 // refused too: run CheckConfig on it first.
 func ReformatConfig(data []byte) ([]byte, error) {
+	return ReformatConfigWith(data, ReformatOptions{Sort: true, Align: true})
+}
+
+// ReformatConfigWith is ReformatConfig doing only what opts asks for: without
+// Sort the keys keep their order, without Align every key/value line is kept
+// exactly as written. Comments are handled and blank lines dropped either way.
+func ReformatConfigWith(data []byte, opts ReformatOptions) ([]byte, error) {
 	var before map[string]any
 	if err := toml.Unmarshal(data, &before); err != nil {
 		return nil, fmt.Errorf("config does not parse, fix it first (see tuios config check): %w", err)
@@ -55,6 +70,7 @@ func ReformatConfig(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("config does not parse, fix it first (see tuios config check): %w", err)
 	}
 
+	source := strings.Split(string(data), "\n")
 	sections := []*reformatSection{{}}
 	current := sections[0]
 	var pending []tomlEntry
@@ -108,6 +124,7 @@ func ReformatConfig(data []byte) ([]byte, error) {
 				key:      entry.RawKey,
 				value:    entry.Value,
 				trailing: entry.Comment,
+				raw:      source[entry.Line-1 : entry.EndLine],
 			})
 		}
 	}
@@ -115,7 +132,7 @@ func ReformatConfig(data []byte) ([]byte, error) {
 
 	var out strings.Builder
 	for _, section := range sections {
-		writeReformatSection(&out, section)
+		writeReformatSection(&out, section, opts)
 	}
 	result := []byte(strings.TrimLeft(out.String(), "\n"))
 
@@ -172,8 +189,8 @@ func digitRun(s string) int {
 }
 
 // writeReformatSection writes one section, separated from what came before by
-// a blank line, with its keys sorted and aligned.
-func writeReformatSection(out *strings.Builder, section *reformatSection) {
+// a blank line, with its keys sorted and aligned as opts asks.
+func writeReformatSection(out *strings.Builder, section *reformatSection, opts ReformatOptions) {
 	var blocks [][]string
 
 	top := section.top
@@ -195,7 +212,9 @@ func writeReformatSection(out *strings.Builder, section *reformatSection) {
 
 	if len(section.items) > 0 {
 		items := section.items
-		sort.SliceStable(items, func(i, j int) bool { return naturalLess(items[i].sortKey, items[j].sortKey) })
+		if opts.Sort {
+			sort.SliceStable(items, func(i, j int) bool { return naturalLess(items[i].sortKey, items[j].sortKey) })
+		}
 
 		width := 0
 		for _, item := range items {
@@ -207,6 +226,10 @@ func writeReformatSection(out *strings.Builder, section *reformatSection) {
 				lines = append(lines, "")
 			}
 			lines = append(lines, item.comments...)
+			if !opts.Align {
+				lines = append(lines, item.raw...)
+				continue
+			}
 			line := fmt.Sprintf("%-*s = %s", width, item.key, item.value)
 			if item.trailing != "" {
 				line += " " + item.trailing

@@ -32,7 +32,7 @@ type CleanedSetting struct {
 // it, and a section left without settings is removed whole, comments and all.
 // Everything else stays exactly as written, in the order it was written, so
 // the '=' of the settings left over may no longer line up: ReformatConfig
-// realigns them.
+// realigns them, which tuios config clean always does afterwards.
 //
 // Settings are judged one at a time against the file as it stands after the
 // removals before them, so two settings that only have no effect because of

@@ -103,3 +103,34 @@ func TestReformatConfigDefaultIsStable(t *testing.T) {
 		t.Error("reformatting the default config is not idempotent")
 	}
 }
+
+func TestReformatConfigWith(t *testing.T) {
+	input := "[appearance]\ntheme = \"nord\"\nborder_style=\"rounded\"\n\n# cpu\nshow_cpu   =   true\nnew_window = [\n  \"n\",\n]\n"
+	tests := []struct {
+		name string
+		opts ReformatOptions
+		want string
+	}{
+		{
+			name: "align only",
+			opts: ReformatOptions{Align: true},
+			want: "[appearance]\ntheme        = \"nord\"\nborder_style = \"rounded\"\n\n# cpu\nshow_cpu     = true\nnew_window   = [\n  \"n\",\n]\n",
+		},
+		{
+			name: "sort only",
+			opts: ReformatOptions{Sort: true},
+			want: "[appearance]\nborder_style=\"rounded\"\nnew_window = [\n  \"n\",\n]\n\n# cpu\nshow_cpu   =   true\ntheme = \"nord\"\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReformatConfigWith([]byte(input), tt.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}

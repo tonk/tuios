@@ -97,8 +97,8 @@ tuios config clean
 number, and exits non-zero when it finds any. `reformat` sorts the settings in
 each section, aligns them on `=` and keeps your comments, saving the previous
 file as `config.toml.bak`. `clean` removes every setting that is at its default
-or has no effect, so the file holds only what you changed; add `--reformat` to
-sort and align what is left in the same go. See the
+or has no effect, so the file holds only what you changed, and then sorts and
+aligns what is left the way `reformat` does. See the
 xref:cli-reference.adoc#tuios-config[CLI reference] for the details.
 
 == Configuration File Location

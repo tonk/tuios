@@ -242,9 +242,10 @@ func checkConfigFile(args []string) error {
 	return fmt.Errorf("found %d problem(s), %d of which stop tuios from loading the file", len(issues), errorCount)
 }
 
-// reformatConfigFile sorts and aligns the config file in place, keeping the
-// original as <file>.bak, or prints the result when toStdout is set.
-func reformatConfigFile(args []string, toStdout bool) error {
+// reformatConfigFile sorts and aligns the config file in place, as far as sort
+// and align ask, keeping the original as <file>.bak, or prints the result when
+// toStdout is set.
+func reformatConfigFile(args []string, toStdout, sort, align bool) error {
 	path, err := configFileArg(args)
 	if err != nil {
 		return err
@@ -259,7 +260,7 @@ func reformatConfigFile(args []string, toStdout bool) error {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	formatted, err := config.ReformatConfig(data)
+	formatted, err := config.ReformatConfigWith(data, config.ReformatOptions{Sort: sort, Align: align})
 	if err != nil {
 		return err
 	}
@@ -285,10 +286,11 @@ func reformatConfigFile(args []string, toStdout bool) error {
 
 // cleanConfigFile removes the settings that change nothing from the config
 // file, keeping the original as <file>.bak, or prints the result when
-// toStdout is set. With reformat it also sorts and aligns what is left, in the
-// same write, so the backup is still the original file. What was removed is
+// toStdout is set. What is left is reformatted (sorted and aligned, as far as
+// sort and align ask) in the same write, so the backup is still the original file;
+// with neither, the rest of the file is left as it was. What was removed is
 // reported on stderr when printing to stdout.
-func cleanConfigFile(args []string, toStdout, reformat bool) error {
+func cleanConfigFile(args []string, toStdout, sort, align bool) error {
 	path, err := configFileArg(args)
 	if err != nil {
 		return err
@@ -307,8 +309,9 @@ func cleanConfigFile(args []string, toStdout, reformat bool) error {
 	if err != nil {
 		return err
 	}
-	if reformat {
-		if cleaned, err = config.ReformatConfig(cleaned); err != nil {
+	if sort || align {
+		opts := config.ReformatOptions{Sort: sort, Align: align}
+		if cleaned, err = config.ReformatConfigWith(cleaned, opts); err != nil {
 			return err
 		}
 	}
@@ -320,7 +323,7 @@ func cleanConfigFile(args []string, toStdout, reformat bool) error {
 		return nil
 	}
 	if len(removed) == 0 && string(cleaned) == string(data) {
-		fmt.Printf("%s has no default or unused settings\n", path)
+		fmt.Printf("%s is already clean\n", path)
 		return nil
 	}
 

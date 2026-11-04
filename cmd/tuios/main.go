@@ -293,7 +293,7 @@ anything is found.`,
 		},
 	}
 
-	var configReformatStdout bool
+	var configReformatStdout, configReformatNoSort, configReformatNoRealign bool
 	configReformatCmd := &cobra.Command{
 		Use:   "reformat [file]",
 		Short: "Sort the settings in each section and align them on '='",
@@ -305,6 +305,10 @@ directly above a section header stays with the header, and other comment
 blocks stay at the top or bottom of their section. Blank lines between keys
 are dropped.
 
+--no-sort keeps the keys in the order they are written in and only aligns
+them; --no-realign keeps every setting's line exactly as written and only
+sorts them. Giving both leaves nothing to do and is refused.
+
 The result is checked to decode to exactly the same settings before anything
 is written, and the previous file is kept as <file>.bak. A file that doesn't
 parse is left alone; run 'tuios config check' to find out why.
@@ -312,12 +316,17 @@ parse is left alone; run 'tuios config check' to find out why.
 Reformats the active config file unless a file is given.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return reformatConfigFile(args, configReformatStdout)
+			if configReformatNoSort && configReformatNoRealign {
+				return fmt.Errorf("--no-sort and --no-realign together leave nothing to reformat")
+			}
+			return reformatConfigFile(args, configReformatStdout, !configReformatNoSort, !configReformatNoRealign)
 		},
 	}
 	configReformatCmd.Flags().BoolVar(&configReformatStdout, "stdout", false, "Print the reformatted file instead of rewriting it")
+	configReformatCmd.Flags().BoolVar(&configReformatNoSort, "no-sort", false, "Keep the settings in the order they are written in, only aligning them")
+	configReformatCmd.Flags().BoolVar(&configReformatNoRealign, "no-realign", false, "Keep every setting's line as written, only sorting them")
 
-	var configCleanStdout, configCleanReformat bool
+	var configCleanStdout, configCleanReformat, configCleanNoSort, configCleanNoRealign bool
 	configCleanCmd := &cobra.Command{
 		Use:   "clean [file]",
 		Short: "Remove the settings that are at their default or have no effect",
@@ -330,9 +339,13 @@ Reformats the active config file unless a file is given.`,
 Each setting is checked against how tuios actually loads the file, so one is
 only removed when taking it out leaves the configuration the same. A comment
 directly above a removed setting goes with it, and a section left without
-settings is removed with its comments. Everything else stays as written, so
-the '=' signs left over may no longer line up: --reformat also sorts and
-aligns what is left, in the same write. [env] and [hooks] are never touched.
+settings is removed with its comments. [env] and [hooks] are never touched.
+
+What is left is then reformatted as 'tuios config reformat' does: the keys
+of every section sorted and their '=' signs aligned again, in the same write.
+--no-sort keeps the keys in the order they are written in, --no-realign keeps
+every setting's line exactly as written; with both, only the removals are
+made and the rest of the file stays as it was.
 
 The previous file is kept as <file>.bak. A file that doesn't parse is left
 alone; run 'tuios config check' to find out why.
@@ -340,11 +353,16 @@ alone; run 'tuios config check' to find out why.
 Cleans the active config file unless a file is given.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return cleanConfigFile(args, configCleanStdout, configCleanReformat)
+			return cleanConfigFile(args, configCleanStdout, !configCleanNoSort, !configCleanNoRealign)
 		},
 	}
 	configCleanCmd.Flags().BoolVar(&configCleanStdout, "stdout", false, "Print the cleaned file instead of rewriting it")
-	configCleanCmd.Flags().BoolVar(&configCleanReformat, "reformat", false, "Also sort and align the settings left over, as tuios config reformat does")
+	configCleanCmd.Flags().BoolVar(&configCleanNoSort, "no-sort", false, "Keep the settings in the order they are written in")
+	configCleanCmd.Flags().BoolVar(&configCleanNoRealign, "no-realign", false, "Keep every setting's line as written instead of aligning the '=' signs")
+	// --reformat was needed before clean always reformatted; it is kept so
+	// scripts that pass it still work.
+	configCleanCmd.Flags().BoolVar(&configCleanReformat, "reformat", false, "No longer needed: clean always sorts and aligns what is left")
+	_ = configCleanCmd.Flags().MarkDeprecated("reformat", "clean now always sorts and aligns the settings left over")
 
 	configCmd.AddCommand(configPathCmd, configEditCmd, configResetCmd, configExampleCmd, configCheckCmd, configReformatCmd, configCleanCmd)
 

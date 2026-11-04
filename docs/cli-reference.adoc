@@ -1722,6 +1722,12 @@ setting is defined twice, is left alone; `tuios config check` says why.
 *Flags:*
 
 * `--stdout` - Print the reformatted file instead of rewriting it
+* `--no-sort` - Keep the settings in the order they are written in, only
+aligning them
+* `--no-realign` - Keep every setting's line exactly as written, only sorting
+them
+
+Giving both `--no-sort` and `--no-realign` leaves nothing to do and is refused.
 
 *Example:*
 
@@ -1729,6 +1735,7 @@ setting is defined twice, is left alone; `tuios config check` says why.
 ----
 tuios config reformat --stdout | diff ~/.config/tuios/config.toml -
 tuios config reformat
+tuios config reformat --no-sort
 ----
 
 ==== `+tuios config clean [file]+`
@@ -1743,9 +1750,14 @@ and values such as `0` or `""` that TUIOS reads as "use the default"
 Each setting is checked against how TUIOS loads the file, one at a time, so a
 setting is only removed when taking it out leaves the configuration the same.
 A comment directly above a removed setting goes with it, and a section left
-without settings is removed together with its comments. Everything else stays
-as written, in the same order. `+[env]+` and `+[hooks]+` have no defaults and are
-never touched.
+without settings is removed together with its comments. `+[env]+` and
+`+[hooks]+` have no defaults and are never touched.
+
+What is left is then reformatted as `tuios config reformat` does, in the same
+write: the keys of every section sorted, their `=` signs aligned again and
+your comments kept, so the result is a clean file and `+<file>.bak+` is still
+the original. `--no-sort` and `--no-realign` leave out either half; with both,
+only the removals are made and the rest of the file stays as written.
 
 A setting at its default stops following the default once you write it down:
 leaving it out means a later TUIOS version with a different default gives you
@@ -1760,16 +1772,20 @@ settings at their default as a count, the ones with no effect by name.
 
 * `--stdout` - Print the cleaned file instead of rewriting it (the report goes
 to stderr)
-* `--reformat` - Also sort and align the settings left over, as
-`tuios config reformat` does, in the same write, so `+<file>.bak+` is still the
-original file
+* `--no-sort` - Keep the settings in the order they are written in, only
+aligning them
+* `--no-realign` - Keep every setting's line exactly as written, only sorting
+them
+* `--reformat` - Deprecated and no longer needed: `clean` always sorts and
+aligns what is left
 
 *Example:*
 
 [source,bash]
 ----
 tuios config clean --stdout | diff ~/.config/tuios/config.toml -
-tuios config clean --reformat
+tuios config clean
+tuios config clean --no-sort
 ----
 
 '''''
