@@ -42,6 +42,10 @@ type UserConfig struct {
 // absent means "use the built-in default", which is the value documented on the
 // corresponding package var in constants.go.
 type NotificationsConfig struct {
+	// Enabled is the master switch for the dock's message block (default
+	// true). False shows no message at all, whatever its severity or source.
+	Enabled *bool `toml:"enabled"`
+
 	// Duration is how long an info or success message stays up, in seconds.
 	Duration int `toml:"duration"`
 
@@ -1289,6 +1293,9 @@ func clampMaxFPS(fps int) int {
 // default in place rather than collapsing a message to zero seconds, which is
 // the failure mode the old 1500ms default was already close enough to.
 func ApplyNotificationConfig(cfg *UserConfig) {
+	// Enabled defaults to true; only an explicit false turns the dock messages
+	// off. A reload that drops the key puts the default back.
+	NotificationsEnabled = cfg.Notifications.Enabled == nil || *cfg.Notifications.Enabled
 	if cfg.Notifications.Duration > 0 {
 		NotificationDuration = time.Duration(cfg.Notifications.Duration) * time.Second
 	}

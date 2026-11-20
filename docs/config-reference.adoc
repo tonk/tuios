@@ -11,8 +11,8 @@ endif::book[]
 = Configuration Reference
 ifndef::book[]
 Gaurav Gosain; Ton Kersten <tonk@smartowl.nl>
-:revnumber: v0.9.13
-:revdate: 2026-11-04
+:revnumber: v0.9.14
+:revdate: 2026-11-20
 ifdef::backend-pdf[]
 :title-page:
 :pdf-theme: tuios
@@ -2757,6 +2757,21 @@ A value of 1 to 3 seconds is applied as written, but produces a configuration wa
 Raise the value if you often miss messages; lower it only if you have read the warning and still want a faster dock.
 
 This duration is also used for agent alerts of the `done`, `idle` and `working` states, and for notifications raised by programs in a pane (see `guest`).
+
+[#cfg-notifications-enabled]
+=== enabled
+
+[horizontal]
+Type:: boolean
+Default:: `++true++`
+
+The master switch for the messages in the right-hand block of the dock.
+
+* `true` (default): messages are shown as described below.
+* `false`: no message is shown at all, whatever its severity or where it comes from: your own actions ("Copied 42 chars"), errors, agent alerts and notifications from programs in a pane. The `duration`, `error_sticky` and `guest` settings then have no visible effect.
+
+Messages are still written to the log, so a failure you did not see can be read in the log viewer.
+The notification sound and the forwarding of guest notifications to the host terminal are not part of this switch; see `guest` and <<cfg-notifications-agent,`+[notifications.agent]+`>> for those.
 
 [#cfg-notifications-error-duration]
 === error_duration

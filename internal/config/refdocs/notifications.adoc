@@ -3,6 +3,15 @@ The durations are applied when the configuration is loaded; absent, zero or nega
 
 What happens when an AI agent in a pane changes state lives in the separate <<cfg-notifications-agent,`+[notifications.agent]+`>> table.
 
+@@ enabled
+The master switch for the messages in the right-hand block of the dock.
+
+* `true` (default): messages are shown as described below.
+* `false`: no message is shown at all, whatever its severity or where it comes from: your own actions ("Copied 42 chars"), errors, agent alerts and notifications from programs in a pane. The `duration`, `error_sticky` and `guest` settings then have no visible effect.
+
+Messages are still written to the log, so a failure you did not see can be read in the log viewer.
+The notification sound and the forwarding of guest notifications to the host terminal are not part of this switch; see `guest` and <<cfg-notifications-agent,`+[notifications.agent]+`>> for those.
+
 @@ duration
 The number of seconds an informational or success message stays visible in the dock, such as "Copied 42 chars" or "Window: tiled".
 

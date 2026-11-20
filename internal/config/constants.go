@@ -80,6 +80,11 @@ var (
 	// screen, which is the affordance that it is waiting for you.
 	NotificationErrorSticky = true
 
+	// NotificationsEnabled is the master switch for the dock's message block.
+	// Off, no message is put up at all (errors included); messages are still
+	// written to the log.
+	NotificationsEnabled = true
+
 	// NotificationGuest lets a program inside a pane raise a notification of
 	// its own (OSC 9, 777, 99). Off drops them before they reach the dock or
 	// the host terminal; the bell is not affected.

@@ -179,6 +179,12 @@ func (m *OS) showNotification(message, notifType string, duration time.Duration,
 		return
 	}
 
+	// The master switch: [notifications] enabled = false. Logged above, so the
+	// message is not lost, just not put in front of the user.
+	if !config.NotificationsEnabled {
+		return
+	}
+
 	effective, sticky := notificationLifetime(notifType, duration)
 	if effective <= 0 && !sticky {
 		return

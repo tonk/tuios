@@ -521,3 +521,24 @@ func TestNotificationNeverCoversAPane(t *testing.T) {
 		t.Error("the message is not in the dock either; it went nowhere")
 	}
 }
+
+// TestNotificationsMasterSwitch checks [notifications] enabled = false: no
+// message of any severity reaches the dock, errors included.
+func TestNotificationsMasterSwitch(t *testing.T) {
+	t.Cleanup(func(old bool) func() { return func() { config.NotificationsEnabled = old } }(config.NotificationsEnabled))
+
+	for _, enabled := range []bool{true, false} {
+		config.NotificationsEnabled = enabled
+		m := notifTestOS(t, 100)
+		for _, kind := range []string{"info", "success", "warning", "error"} {
+			m.ShowNotification("something happened", kind, 5*time.Second)
+		}
+		got := len(m.Notifications)
+		if enabled && got == 0 {
+			t.Errorf("enabled: want messages in the dock, got none")
+		}
+		if !enabled && got != 0 {
+			t.Errorf("disabled: want no messages, got %d", got)
+		}
+	}
+}

@@ -121,6 +121,7 @@ var exampleTables = []exampleTable{
 	{
 		Path: "notifications",
 		Fields: []exampleField{
+			{"enabled", "true", "Master switch for the messages in the right-hand block of the dock. false shows none at all, errors included; they are still written to the log."},
 			{"duration", "6", "Seconds an info or success message stays up. A floor, not a cap; under 4 produces a config warning."},
 			{"warning_duration", "8", "Seconds a warning stays up."},
 			{"error_duration", "15", "Seconds an error stays up, used only when error_sticky = false."},
